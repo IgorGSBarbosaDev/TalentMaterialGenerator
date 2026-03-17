@@ -5,9 +5,11 @@ from pathlib import Path
 from typing import Final, TypedDict
 import unicodedata
 
-from pptx import Presentation
+from pptx import Presentation as PresentationFactory
 from pptx.dml.color import RGBColor
 from pptx.enum.shapes import MSO_SHAPE
+from pptx.presentation import Presentation
+from pptx.slide import Slide
 from pptx.util import Inches, Pt
 
 from app.core.reader import normalize_filename
@@ -41,7 +43,7 @@ class CaromConfig(TypedDict):
 
 def create_presentation() -> Presentation:
     """Create a carometro presentation with required dimensions."""
-    prs = Presentation()
+    prs = PresentationFactory()
     prs.slide_width = SLIDE_WIDTH
     prs.slide_height = SLIDE_HEIGHT
     return prs
@@ -149,7 +151,7 @@ def group_employees(
 
 
 def build_card(
-    slide,
+    slide: Slide,
     employee: dict[str, object],
     photos_dir: str | None,
     card_x: float,
@@ -322,7 +324,7 @@ def generate_carom_pptx(
 
         safe_group = normalize_filename(group_name) or f"grupo_{current}"
         output_path = output_root / f"{safe_group}.pptx"
-        prs.save(output_path)
+        prs.save(str(output_path))
         created_files.append(str(output_path))
 
         _send_callback(

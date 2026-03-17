@@ -82,7 +82,10 @@ def test_full_carom_flow_creates_one_file_per_group(tmp_path: Path) -> None:
     assert len(generated_files) == 2
     assert all(Path(file_path).exists() for file_path in generated_files)
     assert all(Path(file_path).suffix == ".pptx" for file_path in generated_files)
-    assert all(Path(file_path).parent == (tmp_path / "carometros") for file_path in generated_files)
+    assert all(
+        Path(file_path).parent == (tmp_path / "carometros")
+        for file_path in generated_files
+    )
     _assert_elapsed_under_limit(start, end)
 
 
@@ -123,7 +126,11 @@ def test_carom_slide_employees_sorted_descending_by_nota(tmp_path: Path) -> None
 
     expected_order = [
         employee["nome"]
-        for employee in sorted(employees, key=lambda employee: _safe_float(employee.get("nota", "")), reverse=True)
+        for employee in sorted(
+            employees,
+            key=lambda employee: _safe_float(employee.get("nota", "")),
+            reverse=True,
+        )
     ]
     expected_names = set(expected_order)
 

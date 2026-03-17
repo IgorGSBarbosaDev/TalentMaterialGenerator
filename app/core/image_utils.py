@@ -73,7 +73,7 @@ def generate_avatar(name: str) -> Image.Image:
 
 
 def resize_image(img: Image.Image, width: int, height: int) -> Image.Image:
-    return img.resize((width, height), Image.LANCZOS)
+    return img.resize((width, height), Image.Resampling.LANCZOS)
 
 
 def save_temp_png(img: Image.Image) -> str:

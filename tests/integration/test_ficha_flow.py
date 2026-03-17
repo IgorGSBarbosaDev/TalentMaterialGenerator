@@ -40,7 +40,9 @@ def test_full_flow_reads_spreadsheet_and_generates_pptx_files(tmp_path: Path) ->
     assert len(generated_files) == len(employees)
     assert all(Path(file_path).exists() for file_path in generated_files)
     assert all(Path(file_path).suffix == ".pptx" for file_path in generated_files)
-    assert all(Path(file_path).parent == (tmp_path / "fichas") for file_path in generated_files)
+    assert all(
+        Path(file_path).parent == (tmp_path / "fichas") for file_path in generated_files
+    )
     _assert_elapsed_under_limit(start, end)
 
 

@@ -6,9 +6,11 @@ from pathlib import Path
 from typing import Final
 
 from PIL import Image
-from pptx import Presentation
+from pptx import Presentation as PresentationFactory
 from pptx.dml.color import RGBColor
 from pptx.enum.shapes import MSO_CONNECTOR, MSO_SHAPE
+from pptx.presentation import Presentation
+from pptx.slide import Slide
 from pptx.util import Inches, Pt
 
 from app.core.image_utils import generate_avatar, make_circular_image, save_temp_png
@@ -33,7 +35,7 @@ PHOTO_HEIGHT: Final = Inches(1.344)
 
 def create_presentation() -> Presentation:
     """Create a ficha presentation with required WIDE dimensions."""
-    prs = Presentation()
+    prs = PresentationFactory()
     prs.slide_width = SLIDE_WIDTH
     prs.slide_height = SLIDE_HEIGHT
     return prs
@@ -143,7 +145,7 @@ def build_slide(
     prs: Presentation,
     employee: dict[str, str],
     photos_dir: str | None,
-):
+) -> Slide:
     """Build one ficha slide for a single employee and return the slide object."""
     slide = prs.slides.add_slide(prs.slide_layouts[6])
 
@@ -355,7 +357,7 @@ def generate_ficha_pptx(
 
             file_stem = normalize_filename(name) or f"Colaborador_{index}"
             output_path = output_root / f"{file_stem}.pptx"
-            prs.save(output_path)
+            prs.save(str(output_path))
             created_files.append(str(output_path))
 
             _send_callback(
