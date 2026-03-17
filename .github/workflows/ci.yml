@@ -1,0 +1,318 @@
+name: CI — USI Generator
+
+# ─── TRIGGER STRATEGY (Trunk-Based Development) ───────────────────────────────
+# Every push to main and every PR targeting main triggers the full pipeline.
+# Short-lived feature branches (max 2 days) merge via PR with fast review.
+# No long-lived branches. No git-flow. No release branches.
+# ──────────────────────────────────────────────────────────────────────────────
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+# Cancel in-progress runs for the same branch/PR to avoid wasted CI minutes
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.11"
+  # Disable PYTHONHASHSEED randomization — ensures deterministic tests
+  PYTHONHASHSEED: "0"
+
+# ─── JOBS ─────────────────────────────────────────────────────────────────────
+
+jobs:
+
+  # ── JOB 1: Code Style & Lint ──────────────────────────────────────────────
+  lint:
+    name: "① Lint & Format"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install lint dependencies
+        run: pip install black>=24.0.0 flake8>=7.0.0 mypy>=1.9.0
+
+      - name: "black — check formatting"
+        run: black --check --diff app/ tests/
+        # Fails if any file needs reformatting.
+        # Fix locally with: black app/ tests/
+
+      - name: "flake8 — check style violations"
+        run: |
+          flake8 app/ tests/ \
+            --max-line-length=100 \
+            --extend-ignore=E203,W503 \
+            --exclude=__pycache__,.venv
+        # E203: whitespace before ':' (conflicts with black)
+        # W503: line break before binary operator (conflicts with black)
+
+      - name: "mypy — check type annotations"
+        run: |
+          pip install python-pptx openpyxl pandas Pillow customtkinter 2>/dev/null || true
+          mypy app/ \
+            --ignore-missing-imports \
+            --python-version=3.11 \
+            --no-error-summary
+        # Missing stubs for some libs are ignored — focus on our own code
+
+  # ── JOB 2: Unit & Integration Tests + Coverage ────────────────────────────
+  test:
+    name: "② Tests & Coverage"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: lint
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install all dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: "pytest — unit tests"
+        run: |
+          pytest tests/unit/ \
+            --tb=short \
+            --cov=app \
+            --cov-report=term-missing \
+            --cov-report=xml:coverage-unit.xml \
+            -v
+        env:
+          # Suppress Tkinter display errors on headless ubuntu
+          DISPLAY: ":99"
+
+      - name: "pytest — integration tests"
+        run: |
+          pytest tests/integration/ \
+            --tb=short \
+            --cov=app \
+            --cov-append \
+            --cov-report=term-missing \
+            --cov-report=xml:coverage-full.xml \
+            -v
+
+      - name: "Coverage gate — global minimum 80%"
+        run: |
+          pytest \
+            --cov=app \
+            --cov-fail-under=80 \
+            --no-header -q \
+            --co -q 2>/dev/null || true
+          coverage report --fail-under=80
+        # Hard gate: pipeline fails if global coverage drops below 80%
+
+      - name: "Coverage gate — app/core minimum 100% (public functions)"
+        run: |
+          coverage report \
+            --include="app/core/*" \
+            --fail-under=100 || {
+            echo "::error::Coverage for app/core/ dropped below 100%."
+            echo "::error::All public functions in core must be 100% covered."
+            exit 1
+          }
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: |
+            coverage-unit.xml
+            coverage-full.xml
+          retention-days: 7
+
+      - name: Coverage summary comment (PR only)
+        if: github.event_name == 'pull_request'
+        uses: orgoro/coverage@v3
+        with:
+          coverageFile: coverage-full.xml
+          token: ${{ secrets.GITHUB_TOKEN }}
+          thresholdAll: 0.80
+          thresholdNew: 1.00
+          thresholdModified: 1.00
+
+  # ── JOB 3: Architecture Rules ─────────────────────────────────────────────
+  architecture:
+    name: "③ Architecture Rules"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: lint
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: "Run architecture validator"
+        run: python scripts/check_architecture.py
+        # Checks:
+        #   - No app.ui imports in app/core/
+        #   - No customtkinter imports outside app/ui/
+        #   - No Inches(10) in generator_ficha.py
+        #   - No hash() in image_utils.py (must use hashlib)
+        #   - No hardcoded hex colors in app/ui/
+        #   - PYTHONHASHSEED safety in deterministic functions
+
+      - name: "Check for forbidden patterns (grep-based)"
+        run: |
+          echo "Checking for Inches(10) in generator_ficha..."
+          ! grep -rn "Inches(10)" app/core/generator_ficha.py || {
+            echo "::error file=app/core/generator_ficha.py::Found Inches(10) — slide width must be Inches(13.271)"
+            exit 1
+          }
+
+          echo "Checking for #84BD00 as slide title color in generator_ficha..."
+          ! grep -n '"#84BD00"' app/core/generator_ficha.py | grep -i "title\|titulo\|header" || {
+            echo "::warning file=app/core/generator_ficha.py::Possible wrong title color. Slide title must use #92D050"
+          }
+
+          echo "Checking for direct widget updates in Thread workers..."
+          python scripts/check_architecture.py --check-threading
+
+          echo "All architecture checks passed."
+
+  # ── JOB 4: Import Smoke Test (validates main.py can be imported) ───────────
+  smoke-import:
+    name: "④ Import Smoke Test"
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    needs: [test, architecture]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: "Smoke — import all core modules"
+        run: |
+          python -c "
+          import sys
+          modules = [
+              'app.config.theme',
+              'app.config.settings',
+              'app.core.image_utils',
+              'app.core.reader',
+              'app.core.generator_ficha',
+              'app.core.generator_carom',
+              'app.core.pdf_exporter',
+          ]
+          failed = []
+          for mod in modules:
+              try:
+                  __import__(mod)
+                  print(f'  ✓ {mod}')
+              except Exception as e:
+                  print(f'  ✗ {mod}: {e}')
+                  failed.append(mod)
+          if failed:
+              print(f'\nFailed to import: {failed}')
+              sys.exit(1)
+          print(f'\nAll {len(modules)} core modules imported successfully.')
+          "
+
+      - name: "Smoke — verify no circular imports"
+        run: |
+          python -c "
+          # Verify core never imports from ui
+          import ast, pathlib, sys
+          violations = []
+          for py_file in pathlib.Path('app/core').rglob('*.py'):
+              tree = ast.parse(py_file.read_text())
+              for node in ast.walk(tree):
+                  if isinstance(node, (ast.Import, ast.ImportFrom)):
+                      src = ast.dump(node)
+                      if 'app.ui' in src or 'customtkinter' in src:
+                          violations.append(f'{py_file}:{node.lineno}')
+          if violations:
+              for v in violations:
+                  print(f'::error::{v} — core must not import from ui or customtkinter')
+              sys.exit(1)
+          print('No circular import violations found.')
+          "
+
+  # ── JOB 5: Security & Dependency Audit ────────────────────────────────────
+  security:
+    name: "⑤ Security Audit"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: lint
+    # Non-blocking on main (informational). Blocking on PRs.
+    continue-on-error: ${{ github.ref == 'refs/heads/main' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install pip-audit
+        run: pip install pip-audit
+
+      - name: "Audit dependencies for known CVEs"
+        run: pip-audit -r requirements.txt --desc
+
+  # ── FINAL STATUS: Required for branch protection rule ─────────────────────
+  ci-status:
+    name: "✅ CI Complete"
+    runs-on: ubuntu-latest
+    needs: [lint, test, architecture, smoke-import]
+    if: always()
+
+    steps:
+      - name: Check all jobs passed
+        run: |
+          if [[ "${{ needs.lint.result }}" != "success" ]]; then
+            echo "::error::Lint job failed"
+            exit 1
+          fi
+          if [[ "${{ needs.test.result }}" != "success" ]]; then
+            echo "::error::Test/Coverage job failed"
+            exit 1
+          fi
+          if [[ "${{ needs.architecture.result }}" != "success" ]]; then
+            echo "::error::Architecture check failed"
+            exit 1
+          fi
+          if [[ "${{ needs.smoke-import.result }}" != "success" ]]; then
+            echo "::error::Smoke import test failed"
+            exit 1
+          fi
+          echo "All CI gates passed. Safe to merge."
