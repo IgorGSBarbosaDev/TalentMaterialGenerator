@@ -1,34 +1,36 @@
 from __future__ import annotations
 
+import hashlib
+import os
+import tempfile
 import unicodedata
+from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
+import requests
 from openpyxl import load_workbook
+
+from app.config import settings
 
 COLUMN_VARIATIONS: dict[str, tuple[str, ...]] = {
     "nome": ("nome", "name", "nome_completo", "colaborador", "funcionario"),
     "idade": ("idade", "age", "anos"),
-    "cargo": ("cargo", "funcao", "funcao", "role", "posicao", "posicao"),
+    "cargo": ("cargo", "funcao", "função", "role", "posicao", "posição"),
     "antiguidade": ("antiguidade", "tempo_empresa", "anos_empresa", "admissao"),
-    "formacao": ("formacao", "formacao", "graduacao", "escolaridade", "education"),
+    "formacao": ("formacao", "formação", "graduacao", "escolaridade", "education"),
     "resumo_perfil": ("resumo", "perfil", "resumo_perfil", "descricao", "bio"),
-    "trajetoria": ("trajetoria", "trajetoria", "historico", "historico", "carreira"),
+    "trajetoria": ("trajetoria", "trajetória", "historico", "histórico", "carreira"),
     "performance": (
         "performance",
         "avaliacao",
-        "avaliacao",
+        "avaliação",
         "resultado",
         "nota_historico",
     ),
-    "foto": ("foto", "photo", "imagem", "image", "arquivo_foto"),
-    "area": ("area", "area", "departamento", "setor", "gerencia"),
+    "area": ("area", "área", "departamento", "setor", "gerencia"),
     "potencial": ("potencial", "potential"),
     "nota": ("nota", "score", "avaliacao_atual", "resultado_atual"),
-}
-
-_NORMALIZED_VARIATIONS: dict[str, set[str]] = {
-    field: {variation for variation in variations}
-    for field, variations in COLUMN_VARIATIONS.items()
 }
 
 
@@ -38,12 +40,24 @@ def _normalize_text(value: str) -> str:
     return ascii_only.strip().lower().replace(" ", "_")
 
 
-for _field, _variations in COLUMN_VARIATIONS.items():
-    _NORMALIZED_VARIATIONS[_field] = {_normalize_text(item) for item in _variations}
+NORMALIZED_VARIATIONS: dict[str, set[str]] = {
+    field: {_normalize_text(item) for item in variations}
+    for field, variations in COLUMN_VARIATIONS.items()
+}
+
+
+@dataclass
+class SpreadsheetSourceResult:
+    path: str
+    source_kind: str
+    is_temporary: bool
+    used_cache: bool
+    cache_path: str | None = None
+    message: str = ""
+    downloaded_at: str = ""
 
 
 def read_spreadsheet(path: str) -> list[dict[str, str]]:
-    """Read an .xlsx file and return one dict per row."""
     file_path = Path(path)
     if not file_path.exists():
         raise FileNotFoundError(path)
@@ -55,7 +69,6 @@ def read_spreadsheet(path: str) -> list[dict[str, str]]:
 
     rows = worksheet.iter_rows(values_only=True)
     headers_row = next(rows, None)
-
     if headers_row is None:
         return []
 
@@ -85,7 +98,6 @@ def read_spreadsheet(path: str) -> list[dict[str, str]]:
 
 
 def detect_columns(headers: list[str]) -> dict[str, str | None]:
-    """Map incoming headers into known application fields."""
     mapping: dict[str, str | None] = {
         "nome": None,
         "idade": None,
@@ -95,7 +107,6 @@ def detect_columns(headers: list[str]) -> dict[str, str | None]:
         "resumo_perfil": None,
         "trajetoria": None,
         "performance": None,
-        "foto": None,
         "area": None,
         "potencial": None,
         "nota": None,
@@ -103,7 +114,7 @@ def detect_columns(headers: list[str]) -> dict[str, str | None]:
 
     for header in headers:
         normalized_header = _normalize_text(str(header))
-        for field, accepted in _NORMALIZED_VARIATIONS.items():
+        for field, accepted in NORMALIZED_VARIATIONS.items():
             if mapping[field] is None and normalized_header in accepted:
                 mapping[field] = header
                 break
@@ -112,14 +123,10 @@ def detect_columns(headers: list[str]) -> dict[str, str | None]:
 
 
 def validate_required_columns(mapping: dict[str, str | None]) -> list[str]:
-    """Return required fields that are missing from the mapping."""
-    required = ("nome", "cargo")
-    missing = [field for field in required if not mapping.get(field)]
-    return missing
+    return [field for field in ("nome", "cargo") if not mapping.get(field)]
 
 
 def parse_multiline_field(value: str) -> list[str]:
-    """Split text by semicolon/newline, trim, and remove empty entries."""
     if value == "":
         return []
 
@@ -130,15 +137,159 @@ def parse_multiline_field(value: str) -> list[str]:
             cleaned = chunk.strip()
             if cleaned:
                 items.append(cleaned)
-
     return items
 
 
 def normalize_filename(name: str) -> str:
-    """Remove accents and replace spaces with underscores."""
     if name == "":
         return ""
 
     normalized = unicodedata.normalize("NFKD", name)
     ascii_only = normalized.encode("ascii", "ignore").decode("ascii")
     return ascii_only.replace(" ", "_")
+
+
+def is_remote_source(entry: str) -> bool:
+    return entry.strip().lower().startswith("https://")
+
+
+def convert_onedrive_link(share_url: str) -> str:
+    cleaned = share_url.strip()
+    if "?download=1" in cleaned:
+        return cleaned
+    if "?e=" in cleaned:
+        return cleaned.replace("?e=", "?download=1&e=", 1)
+    separator = "&" if "?" in cleaned else "?"
+    return f"{cleaned}{separator}download=1"
+
+
+def get_cache_file_path(source_url: str) -> Path:
+    digest = hashlib.md5(source_url.encode("utf-8")).hexdigest()
+    return settings.get_cache_dir() / f"{digest}.xlsx"
+
+
+def cache_is_fresh(cache_path: Path, ttl_hours: int) -> bool:
+    if not cache_path.exists():
+        return False
+    age = datetime.now(UTC) - datetime.fromtimestamp(cache_path.stat().st_mtime, UTC)
+    return age <= timedelta(hours=max(ttl_hours, 0))
+
+
+def download_spreadsheet(url: str, timeout: int = 15) -> bytes:
+    response = requests.get(url, timeout=timeout)
+    response.raise_for_status()
+    return response.content
+
+
+def save_downloaded_spreadsheet(content: bytes, source_url: str) -> Path:
+    cache_path = get_cache_file_path(source_url)
+    cache_path.parent.mkdir(parents=True, exist_ok=True)
+    cache_path.write_bytes(content)
+    return cache_path
+
+
+def resolve_spreadsheet_source(
+    entry: str,
+    *,
+    cache_enabled: bool = True,
+    cache_ttl_hours: int = 24,
+    force_refresh: bool = False,
+) -> SpreadsheetSourceResult:
+    cleaned = entry.strip()
+    if cleaned == "":
+        raise ValueError("Spreadsheet source is empty")
+
+    if not is_remote_source(cleaned):
+        if not Path(cleaned).exists():
+            raise FileNotFoundError(cleaned)
+        return SpreadsheetSourceResult(
+            path=cleaned,
+            source_kind="local",
+            is_temporary=False,
+            used_cache=False,
+            message="Usando planilha local.",
+        )
+
+    source_url = convert_onedrive_link(cleaned)
+    cache_path = get_cache_file_path(source_url)
+
+    if cache_enabled and not force_refresh and cache_is_fresh(cache_path, cache_ttl_hours):
+        return SpreadsheetSourceResult(
+            path=str(cache_path),
+            source_kind="onedrive",
+            is_temporary=False,
+            used_cache=True,
+            cache_path=str(cache_path),
+            message="Usando cache local recente.",
+            downloaded_at=datetime.fromtimestamp(
+                cache_path.stat().st_mtime, UTC
+            ).isoformat(),
+        )
+
+    try:
+        content = download_spreadsheet(source_url)
+        if cache_enabled:
+            saved_path = save_downloaded_spreadsheet(content, source_url)
+            return SpreadsheetSourceResult(
+                path=str(saved_path),
+                source_kind="onedrive",
+                is_temporary=False,
+                used_cache=False,
+                cache_path=str(saved_path),
+                message="Planilha atualizada a partir do OneDrive.",
+                downloaded_at=datetime.now(UTC).isoformat(),
+            )
+
+        with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False) as temp_file:
+            temp_file.write(content)
+            temp_path = temp_file.name
+        return SpreadsheetSourceResult(
+            path=temp_path,
+            source_kind="onedrive",
+            is_temporary=True,
+            used_cache=False,
+            message="Planilha baixada temporariamente do OneDrive.",
+            downloaded_at=datetime.now(UTC).isoformat(),
+        )
+    except Exception as exc:
+        if cache_enabled and cache_path.exists():
+            return SpreadsheetSourceResult(
+                path=str(cache_path),
+                source_kind="onedrive",
+                is_temporary=False,
+                used_cache=True,
+                cache_path=str(cache_path),
+                message=f"Falha ao atualizar a base; usando cache local. {exc}",
+                downloaded_at=datetime.fromtimestamp(
+                    cache_path.stat().st_mtime, UTC
+                ).isoformat(),
+            )
+        raise RuntimeError(
+            "Não foi possível acessar o link. Verifique a conexão com a rede da organização."
+        ) from exc
+
+
+def cleanup_source(result: SpreadsheetSourceResult) -> None:
+    if result.is_temporary:
+        try:
+            os.unlink(result.path)
+        except OSError:
+            pass
+
+
+def remap_rows(
+    rows: list[dict[str, str]], mapping: dict[str, str | None]
+) -> list[dict[str, str]]:
+    normalized_rows: list[dict[str, str]] = []
+    for row in rows:
+        normalized: dict[str, str] = {}
+        for target_field, source_field in mapping.items():
+            normalized[target_field] = row.get(source_field, "") if source_field else ""
+        normalized_rows.append(normalized)
+    return normalized_rows
+
+
+def detect_columns_from_source(path: str) -> dict[str, str | None]:
+    rows = read_spreadsheet(path)
+    headers = list(rows[0].keys()) if rows else []
+    return detect_columns(headers)

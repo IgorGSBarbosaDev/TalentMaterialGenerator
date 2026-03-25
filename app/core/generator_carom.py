@@ -1,13 +1,14 @@
 from __future__ import annotations
 
+import math
+import unicodedata
 from collections.abc import Callable
 from pathlib import Path
 from typing import Final, TypedDict
-import unicodedata
 
 from pptx import Presentation as PresentationFactory
 from pptx.dml.color import RGBColor
-from pptx.enum.shapes import MSO_SHAPE
+from pptx.enum.shapes import MSO_AUTO_SHAPE_TYPE, MSO_SHAPE
 from pptx.presentation import Presentation
 from pptx.slide import Slide
 from pptx.util import Inches, Pt
@@ -16,17 +17,16 @@ from app.core.reader import normalize_filename
 
 SLIDE_WIDTH: Final = Inches(13.271)
 SLIDE_HEIGHT: Final = Inches(7.500)
-
-HEADER_COLOR: Final = "#4A6E00"
+HEADER_COLOR: Final = "#2D4200"
 HEADER_TEXT_COLOR: Final = "#FFFFFF"
 CARD_BG_COLOR: Final = "#F5F5F5"
 TEXT_COLOR: Final = "#111827"
 UNKNOWN_POTENTIAL_COLOR: Final = "#9CA3AF"
+PLACEHOLDER_BORDER: Final = "#84BD00"
 
 CORES_POTENCIAL: Final[dict[str, str]] = {
     "alto": "#84BD00",
     "medio": "#F59E0B",
-    "médio": "#F59E0B",
     "baixo": "#EF4444",
 }
 
@@ -42,7 +42,6 @@ class CaromConfig(TypedDict):
 
 
 def create_presentation() -> Presentation:
-    """Create a carometro presentation with required dimensions."""
     prs = PresentationFactory()
     prs.slide_width = SLIDE_WIDTH
     prs.slide_height = SLIDE_HEIGHT
@@ -55,9 +54,7 @@ def _rgb_from_hex(hex_color: str) -> RGBColor:
 
 
 def _clean_str(value: object) -> str:
-    if value is None:
-        return ""
-    return str(value).strip()
+    return "" if value is None else str(value).strip()
 
 
 def _safe_float(value: object, default: float = 0.0) -> float:
@@ -103,17 +100,28 @@ def _add_text(
     textbox = slide.shapes.add_textbox(
         Inches(left), Inches(top), Inches(width), Inches(height)
     )
-    frame = textbox.text_frame
-    frame.clear()
-    paragraph = frame.paragraphs[0]
+    paragraph = textbox.text_frame.paragraphs[0]
     paragraph.text = text
     paragraph.font.size = Pt(size_pt)
     paragraph.font.bold = bold
     paragraph.font.color.rgb = _rgb_from_hex(color)
 
 
+def _add_placeholder(slide: Slide, left: float, top: float, size: float) -> None:
+    oval = slide.shapes.add_shape(
+        MSO_AUTO_SHAPE_TYPE.OVAL,
+        Inches(left),
+        Inches(top),
+        Inches(size),
+        Inches(size),
+    )
+    oval.fill.solid()
+    oval.fill.fore_color.rgb = _rgb_from_hex("#FFFFFF")
+    oval.line.color.rgb = _rgb_from_hex(PLACEHOLDER_BORDER)
+    oval.line.width = Pt(2)
+
+
 def get_score_color(score: float) -> str:
-    """Return semantic score color by threshold."""
     if score >= 4.0:
         return "#84BD00"
     if score >= 3.0:
@@ -122,7 +130,6 @@ def get_score_color(score: float) -> str:
 
 
 def get_potential_color(potential: str) -> str:
-    """Return semantic potential color for alto/medio/baixo values."""
     normalized = _normalize_token(potential)
     return CORES_POTENCIAL.get(normalized, UNKNOWN_POTENTIAL_COLOR)
 
@@ -130,39 +137,32 @@ def get_potential_color(potential: str) -> str:
 def group_employees(
     employees: list[dict[str, object]], grouping_field: str | None
 ) -> dict[str, list[dict[str, object]]]:
-    """Group employees and sort each group by descending score."""
     if not employees:
         return {}
 
     groups: dict[str, list[dict[str, object]]] = {}
-
     if not grouping_field:
         groups["Todos"] = list(employees)
     else:
         for employee in employees:
-            raw_group = _clean_str(employee.get(grouping_field))
-            group_name = raw_group or "Sem Grupo"
+            group_name = _clean_str(employee.get(grouping_field)) or "Sem Grupo"
             groups.setdefault(group_name, []).append(employee)
 
     for items in groups.values():
         items.sort(key=lambda item: _safe_float(item.get("nota"), 0.0), reverse=True)
-
     return groups
 
 
 def build_card(
     slide: Slide,
     employee: dict[str, object],
-    photos_dir: str | None,
+    *,
     card_x: float,
     card_y: float,
     card_width: float,
     card_height: float,
     config: CaromConfig,
 ) -> None:
-    """Render one employee card in the carometro grid."""
-    del photos_dir
-
     _add_rect(
         slide,
         left=card_x,
@@ -171,6 +171,10 @@ def build_card(
         height=card_height,
         color=CARD_BG_COLOR,
     )
+
+    placeholder_size = min(card_width * 0.36, 0.62)
+    placeholder_x = card_x + (card_width - placeholder_size) / 2
+    _add_placeholder(slide, placeholder_x, card_y + 0.10, placeholder_size)
 
     name = _clean_str(employee.get("nome")) or "Sem Nome"
     cargo = _clean_str(employee.get("cargo"))
@@ -182,11 +186,11 @@ def build_card(
         slide,
         text=name,
         left=card_x + 0.08,
-        top=card_y + 0.08,
+        top=card_y + 0.78,
         width=card_width - 0.16,
-        height=0.28,
+        height=0.25,
         color=TEXT_COLOR,
-        size_pt=12,
+        size_pt=10,
         bold=True,
     )
 
@@ -195,42 +199,40 @@ def build_card(
             slide,
             text=cargo,
             left=card_x + 0.08,
-            top=card_y + 0.38,
+            top=card_y + 1.02,
             width=card_width - 0.16,
             height=0.24,
             color=TEXT_COLOR,
-            size_pt=10,
+            size_pt=9,
         )
 
     if config["show_nota"]:
-        score_color = get_score_color(score_value)
-        if not config["cores_automaticas"]:
-            score_color = TEXT_COLOR
+        score_color = get_score_color(score_value) if config["cores_automaticas"] else TEXT_COLOR
         _add_text(
             slide,
             text=score_text,
             left=card_x + 0.08,
-            top=card_y + card_height - 0.34,
+            top=card_y + card_height - 0.36,
             width=0.50,
-            height=0.24,
+            height=0.20,
             color=score_color,
-            size_pt=12,
+            size_pt=11,
             bold=True,
         )
 
     if config["show_potencial"] and potential:
-        badge_color = get_potential_color(potential)
-        if not config["cores_automaticas"]:
-            badge_color = TEXT_COLOR
+        potential_color = (
+            get_potential_color(potential) if config["cores_automaticas"] else TEXT_COLOR
+        )
         _add_text(
             slide,
             text=potential,
             left=card_x + card_width - 0.95,
-            top=card_y + card_height - 0.34,
+            top=card_y + card_height - 0.36,
             width=0.87,
-            height=0.24,
-            color=badge_color,
-            size_pt=10,
+            height=0.20,
+            color=potential_color,
+            size_pt=9,
             bold=True,
         )
 
@@ -244,20 +246,16 @@ def _build_group_slide(
     prs: Presentation,
     group_name: str,
     employees: list[dict[str, object]],
-    photos_dir: str | None,
     config: CaromConfig,
 ) -> None:
     slide = prs.slides.add_slide(prs.slide_layouts[6])
-
     margin = 0.30
     header_height = 0.80
-    card_height = 1.45
+    card_height = 1.75
     n_columns = max(1, config["colunas"])
 
     slide_width = prs.slide_width / Inches(1)
-
-    # Required grid layout formulas for card sizing and placement.
-    card_width = (slide_width - 2 * margin) / n_columns
+    card_width = (slide_width - (2 * margin) - (0.12 * (n_columns - 1))) / n_columns
 
     _add_rect(
         slide,
@@ -267,7 +265,6 @@ def _build_group_slide(
         height=header_height,
         color=HEADER_COLOR,
     )
-
     title = f"{config['titulo']} - {group_name}" if config["titulo"] else group_name
     _add_text(
         slide,
@@ -284,30 +281,25 @@ def _build_group_slide(
     for index, employee in enumerate(employees):
         row_index = index // n_columns
         col_index = index % n_columns
-
-        card_x = margin + col_index * card_width
-        card_y = header_height + margin + row_index * card_height
-
+        card_x = margin + col_index * (card_width + 0.12)
+        card_y = header_height + margin + row_index * (card_height + 0.10)
         build_card(
             slide,
             employee,
-            photos_dir,
-            card_x,
-            card_y,
-            card_width,
-            card_height,
-            config,
+            card_x=card_x,
+            card_y=card_y,
+            card_width=card_width,
+            card_height=card_height,
+            config=config,
         )
 
 
 def generate_carom_pptx(
     employees: list[dict[str, object]],
-    photos_dir: str | None,
     output_dir: str,
     config: CaromConfig,
     callback: Callable[[dict], None] | None = None,
 ) -> list[str]:
-    """Generate carometro PPTX files, one per group."""
     output_root = Path(output_dir) / "carometros"
     output_root.mkdir(parents=True, exist_ok=True)
 
@@ -317,10 +309,17 @@ def generate_carom_pptx(
 
     created_files: list[str] = []
     total = len(groups)
+    rows_per_slide = 3
+    cards_per_slide = max(1, config["colunas"]) * rows_per_slide
 
     for current, (group_name, group_members) in enumerate(groups.items(), start=1):
         prs = create_presentation()
-        _build_group_slide(prs, group_name, group_members, photos_dir, config)
+        group_pages = math.ceil(len(group_members) / cards_per_slide)
+
+        for page_index in range(group_pages):
+            start = page_index * cards_per_slide
+            end = start + cards_per_slide
+            _build_group_slide(prs, group_name, group_members[start:end], config)
 
         safe_group = normalize_filename(group_name) or f"grupo_{current}"
         output_path = output_root / f"{safe_group}.pptx"
@@ -331,7 +330,7 @@ def generate_carom_pptx(
             callback,
             {
                 "type": "log",
-                "message": f"\u2713 Gerando carometro: {group_name}",
+                "message": f"Gerando carometro: {group_name}",
                 "level": "success",
             },
         )
