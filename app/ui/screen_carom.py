@@ -5,6 +5,7 @@ from typing import Any
 
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
+    QCheckBox,
     QComboBox,
     QFileDialog,
     QFormLayout,
@@ -13,48 +14,26 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QPushButton,
-    QVBoxLayout,
     QWidget,
+    QVBoxLayout,
 )
 
 from app.core import reader
 
 
-class FichaScreen(QWidget):
+class CaromScreen(QWidget):
     generate_requested = Signal(dict)
 
     def __init__(self, config: dict[str, Any]) -> None:
         super().__init__()
-        self.column_fields = [
-            "nome",
-            "idade",
-            "cargo",
-            "antiguidade",
-            "formacao",
-            "resumo_perfil",
-            "trajetoria",
-            "performance",
-        ]
-        self.column_labels = {
-            "nome": "Nome*",
-            "idade": "Idade",
-            "cargo": "Cargo*",
-            "antiguidade": "Antiguidade",
-            "formacao": "Formação",
-            "resumo_perfil": "Resumo de Perfil",
-            "trajetoria": "Trajetória",
-            "performance": "Performance",
-        }
-        self.column_mapping: dict[str, str | None] = {
-            field: None for field in self.column_fields
-        }
+        self.column_fields = ["nome", "cargo", "area", "nota", "potencial"]
         self._column_selectors: dict[str, QComboBox] = {}
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(14)
 
-        title = QLabel("Ficha de Currículo")
+        title = QLabel("Carômetro")
         title.setObjectName("title")
         layout.addWidget(title)
 
@@ -65,11 +44,23 @@ class FichaScreen(QWidget):
 
         self.entry_source = QLineEdit(config.get("default_onedrive_url", ""))
         self.entry_output = QLineEdit(config.get("default_output_dir", ""))
-        self.output_mode = QComboBox()
-        self.output_mode.addItems(["one_file_per_employee", "single_deck"])
-        self.output_mode.setCurrentText(config.get("default_output_mode", "one_file_per_employee"))
+        self.grouping = QComboBox()
+        self.grouping.addItems(["area", "cargo", "potencial", "sem agrupamento"])
+        self.columns = QComboBox()
+        self.columns.addItems(["3", "4", "5"])
+        self.columns.setCurrentText(str(config.get("default_carom_columns", 5)))
+        self.title_field = QLineEdit("Carômetro")
         self.status_label = QLabel("")
         self.status_label.setObjectName("muted")
+
+        self.chk_show_nota = QCheckBox("Mostrar nota")
+        self.chk_show_nota.setChecked(True)
+        self.chk_show_potencial = QCheckBox("Mostrar potencial")
+        self.chk_show_potencial.setChecked(True)
+        self.chk_show_cargo = QCheckBox("Mostrar cargo")
+        self.chk_show_cargo.setChecked(True)
+        self.chk_cores = QCheckBox("Cores automáticas")
+        self.chk_cores.setChecked(True)
 
         source_panel = QFrame()
         source_panel.setObjectName("panel")
@@ -77,7 +68,9 @@ class FichaScreen(QWidget):
         source_form.addRow("Fonte", self.source_type)
         source_form.addRow("Planilha/Link", self.entry_source)
         source_form.addRow("Saída", self.entry_output)
-        source_form.addRow("Modo de saída", self.output_mode)
+        source_form.addRow("Agrupamento", self.grouping)
+        source_form.addRow("Colunas", self.columns)
+        source_form.addRow("Título", self.title_field)
         layout.addWidget(source_panel)
 
         actions = QHBoxLayout()
@@ -101,15 +94,18 @@ class FichaScreen(QWidget):
             combo = QComboBox()
             combo.addItem("")
             self._column_selectors[field] = combo
-            mapping_form.addRow(self.column_labels[field], combo)
+            mapping_form.addRow(field.capitalize(), combo)
         layout.addWidget(mapping_panel)
 
-        self.preview_label = QLabel("Preview: ficha no template oficial com placeholder circular.")
-        self.preview_label.setWordWrap(True)
-        self.preview_label.setObjectName("dim")
-        layout.addWidget(self.preview_label)
+        toggles = QHBoxLayout()
+        toggles.addWidget(self.chk_show_nota)
+        toggles.addWidget(self.chk_show_potencial)
+        toggles.addWidget(self.chk_show_cargo)
+        toggles.addWidget(self.chk_cores)
+        toggles.addStretch(1)
+        layout.addLayout(toggles)
 
-        self.btn_generate = QPushButton("GERAR FICHAS")
+        self.btn_generate = QPushButton("GERAR CARÔMETRO")
         self.btn_generate.setObjectName("primary")
         self.btn_generate.clicked.connect(self._start_generation)
         layout.addWidget(self.btn_generate)
@@ -126,9 +122,7 @@ class FichaScreen(QWidget):
             else config.get("default_onedrive_url", "")
         )
         self.entry_output.setText(config.get("default_output_dir", ""))
-        self.output_mode.setCurrentText(
-            config.get("default_output_mode", "one_file_per_employee")
-        )
+        self.columns.setCurrentText(str(config.get("default_carom_columns", 5)))
 
     def _choose_source_file(self) -> None:
         file_path, _filter = QFileDialog.getOpenFileName(
@@ -154,6 +148,12 @@ class FichaScreen(QWidget):
                 if index >= 0:
                     combo.setCurrentIndex(index)
 
+    def _get_column_mapping(self) -> dict[str, str | None]:
+        return {
+            field: combo.currentText() or None
+            for field, combo in self._column_selectors.items()
+        }
+
     def _validate_inputs(self) -> bool:
         source = self.entry_source.text().strip()
         output_dir = self.entry_output.text().strip()
@@ -178,22 +178,6 @@ class FichaScreen(QWidget):
 
         self.status_label.setText("Configuração válida.")
         return True
-
-    def _get_column_mapping(self) -> dict[str, str | None]:
-        return {
-            field: combo.currentText() or None
-            for field, combo in self._column_selectors.items()
-        }
-
-    def _get_config(self) -> dict[str, Any]:
-        source_kind = "local" if self.source_type.currentText() == "Arquivo local" else "onedrive"
-        return {
-            "spreadsheet_source": self.entry_source.text().strip(),
-            "source_kind": source_kind,
-            "output_dir": self.entry_output.text().strip(),
-            "column_mapping": self._get_column_mapping(),
-            "output_mode": self.output_mode.currentText(),
-        }
 
     def _auto_detect_columns(self) -> None:
         source = self.entry_source.text().strip()
@@ -225,4 +209,22 @@ class FichaScreen(QWidget):
     def _start_generation(self) -> None:
         if not self._validate_inputs():
             return
-        self.generate_requested.emit(self._get_config())
+
+        grouping = self.grouping.currentText()
+        self.generate_requested.emit(
+            {
+                "spreadsheet_source": self.entry_source.text().strip(),
+                "source_kind": "local"
+                if self.source_type.currentText() == "Arquivo local"
+                else "onedrive",
+                "output_dir": self.entry_output.text().strip(),
+                "column_mapping": self._get_column_mapping(),
+                "agrupamento": None if grouping == "sem agrupamento" else grouping,
+                "colunas": int(self.columns.currentText()),
+                "titulo": self.title_field.text().strip() or "Carômetro",
+                "show_nota": self.chk_show_nota.isChecked(),
+                "show_potencial": self.chk_show_potencial.isChecked(),
+                "show_cargo": self.chk_show_cargo.isChecked(),
+                "cores_automaticas": self.chk_cores.isChecked(),
+            }
+        )
