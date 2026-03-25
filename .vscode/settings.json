@@ -1,0 +1,15 @@
+{
+  "files.exclude": {
+    "**/__pycache__": true,
+    "**/*.pyc": true,
+    ".venv": true,
+    ".pytest_cache": true,
+    ".mypy_cache": true,
+    ".tmp": true,
+    "**/*.log": true,
+    "delivery_check_*.log": true,
+    "dc_*.log": true
+  },
+  "explorer.compactFolders": false,
+  "explorer.excludeGitIgnore": false
+}
