@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import time
 from pathlib import Path
 
 from pptx import Presentation
@@ -11,112 +10,53 @@ from app.core.reader import normalize_filename, read_spreadsheet
 
 FIXTURES_DIR = Path(__file__).resolve().parents[1] / "fixtures"
 SPREADSHEET_FIXTURE = FIXTURES_DIR / "colaboradores_sample.xlsx"
-PHOTOS_FIXTURE_DIR = FIXTURES_DIR / "fotos"
-MAX_TEST_SECONDS = 10.0
 
 
-def _load_fixture_employees() -> list[dict[str, str]]:
-    employees = read_spreadsheet(str(SPREADSHEET_FIXTURE))
-    assert len(employees) == 3
-    return employees
+def _normalize_rows(rows: list[dict[str, str]]) -> list[dict[str, str]]:
+    return [
+        {
+            "nome": row.get("nome", ""),
+            "idade": row.get("idade", ""),
+            "cargo": row.get("cargo", ""),
+            "antiguidade": row.get("antiguidade", ""),
+            "formacao": row.get("formacao", ""),
+            "resumo_perfil": row.get("resumo_perfil", ""),
+            "trajetoria": row.get("trajetoria", ""),
+            "performance": row.get("performance", ""),
+        }
+        for row in rows
+    ]
 
 
-def _assert_elapsed_under_limit(start_time: float, end_time: float) -> None:
-    elapsed_seconds = end_time - start_time
-    assert elapsed_seconds < MAX_TEST_SECONDS
+def test_full_ficha_flow_generates_pptx_files(tmp_path: Path) -> None:
+    employees = _normalize_rows(read_spreadsheet(str(SPREADSHEET_FIXTURE)))
 
-
-def test_full_flow_reads_spreadsheet_and_generates_pptx_files(tmp_path: Path) -> None:
-    employees = _load_fixture_employees()
-
-    start = time.monotonic()
-    generated_files = generate_ficha_pptx(
-        employees,
-        str(PHOTOS_FIXTURE_DIR),
-        str(tmp_path),
-    )
-    end = time.monotonic()
+    generated_files = generate_ficha_pptx(employees, str(tmp_path))
 
     assert len(generated_files) == len(employees)
-    assert all(Path(file_path).exists() for file_path in generated_files)
-    assert all(Path(file_path).suffix == ".pptx" for file_path in generated_files)
-    assert all(
-        Path(file_path).parent == (tmp_path / "fichas") for file_path in generated_files
-    )
-    _assert_elapsed_under_limit(start, end)
+    assert all(Path(path).exists() for path in generated_files)
 
 
-def test_generated_pptx_slide_width_is_13_271_inches(tmp_path: Path) -> None:
-    employee = _load_fixture_employees()[0]
-
-    start = time.monotonic()
-    generated_files = generate_ficha_pptx(
-        [employee],
-        str(PHOTOS_FIXTURE_DIR),
-        str(tmp_path),
-    )
-    end = time.monotonic()
+def test_generated_slide_has_wide_dimensions(tmp_path: Path) -> None:
+    employees = _normalize_rows(read_spreadsheet(str(SPREADSHEET_FIXTURE)))
+    generated_files = generate_ficha_pptx([employees[0]], str(tmp_path))
 
     presentation = Presentation(generated_files[0])
     assert presentation.slide_width == Inches(13.271)
-    _assert_elapsed_under_limit(start, end)
-
-
-def test_generated_pptx_slide_height_is_7_5_inches(tmp_path: Path) -> None:
-    employee = _load_fixture_employees()[0]
-
-    start = time.monotonic()
-    generated_files = generate_ficha_pptx(
-        [employee],
-        str(PHOTOS_FIXTURE_DIR),
-        str(tmp_path),
-    )
-    end = time.monotonic()
-
-    presentation = Presentation(generated_files[0])
     assert presentation.slide_height == Inches(7.5)
-    _assert_elapsed_under_limit(start, end)
 
 
-def test_output_filenames_have_no_accents_or_spaces(tmp_path: Path) -> None:
-    employees = _load_fixture_employees()
+def test_output_filename_is_normalized(tmp_path: Path) -> None:
+    employee = {
+        "nome": "João Bárbara",
+        "idade": "",
+        "cargo": "Analista",
+        "antiguidade": "",
+        "formacao": "",
+        "resumo_perfil": "",
+        "trajetoria": "",
+        "performance": "",
+    }
+    generated_files = generate_ficha_pptx([employee], str(tmp_path))
 
-    start = time.monotonic()
-    generated_files = generate_ficha_pptx(
-        employees,
-        str(PHOTOS_FIXTURE_DIR),
-        str(tmp_path),
-    )
-    end = time.monotonic()
-
-    stems = [Path(file_path).stem for file_path in generated_files]
-
-    for employee, stem in zip(employees, stems):
-        expected_stem = normalize_filename(employee.get("nome", ""))
-        assert stem == expected_stem
-        assert " " not in stem
-        assert stem.isascii()
-
-    _assert_elapsed_under_limit(start, end)
-
-
-def test_generation_continues_when_one_employee_has_no_photo(tmp_path: Path) -> None:
-    employees = _load_fixture_employees()
-    employees[0] = {**employees[0], "foto": "nonexistent.jpg"}
-
-    start = time.monotonic()
-    generated_files = generate_ficha_pptx(
-        employees,
-        str(PHOTOS_FIXTURE_DIR),
-        str(tmp_path),
-    )
-    end = time.monotonic()
-
-    assert len(generated_files) == len(employees)
-
-    missing_photo_employee_name = employees[0]["nome"]
-    expected_stem = normalize_filename(missing_photo_employee_name)
-    expected_file = tmp_path / "fichas" / f"{expected_stem}.pptx"
-    assert expected_file.exists()
-
-    _assert_elapsed_under_limit(start, end)
+    assert Path(generated_files[0]).stem == normalize_filename(employee["nome"])

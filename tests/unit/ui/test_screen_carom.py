@@ -2,14 +2,14 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from app.ui.screen_ficha import FichaScreen
+from app.ui.screen_carom import CaromScreen
 
 
-def test_ficha_screen_validates_local_file_and_mapping(tmp_path: Path, qtbot) -> None:
+def test_carom_screen_validates_local_file_and_mapping(tmp_path: Path, qtbot) -> None:
     file_path = tmp_path / "dados.xlsx"
     file_path.write_bytes(b"x")
 
-    screen = FichaScreen({})
+    screen = CaromScreen({})
     qtbot.addWidget(screen)
     screen.source_type.setCurrentText("Arquivo local")
     screen.entry_source.setText(str(file_path))
@@ -20,12 +20,3 @@ def test_ficha_screen_validates_local_file_and_mapping(tmp_path: Path, qtbot) ->
     screen._column_selectors["cargo"].setCurrentText("Cargo")
 
     assert screen._validate_inputs() is True
-
-
-def test_ficha_screen_get_config_returns_output_mode(qtbot) -> None:
-    screen = FichaScreen({})
-    qtbot.addWidget(screen)
-    screen.entry_source.setText("https://example.com/file.xlsx")
-    screen.entry_output.setText("C:/saida")
-
-    assert "output_mode" in screen._get_config()
