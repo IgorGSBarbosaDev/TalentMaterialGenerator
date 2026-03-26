@@ -53,7 +53,7 @@ class AppWindow(QMainWindow):
         sidebar_layout.setContentsMargins(12, 18, 12, 18)
         sidebar_layout.setSpacing(8)
         sidebar_layout.addWidget(QLabel("USIMINAS"))
-        subtitle = QLabel("MINERACAO")
+        subtitle = QLabel("Talent Development")
         subtitle.setObjectName("muted")
         sidebar_layout.addWidget(subtitle)
 
