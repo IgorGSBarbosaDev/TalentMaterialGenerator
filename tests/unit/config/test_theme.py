@@ -29,3 +29,10 @@ def test_stylesheet_has_contextual_input_background_rules() -> None:
     assert "QFrame#panelAction QLineEdit" in stylesheet
     assert "QFrame#card QLineEdit" in stylesheet
     assert "QFrame#subpanel QLineEdit" in stylesheet
+
+
+def test_stylesheet_has_sidebar_compact_and_toggle_rules() -> None:
+    stylesheet = theme.build_stylesheet("dark")
+
+    assert 'QFrame#sidebar[collapsed="true"]' in stylesheet
+    assert "QPushButton#sidebar_toggle" in stylesheet

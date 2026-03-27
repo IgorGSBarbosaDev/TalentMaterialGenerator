@@ -1,10 +1,5 @@
 from __future__ import annotations
 
-from types import SimpleNamespace
-
-from PySide6.QtWidgets import QMessageBox
-
-from app.config import settings
 from app.ui.app_window import AppWindow
 
 
@@ -34,7 +29,7 @@ def test_app_window_has_global_theme_button_on_topbar(qtbot) -> None:
     window = AppWindow({"last_generations": [], "theme": "dark"})
     qtbot.addWidget(window)
 
-    assert window.theme_toggle_button.text() == "☀"
+    assert window.theme_toggle_button.text() == "\u2600"
     assert "claro" in window.theme_toggle_button.toolTip().lower()
 
 
@@ -50,5 +45,34 @@ def test_app_window_toggle_theme_updates_symbol_and_config(qtbot, monkeypatch) -
     window._toggle_theme()
 
     assert window.config["theme"] == "light"
-    assert window.theme_toggle_button.text() == "☾"
+    assert window.theme_toggle_button.text() == "\u263E"
     assert "escuro" in window.theme_toggle_button.toolTip().lower()
+
+
+def test_app_window_sidebar_toggle_collapses_and_expands(qtbot) -> None:
+    window = AppWindow({"last_generations": [], "theme": "dark"})
+    qtbot.addWidget(window)
+
+    expanded = window.sidebar.width()
+    window.sidebar_toggle_button.click()
+    collapsed = window.sidebar.width()
+
+    assert collapsed < expanded
+    assert window._sidebar_collapsed is True
+
+    window.sidebar_toggle_button.click()
+    assert window.sidebar.width() == expanded
+    assert window._sidebar_collapsed is False
+
+
+def test_app_window_sidebar_state_persists_across_navigation(qtbot) -> None:
+    window = AppWindow({"last_generations": [], "theme": "dark"})
+    qtbot.addWidget(window)
+
+    window.sidebar_toggle_button.click()
+    collapsed_width = window.sidebar.width()
+    window.navigate_to("ficha")
+    window.navigate_to("settings")
+
+    assert window.sidebar.width() == collapsed_width
+    assert window.menu_buttons["settings"].isChecked() is True

@@ -23,7 +23,7 @@ class ProgressScreen(QWidget):
     chrome_changed = Signal()
 
     page_title = "Geracao"
-    page_subtitle = "Acompanhe logs, progresso e destino dos arquivos"
+    page_subtitle = "Status da geracao"
     page_badge = "Em execucao"
 
     def __init__(self) -> None:
@@ -31,14 +31,16 @@ class ProgressScreen(QWidget):
         self._output_dir = ""
 
         layout = QVBoxLayout(self)
+        self._root_layout = layout
         layout.setContentsMargins(28, 24, 28, 24)
         layout.setSpacing(18)
 
         summary = SectionCard(
-            "Geracao em andamento",
-            "O painel consolida percentual, contexto da operacao e mensagens do worker.",
+            "Processamento",
+            "Progresso e status do job.",
             object_name="statusPanel",
         )
+        self.summary_card = summary
         title_row = QHBoxLayout()
         self.state_badge = StatusBadge("Em execucao", "info")
         self.subtitle_label = QLabel("")
@@ -76,9 +78,10 @@ class ProgressScreen(QWidget):
 
         log_panel = SectionCard(
             "Log de execucao",
-            "Mensagens importantes sao agrupadas por sucesso, aviso, erro e informacao.",
+            "Eventos em tempo real.",
             object_name="logPanel",
         )
+        self.log_panel = log_panel
         self.log_box = QTextEdit()
         self.log_box.setObjectName("logBox")
         self.log_box.setReadOnly(True)
@@ -167,7 +170,7 @@ class ProgressScreen(QWidget):
     def reset(self) -> None:
         self._output_dir = ""
         self.page_title = "Geracao"
-        self.page_subtitle = "Acompanhe logs, progresso e destino dos arquivos"
+        self.page_subtitle = "Status da geracao"
         self.page_badge = "Em execucao"
         self.progress_bar.setValue(0)
         self.counter_label.setText("0 de 0")
@@ -185,3 +188,9 @@ class ProgressScreen(QWidget):
     def _emit_open_output(self) -> None:
         if self._output_dir:
             self.open_output_requested.emit(self._output_dir)
+
+    def set_sidebar_collapsed(self, collapsed: bool) -> None:
+        self._root_layout.setContentsMargins(20, 20, 20, 20)
+        self._root_layout.setSpacing(14 if collapsed else 18)
+        self.summary_card.subtitle_label.setVisible(not collapsed)
+        self.log_panel.subtitle_label.setVisible(not collapsed)

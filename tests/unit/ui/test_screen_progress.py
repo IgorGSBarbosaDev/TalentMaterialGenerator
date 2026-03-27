@@ -24,3 +24,14 @@ def test_progress_screen_enables_output_after_completion(qtbot) -> None:
 
     assert screen.btn_open.isEnabled() is True
     assert screen.page_badge == "Concluido"
+
+
+def test_progress_screen_handles_sidebar_collapsed_state(qtbot) -> None:
+    screen = ProgressScreen()
+    qtbot.addWidget(screen)
+
+    screen.set_sidebar_collapsed(True)
+    assert screen.summary_card.subtitle_label.isHidden() is True
+
+    screen.set_sidebar_collapsed(False)
+    assert screen.summary_card.subtitle_label.isHidden() is False

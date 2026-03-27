@@ -57,3 +57,18 @@ def test_carom_screen_has_no_preview_or_sample_text(qtbot) -> None:
     labels = [label.text().lower() for label in screen.findChildren(QLabel)]
     assert all("preview" not in text for text in labels)
     assert all("amostra" not in text for text in labels)
+
+
+def test_carom_screen_handles_sidebar_collapsed_state(qtbot) -> None:
+    screen = CaromScreen({})
+    qtbot.addWidget(screen)
+
+    screen.set_sidebar_collapsed(True)
+    assert screen.source_hint.isHidden() is True
+    assert screen.mapping_hint.isHidden() is True
+    assert screen.options_hint.isHidden() is True
+
+    screen.set_sidebar_collapsed(False)
+    assert screen.source_hint.isHidden() is False
+    assert screen.mapping_hint.isHidden() is False
+    assert screen.options_hint.isHidden() is False

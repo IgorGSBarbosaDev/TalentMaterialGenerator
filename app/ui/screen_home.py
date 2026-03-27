@@ -20,28 +20,33 @@ class HomeScreen(QWidget):
     settings_requested = Signal()
 
     page_title = "Inicio"
-    page_subtitle = "Painel principal do USI Generator"
+    page_subtitle = "Visao geral"
     page_badge = "Dashboard"
 
     def __init__(self) -> None:
         super().__init__()
 
         layout = QVBoxLayout(self)
+        self._root_layout = layout
+        self._compact_labels: list[QLabel] = []
         layout.setContentsMargins(28, 24, 28, 24)
         layout.setSpacing(18)
 
         hero_card = SectionCard(
-            "Fluxo de geracao com visual mais claro e rapido de operar",
-            "Escolha o material, valide a base e acompanhe o progresso sem sair da mesma experiencia.",
+            "Gerar ficha e carometro",
+            "Escolha o fluxo e siga para a execucao.",
             object_name="heroCard",
         )
+        self.hero_card = hero_card
         eyebrow = QLabel("Talent Development")
         eyebrow.setObjectName("pageEyebrow")
         hero_card.body_layout.insertWidget(0, eyebrow)
         hero_card.title_label.setObjectName("heroTitle")
         hero_card.subtitle_label.setObjectName("heroSubtitle")
+        self.hero_eyebrow = eyebrow
 
         hero_actions = QHBoxLayout()
+        self.hero_actions = hero_actions
         hero_actions.setSpacing(10)
         btn_ficha = QPushButton("Abrir ficha de curriculo")
         btn_ficha.setObjectName("primary")
@@ -59,24 +64,25 @@ class HomeScreen(QWidget):
         layout.addWidget(hero_card)
 
         actions_grid = QGridLayout()
+        self.actions_grid = actions_grid
         actions_grid.setHorizontalSpacing(16)
         actions_grid.setVerticalSpacing(16)
 
         ficha_card = self._build_action_card(
             "Ficha de Curriculo",
-            "Monte fichas individuais com mapeamento de colunas, preview persistente e checklist visual.",
+            "Configure campos e gere arquivos individuais.",
             "Ir para ficha",
             self.ficha_requested.emit,
         )
         carom_card = self._build_action_card(
             "Carometro",
-            "Configure grupos, colunas e cards do grid com pre-visualizacao imediata do layout final.",
+            "Defina agrupamento e layout do grid final.",
             "Ir para carometro",
             self.carom_requested.emit,
         )
         history_panel = SectionCard(
             "Historico recente",
-            "As ultimas geracoes ficam resumidas aqui para voce retomar o contexto rapido.",
+            "Ultimas geracoes da sessao.",
         )
 
         self.history_label = QLabel("Historico vazio.")
@@ -90,9 +96,12 @@ class HomeScreen(QWidget):
         actions_grid.addWidget(ficha_card, 0, 0)
         actions_grid.addWidget(carom_card, 0, 1)
         actions_grid.addWidget(history_panel, 1, 0, 1, 2)
+        actions_grid.setColumnStretch(0, 1)
+        actions_grid.setColumnStretch(1, 1)
         layout.addLayout(actions_grid)
 
         metrics_row = QHBoxLayout()
+        self.metrics_row = metrics_row
         metrics_row.setSpacing(14)
         self.ficha_metric = MetricCard("Fichas geradas", "0", "Base atual")
         self.carom_metric = MetricCard("Carometros gerados", "0", "Ciclos visuais")
@@ -106,6 +115,9 @@ class HomeScreen(QWidget):
         self.stats_label.setObjectName("muted")
         layout.addWidget(self.stats_label)
         layout.addStretch(1)
+        self._compact_labels.extend(
+            [self.hero_eyebrow, self.hero_card.subtitle_label, self.stats_label]
+        )
 
     def _build_action_card(
         self, title: str, body: str, button_label: str, action
@@ -117,14 +129,25 @@ class HomeScreen(QWidget):
         open_button = QPushButton(button_label)
         open_button.setObjectName("primary")
         open_button.clicked.connect(action)
-        hint = QLabel("Fluxo guiado com preview")
+        hint = QLabel("Fluxo guiado")
         hint.setObjectName("bodyMuted")
 
         action_row.addWidget(open_button)
         action_row.addWidget(hint)
         action_row.addStretch(1)
         card.add_layout(action_row)
+        self._compact_labels.append(hint)
         return card
+
+    def set_sidebar_collapsed(self, collapsed: bool) -> None:
+        self._root_layout.setContentsMargins(20, 20, 20, 20)
+        self._root_layout.setSpacing(14 if collapsed else 18)
+        self.hero_actions.setSpacing(8 if collapsed else 10)
+        self.actions_grid.setHorizontalSpacing(12 if collapsed else 16)
+        self.actions_grid.setVerticalSpacing(12 if collapsed else 16)
+        self.metrics_row.setSpacing(10 if collapsed else 14)
+        for label in self._compact_labels:
+            label.setVisible(not collapsed)
 
     def update_stats(self, fichas_count: int, carom_count: int) -> None:
         total = fichas_count + carom_count

@@ -121,11 +121,17 @@ class StatusBadge(QLabel):
 
 
 class NavButton(QPushButton):
-    def __init__(self, label: str) -> None:
+    def __init__(self, label: str, icon_text: str | None = None) -> None:
         super().__init__(label)
+        self._full_label = label
+        self._icon_text = icon_text or (label[:1].upper() if label else "?")
         self.setCheckable(True)
         self.setObjectName("navButton")
         self.setCursor(Qt.PointingHandCursor)
+        self.setToolTip(label)
+
+    def set_compact(self, compact: bool) -> None:
+        self.setText(self._icon_text if compact else self._full_label)
 
 
 class PreviewListItem(QFrame):

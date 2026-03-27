@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from typing import Any
 
-from PySide6.QtCore import QUrl
+from PySide6.QtCore import Qt, QUrl
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
     QApplication,
@@ -38,6 +38,9 @@ class AppWindow(QMainWindow):
         self._stats = {"ficha": 0, "carom": 0}
         self._history: list[str] = list(config.get("last_generations", []))
         self._current_screen = "home"
+        self._sidebar_collapsed = False
+        self._sidebar_expanded_width = 248
+        self._sidebar_collapsed_width = 88
 
         self.setWindowTitle("USI Generator")
         self.resize(1320, 820)
@@ -50,12 +53,13 @@ class AppWindow(QMainWindow):
         root_layout.setSpacing(0)
         self.setCentralWidget(root)
 
-        sidebar = QFrame()
-        sidebar.setObjectName("sidebar")
-        sidebar.setFixedWidth(248)
-        sidebar_layout = QVBoxLayout(sidebar)
+        self.sidebar = QFrame()
+        self.sidebar.setObjectName("sidebar")
+        self.sidebar.setFixedWidth(self._sidebar_expanded_width)
+        sidebar_layout = QVBoxLayout(self.sidebar)
         sidebar_layout.setContentsMargins(18, 18, 18, 18)
         sidebar_layout.setSpacing(14)
+        self.sidebar_layout = sidebar_layout
 
         brand_row = QHBoxLayout()
         brand_mark = QLabel("U")
@@ -65,32 +69,26 @@ class AppWindow(QMainWindow):
         brand_name_col.setSpacing(1)
         brand_title = QLabel("USIMINAS")
         brand_title.setObjectName("brandTitle")
-        brand_subtitle = QLabel("Talent Development")
-        brand_subtitle.setObjectName("brandSubtitle")
+        self.brand_subtitle = QLabel("Talent Development")
+        self.brand_subtitle.setObjectName("brandSubtitle")
         brand_name_col.addWidget(brand_title)
-        brand_name_col.addWidget(brand_subtitle)
+        brand_name_col.addWidget(self.brand_subtitle)
         brand_row.addWidget(brand_mark)
         brand_row.addLayout(brand_name_col, 1)
         sidebar_layout.addLayout(brand_row)
 
-        intro = QLabel(
-            "Geracao guiada de fichas e carometros com preview persistente e feedback visual."
-        )
-        intro.setObjectName("bodyMuted")
-        intro.setWordWrap(True)
-        sidebar_layout.addWidget(intro)
-
-        sidebar_layout.addWidget(self._build_nav_label("Principal"))
+        self.nav_labels: list[QLabel] = []
+        sidebar_layout.addWidget(self._build_nav_label("Menu"))
         self.menu_group = QButtonGroup(self)
         self.menu_group.setExclusive(True)
         self.menu_buttons: dict[str, NavButton] = {}
-        for key, label in (
-            ("home", "Inicio"),
-            ("ficha", "Ficha de curriculo"),
-            ("carom", "Carometro"),
-            ("progress", "Geracao"),
+        for key, label, icon in (
+            ("home", "Inicio", "H"),
+            ("ficha", "Ficha", "F"),
+            ("carom", "Carometro", "C"),
+            ("progress", "Geracao", "G"),
         ):
-            button = NavButton(label)
+            button = NavButton(label, icon_text=icon)
             button.clicked.connect(
                 lambda _checked=False, target=key: self.navigate_to(target)
             )
@@ -100,17 +98,16 @@ class AppWindow(QMainWindow):
 
         sidebar_layout.addSpacing(10)
         sidebar_layout.addWidget(self._build_nav_label("Sistema"))
-        settings_button = NavButton("Configuracoes")
+        settings_button = NavButton("Configuracoes", icon_text="S")
         settings_button.clicked.connect(lambda _checked=False: self.navigate_to("settings"))
         self.menu_group.addButton(settings_button)
         self.menu_buttons["settings"] = settings_button
         sidebar_layout.addWidget(settings_button)
         sidebar_layout.addStretch(1)
 
-        version = QLabel("v1.0.0  |  UI refresh PySide6")
-        version.setObjectName("muted")
-        version.setWordWrap(True)
-        sidebar_layout.addWidget(version)
+        self.version_label = QLabel("v1.0.0")
+        self.version_label.setObjectName("muted")
+        sidebar_layout.addWidget(self.version_label)
 
         content_root = QWidget()
         content_root.setObjectName("contentRoot")
@@ -123,6 +120,13 @@ class AppWindow(QMainWindow):
         topbar_layout = QHBoxLayout(self.topbar)
         topbar_layout.setContentsMargins(20, 14, 20, 14)
         topbar_layout.setSpacing(12)
+
+        self.sidebar_toggle_button = QPushButton("\u2630")
+        self.sidebar_toggle_button.setObjectName("sidebar_toggle")
+        self.sidebar_toggle_button.setCursor(Qt.PointingHandCursor)
+        self.sidebar_toggle_button.setFixedSize(40, 36)
+        self.sidebar_toggle_button.clicked.connect(self._toggle_sidebar)
+        topbar_layout.addWidget(self.sidebar_toggle_button)
 
         title_col = QVBoxLayout()
         title_col.setSpacing(2)
@@ -151,7 +155,7 @@ class AppWindow(QMainWindow):
         self.stack = QStackedWidget()
         content_layout.addWidget(self.stack, 1)
 
-        root_layout.addWidget(sidebar)
+        root_layout.addWidget(self.sidebar)
         root_layout.addWidget(content_root, 1)
 
         self.home_screen = HomeScreen()
@@ -191,11 +195,13 @@ class AppWindow(QMainWindow):
         self.carom_screen.load_config(config)
         self.settings_screen.load_config(config)
         self._update_theme_toggle_button()
+        self._apply_sidebar_state()
         self.navigate_to("home")
 
     def _build_nav_label(self, text: str) -> QLabel:
         label = QLabel(text)
         label.setObjectName("navSectionLabel")
+        self.nav_labels.append(label)
         return label
 
     def navigate_to(self, screen: str) -> None:
@@ -205,6 +211,7 @@ class AppWindow(QMainWindow):
         button = self.menu_buttons.get(screen)
         if button is not None:
             button.setChecked(True)
+        self._apply_sidebar_state()
         self._sync_topbar()
 
     def _sync_topbar(self) -> None:
@@ -241,9 +248,9 @@ class AppWindow(QMainWindow):
         }
         self.progress_screen.reset()
         subtitle = (
-            "Gerando fichas de curriculo a partir da base selecionada."
+            "Gerando fichas a partir da base."
             if job_type == "ficha"
-            else "Gerando carometro com agrupamento e layout configurados."
+            else "Gerando carometro com o layout definido."
         )
         badge = "Ficha" if job_type == "ficha" else "Carometro"
         self.progress_screen.set_context("Geracao", subtitle, badge)
@@ -317,6 +324,33 @@ class AppWindow(QMainWindow):
             app.setStyleSheet(theme.build_stylesheet(new_mode))
         self.settings_screen.load_config(self.config)
         self._update_theme_toggle_button()
+
+    def _toggle_sidebar(self) -> None:
+        self._sidebar_collapsed = not self._sidebar_collapsed
+        self._apply_sidebar_state()
+
+    def _apply_sidebar_state(self) -> None:
+        collapsed = self._sidebar_collapsed
+        self.sidebar.setFixedWidth(
+            self._sidebar_collapsed_width if collapsed else self._sidebar_expanded_width
+        )
+        self.sidebar.setProperty("collapsed", "true" if collapsed else "false")
+        self.sidebar.setToolTip("Sidebar recolhida" if collapsed else "")
+        self.brand_subtitle.setVisible(not collapsed)
+        self.version_label.setVisible(not collapsed)
+        for label in self.nav_labels:
+            label.setVisible(not collapsed)
+        for button in self.menu_buttons.values():
+            button.set_compact(collapsed)
+            button.setMinimumHeight(38)
+        self.sidebar_toggle_button.setText("\u25b6" if collapsed else "\u25c0")
+        self.sidebar_toggle_button.setToolTip(
+            "Expandir menu lateral" if collapsed else "Recolher menu lateral"
+        )
+
+        widget = self.screens.get(self._current_screen)
+        if widget is not None and hasattr(widget, "set_sidebar_collapsed"):
+            widget.set_sidebar_collapsed(collapsed)
 
     def _update_theme_toggle_button(self) -> None:
         current = str(self.config.get("theme", "dark")).lower()

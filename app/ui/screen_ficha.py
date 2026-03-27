@@ -26,7 +26,7 @@ class FichaScreen(QWidget):
     generate_requested = Signal(dict)
 
     page_title = "Ficha de Curriculo"
-    page_subtitle = "Base, mapeamento e preview do material individual"
+    page_subtitle = "Base e mapeamento"
     page_badge = "Template"
 
     def __init__(self, config: dict[str, Any]) -> None:
@@ -63,13 +63,14 @@ class FichaScreen(QWidget):
         self._preview_rows: list[dict[str, str]] = []
 
         layout = QVBoxLayout(self)
+        self._root_layout = layout
         layout.setContentsMargins(26, 26, 26, 26)
         layout.setSpacing(16)
 
         title = QLabel("Ficha de Curriculo")
         title.setObjectName("title")
         subtitle = QLabel(
-            "Configure a base e o mapeamento em paines amplos para gerar fichas com menos atrito."
+            "Defina fonte, mapeamento e gere."
         )
         subtitle.setObjectName("muted")
         subtitle.setWordWrap(True)
@@ -77,6 +78,7 @@ class FichaScreen(QWidget):
         layout.addWidget(subtitle)
 
         split = QHBoxLayout()
+        self._split_layout = split
         split.setSpacing(16)
         layout.addLayout(split, 1)
 
@@ -86,9 +88,8 @@ class FichaScreen(QWidget):
         source_layout.setContentsMargins(18, 18, 18, 18)
         source_layout.setSpacing(14)
         source_layout.addWidget(self._panel_title("Fonte de dados"))
-        source_layout.addWidget(
-            self._panel_hint("Defina origem, saida e modo de geracao em um unico bloco.")
-        )
+        self.source_hint = self._panel_hint("Origem, saida e modo.")
+        source_layout.addWidget(self.source_hint)
 
         self.source_type = QComboBox()
         self.source_type.addItems(["OneDrive", "Arquivo local"])
@@ -134,9 +135,8 @@ class FichaScreen(QWidget):
         mapping_layout.setContentsMargins(18, 18, 18, 18)
         mapping_layout.setSpacing(14)
         mapping_layout.addWidget(self._panel_title("Mapeamento de colunas"))
-        mapping_layout.addWidget(
-            self._panel_hint("Mapeie os campos obrigatorios e revise os complementares.")
-        )
+        self.mapping_hint = self._panel_hint("Mapeie campos obrigatorios.")
+        mapping_layout.addWidget(self.mapping_hint)
 
         mapping_form = QFormLayout()
         mapping_form.setHorizontalSpacing(16)
@@ -176,6 +176,7 @@ class FichaScreen(QWidget):
 
         self._sync_source_mode()
         self._set_status("Informe a fonte de dados para iniciar.", "info")
+        self._compact_labels = [subtitle, self.source_hint, self.mapping_hint]
 
     def _panel_title(self, text: str) -> QLabel:
         label = QLabel(text)
@@ -257,16 +258,12 @@ class FichaScreen(QWidget):
 
     def _refresh_preview(self) -> None:
         if self._preview_rows:
-            self._set_status(
-                f"Preview carregado: {len(self._preview_rows)} colaborador(es).", "info"
-            )
+            self._set_status(f"Amostra carregada: {len(self._preview_rows)} linha(s).", "info")
             return
 
         source = self.entry_source.text().strip()
         if source:
-            self._set_status(
-                "Fonte configurada. Use Auto-detectar para validar o mapeamento.", "info"
-            )
+            self._set_status("Fonte definida. Use Auto-detectar.", "info")
 
     def _validate_inputs(self) -> bool:
         source = self.entry_source.text().strip()
@@ -344,3 +341,10 @@ class FichaScreen(QWidget):
         if not self._validate_inputs():
             return
         self.generate_requested.emit(self._get_config())
+
+    def set_sidebar_collapsed(self, collapsed: bool) -> None:
+        self._root_layout.setContentsMargins(20, 20, 20, 20)
+        self._root_layout.setSpacing(12 if collapsed else 16)
+        self._split_layout.setSpacing(12 if collapsed else 16)
+        for label in self._compact_labels:
+            label.setVisible(not collapsed)

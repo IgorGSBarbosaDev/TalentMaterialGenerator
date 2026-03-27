@@ -25,3 +25,14 @@ def test_settings_screen_has_no_theme_toggle_button(qtbot) -> None:
 
     button_texts = [btn.text().lower() for btn in screen.findChildren(QPushButton)]
     assert all("tema" not in text for text in button_texts)
+
+
+def test_settings_screen_handles_sidebar_collapsed_state(qtbot) -> None:
+    screen = SettingsScreen({})
+    qtbot.addWidget(screen)
+
+    screen.set_sidebar_collapsed(True)
+    assert screen.intro_card.subtitle_label.isHidden() is True
+
+    screen.set_sidebar_collapsed(False)
+    assert screen.intro_card.subtitle_label.isHidden() is False

@@ -50,4 +50,17 @@ def test_ficha_screen_has_no_preview_placeholder_text(qtbot) -> None:
     qtbot.addWidget(screen)
 
     labels = [label.text() for label in screen.findChildren(QLabel)]
-    assert all("Preview:" not in text for text in labels)
+    assert all("preview" not in text.lower() for text in labels)
+
+
+def test_ficha_screen_handles_sidebar_collapsed_state(qtbot) -> None:
+    screen = FichaScreen({})
+    qtbot.addWidget(screen)
+
+    screen.set_sidebar_collapsed(True)
+    assert screen.source_hint.isHidden() is True
+    assert screen.mapping_hint.isHidden() is True
+
+    screen.set_sidebar_collapsed(False)
+    assert screen.source_hint.isHidden() is False
+    assert screen.mapping_hint.isHidden() is False

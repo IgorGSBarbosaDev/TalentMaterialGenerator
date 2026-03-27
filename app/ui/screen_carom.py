@@ -28,7 +28,7 @@ class CaromScreen(QWidget):
     generate_requested = Signal(dict)
 
     page_title = "Carometro"
-    page_subtitle = "Agrupamento, layout do grid e preview dos cards"
+    page_subtitle = "Fonte, mapeamento e layout"
     page_badge = "Grid"
 
     def __init__(self, config: dict[str, Any]) -> None:
@@ -48,13 +48,14 @@ class CaromScreen(QWidget):
         self._preview_rows: list[dict[str, str]] = []
 
         layout = QVBoxLayout(self)
+        self._root_layout = layout
         layout.setContentsMargins(26, 26, 26, 26)
         layout.setSpacing(16)
 
         title = QLabel("Carometro")
         title.setObjectName("title")
         subtitle = QLabel(
-            "Distribua melhor as configuracoes de grade sem reservar area para exemplos de colaboradores."
+            "Defina origem, colunas e exibicao do card."
         )
         subtitle.setObjectName("muted")
         subtitle.setWordWrap(True)
@@ -62,6 +63,7 @@ class CaromScreen(QWidget):
         layout.addWidget(subtitle)
 
         top_split = QHBoxLayout()
+        self._top_split = top_split
         top_split.setSpacing(16)
         layout.addLayout(top_split, 1)
 
@@ -71,9 +73,8 @@ class CaromScreen(QWidget):
         source_layout.setContentsMargins(18, 18, 18, 18)
         source_layout.setSpacing(14)
         source_layout.addWidget(self._panel_title("Fonte e layout"))
-        source_layout.addWidget(
-            self._panel_hint("Configure origem da base, agrupamento e dimensao da grade.")
-        )
+        self.source_hint = self._panel_hint("Origem da base, agrupamento e grade.")
+        source_layout.addWidget(self.source_hint)
 
         self.source_type = QComboBox()
         self.source_type.addItems(["OneDrive", "Arquivo local"])
@@ -123,9 +124,8 @@ class CaromScreen(QWidget):
         mapping_layout.setContentsMargins(18, 18, 18, 18)
         mapping_layout.setSpacing(14)
         mapping_layout.addWidget(self._panel_title("Mapeamento"))
-        mapping_layout.addWidget(
-            self._panel_hint("Mantenha nome e cargo obrigatorios para liberar a geracao.")
-        )
+        self.mapping_hint = self._panel_hint("Nome e cargo sao obrigatorios.")
+        mapping_layout.addWidget(self.mapping_hint)
 
         mapping_form = QFormLayout()
         mapping_form.setHorizontalSpacing(16)
@@ -140,6 +140,7 @@ class CaromScreen(QWidget):
         top_split.addWidget(mapping_panel, 5)
 
         action_split = QHBoxLayout()
+        self._action_split = action_split
         action_split.setSpacing(16)
         layout.addLayout(action_split)
 
@@ -149,9 +150,8 @@ class CaromScreen(QWidget):
         options_layout.setContentsMargins(18, 18, 18, 18)
         options_layout.setSpacing(14)
         options_layout.addWidget(self._panel_title("Exibicao do card"))
-        options_layout.addWidget(
-            self._panel_hint("Ajuste quais dados aparecem no card final do carometro.")
-        )
+        self.options_hint = self._panel_hint("Escolha os dados exibidos no card.")
+        options_layout.addWidget(self.options_hint)
 
         self.chk_show_nota = QCheckBox("Mostrar nota")
         self.chk_show_nota.setChecked(True)
@@ -191,6 +191,7 @@ class CaromScreen(QWidget):
 
         self._sync_source_mode()
         self._set_status("Informe a fonte de dados para iniciar.", "info")
+        self._compact_labels = [subtitle, self.source_hint, self.mapping_hint, self.options_hint]
 
     def _panel_title(self, text: str) -> QLabel:
         label = QLabel(text)
@@ -272,16 +273,12 @@ class CaromScreen(QWidget):
 
     def _refresh_preview(self) -> None:
         if self._preview_rows:
-            self._set_status(
-                f"Preview carregado: {len(self._preview_rows)} colaborador(es).", "info"
-            )
+            self._set_status(f"Amostra carregada: {len(self._preview_rows)} linha(s).", "info")
             return
 
         source = self.entry_source.text().strip()
         if source:
-            self._set_status(
-                "Fonte configurada. Use Auto-detectar para validar o mapeamento.", "info"
-            )
+            self._set_status("Fonte definida. Use Auto-detectar.", "info")
 
     def _get_column_mapping(self) -> dict[str, str | None]:
         return {
@@ -366,3 +363,11 @@ class CaromScreen(QWidget):
                 "cores_automaticas": self.chk_cores.isChecked(),
             }
         )
+
+    def set_sidebar_collapsed(self, collapsed: bool) -> None:
+        self._root_layout.setContentsMargins(20, 20, 20, 20)
+        self._root_layout.setSpacing(12 if collapsed else 16)
+        self._top_split.setSpacing(12 if collapsed else 16)
+        self._action_split.setSpacing(12 if collapsed else 16)
+        for label in self._compact_labels:
+            label.setVisible(not collapsed)

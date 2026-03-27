@@ -84,6 +84,49 @@ QFrame#sidebar {{
     background-color: {palette["sidebar"]};
     border-right: 1px solid {palette["border"]};
 }}
+QFrame#sidebar[collapsed="true"] {{
+    background-color: {palette["sidebar_alt"]};
+}}
+QLabel#brandMark {{
+    background-color: {palette["accent_soft"]};
+    color: {palette["accent"]};
+    border-radius: 12px;
+    font-size: 22px;
+    font-weight: 800;
+    qproperty-alignment: AlignCenter;
+}}
+QLabel#brandTitle {{
+    font-size: 14px;
+    font-weight: 800;
+}}
+QLabel#brandSubtitle,
+QLabel#navSectionLabel {{
+    color: {palette["text_dim"]};
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+}}
+QPushButton#navButton {{
+    text-align: left;
+    min-height: 38px;
+    border-radius: 10px;
+    font-weight: 600;
+    background-color: transparent;
+}}
+QPushButton#navButton:hover {{
+    background-color: {palette["surface_alt"]};
+}}
+QPushButton#navButton:checked {{
+    background-color: {palette["accent_soft"]};
+    border-color: {palette["accent"]};
+    color: {palette["accent"]};
+}}
+QFrame#sidebar[collapsed="true"] QPushButton#navButton {{
+    text-align: center;
+    padding-left: 0px;
+    padding-right: 0px;
+}}
 QWidget#contentRoot {{
     background-color: {palette["bg"]};
 }}
@@ -270,6 +313,19 @@ QPushButton#theme_toggle:hover {{
 }}
 QPushButton#theme_toggle:focus {{
     border-color: {VERDE_USIMINAS};
+}}
+QPushButton#sidebar_toggle {{
+    background-color: {palette["surface_2"]};
+    border: 1px solid {palette["border"]};
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 700;
+    padding: 0px;
+}}
+QPushButton#sidebar_toggle:hover,
+QPushButton#sidebar_toggle:focus {{
+    border-color: {VERDE_USIMINAS};
+    color: {VERDE_USIMINAS};
 }}
 QLineEdit, QComboBox, QTextEdit, QListWidget, QSpinBox {{
     background-color: transparent;

@@ -22,12 +22,13 @@ class SettingsScreen(QWidget):
     refresh_cache_requested = Signal()
 
     page_title = "Configuracoes"
-    page_subtitle = "Defaults, cache e preferencias visuais"
-    page_badge = "Preferencias"
+    page_subtitle = "Padroes e cache"
+    page_badge = "Sistema"
 
     def __init__(self, config: dict) -> None:
         super().__init__()
         layout = QVBoxLayout(self)
+        self._root_layout = layout
         layout.setContentsMargins(26, 26, 26, 26)
         layout.setSpacing(16)
 
@@ -36,19 +37,21 @@ class SettingsScreen(QWidget):
         layout.addWidget(title)
 
         intro = SectionCard(
-            "Preferencias do aplicativo",
-            "Ajuste fontes padrao, cache do OneDrive e alternancia de tema sem sair da shell principal.",
+            "Configuracoes gerais",
+            "Ajuste base padrao e cache.",
             object_name="settingsPanel",
         )
+        self.intro_card = intro
         intro_note = QLabel(
-            "Essas configuracoes afetam os fluxos de Ficha e Carometro, mas nao alteram as regras de geracao."
+            "Essas opcoes nao alteram as regras de geracao."
         )
         intro_note.setObjectName("bodyMuted")
         intro_note.setWordWrap(True)
         intro.add_widget(intro_note)
         layout.addWidget(intro)
 
-        data_card = SectionCard("Base padrao", "Campos persistidos para agilizar novas geracoes.")
+        data_card = SectionCard("Base padrao", "Valores usados ao abrir o app.")
+        self.data_card = data_card
         data_form = QFormLayout()
         data_form.setSpacing(10)
         self.default_spreadsheet = QLineEdit(config.get("default_spreadsheet_path", ""))
@@ -61,7 +64,8 @@ class SettingsScreen(QWidget):
         data_card.add_layout(data_form)
         layout.addWidget(data_card)
 
-        cache_card = SectionCard("Cache e tema", "Controles operacionais para sincronizacao e aparencia.")
+        cache_card = SectionCard("Cache", "Controle de validade e sincronizacao.")
+        self.cache_card = cache_card
         cache_form = QFormLayout()
         cache_form.setSpacing(10)
         self.cache_ttl = QSpinBox()
@@ -108,3 +112,10 @@ class SettingsScreen(QWidget):
                 "cache_ttl_hours": self.cache_ttl.value(),
             }
         )
+
+    def set_sidebar_collapsed(self, collapsed: bool) -> None:
+        self._root_layout.setContentsMargins(20, 20, 20, 20)
+        self._root_layout.setSpacing(12 if collapsed else 16)
+        self.intro_card.subtitle_label.setVisible(not collapsed)
+        self.data_card.subtitle_label.setVisible(not collapsed)
+        self.cache_card.subtitle_label.setVisible(not collapsed)
