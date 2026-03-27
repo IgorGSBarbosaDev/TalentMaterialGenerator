@@ -122,7 +122,7 @@ QPushButton#theme_toggle:focus {{
     border-color: {VERDE_USIMINAS};
 }}
 QLineEdit, QComboBox, QTextEdit, QListWidget, QSpinBox {{
-    background-color: {palette["surface"]};
+    background-color: transparent;
     border: 1px solid {palette["border"]};
     border-radius: 8px;
     padding: 8px;
@@ -131,6 +131,41 @@ QLineEdit, QComboBox, QTextEdit, QListWidget, QSpinBox {{
 }}
 QLineEdit:focus, QComboBox:focus, QTextEdit:focus, QListWidget:focus, QSpinBox:focus {{
     border-color: {VERDE_USIMINAS};
+}}
+QFrame#panel QLineEdit,
+QFrame#panel QComboBox,
+QFrame#panel QTextEdit,
+QFrame#panel QListWidget,
+QFrame#panel QSpinBox {{
+    background-color: {palette["surface"]};
+}}
+QFrame#panelAction QLineEdit,
+QFrame#panelAction QComboBox,
+QFrame#panelAction QTextEdit,
+QFrame#panelAction QListWidget,
+QFrame#panelAction QSpinBox {{
+    background-color: {palette["surface_2"]};
+}}
+QFrame#card QLineEdit,
+QFrame#card QComboBox,
+QFrame#card QTextEdit,
+QFrame#card QListWidget,
+QFrame#card QSpinBox {{
+    background-color: {palette["surface"]};
+}}
+QFrame#subpanel QLineEdit,
+QFrame#subpanel QComboBox,
+QFrame#subpanel QTextEdit,
+QFrame#subpanel QListWidget,
+QFrame#subpanel QSpinBox {{
+    background-color: {palette["surface_2"]};
+}}
+QComboBox QAbstractItemView {{
+    background-color: {palette["surface"]};
+    color: {palette["text"]};
+    border: 1px solid {palette["border"]};
+    selection-background-color: {palette["surface_2"]};
+    selection-color: {palette["text"]};
 }}
 QProgressBar {{
     background-color: {palette["surface"]};
