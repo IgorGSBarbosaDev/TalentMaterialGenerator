@@ -120,22 +120,19 @@ class AppWindow(QMainWindow):
         self.topbar = QFrame()
         self.topbar.setObjectName("topbar")
         topbar_layout = QHBoxLayout(self.topbar)
-        topbar_layout.setContentsMargins(26, 18, 26, 18)
-        topbar_layout.setSpacing(16)
+        topbar_layout.setContentsMargins(20, 14, 20, 14)
+        topbar_layout.setSpacing(12)
 
-        title_col = QVBoxLayout()
-        title_col.setSpacing(2)
-        self.topbar_title = QLabel("Inicio")
-        self.topbar_title.setObjectName("topbarTitle")
-        self.topbar_subtitle = QLabel("Painel principal do USI Generator")
-        self.topbar_subtitle.setObjectName("topbarSubtitle")
-        title_col.addWidget(self.topbar_title)
-        title_col.addWidget(self.topbar_subtitle)
-        topbar_layout.addLayout(title_col, 1)
+        self.topbar_title = QLabel("USI Generator")
+        self.topbar_title.setObjectName("title")
+        topbar_layout.addWidget(self.topbar_title)
+        topbar_layout.addStretch(1)
 
-        self.topbar_badge = QLabel("Dashboard")
-        self.topbar_badge.setObjectName("topbarBadge")
-        topbar_layout.addWidget(self.topbar_badge)
+        self.theme_toggle_button = QPushButton("☀")
+        self.theme_toggle_button.setObjectName("theme_toggle")
+        self.theme_toggle_button.setFixedSize(44, 36)
+        self.theme_toggle_button.clicked.connect(self._toggle_theme)
+        topbar_layout.addWidget(self.theme_toggle_button)
         content_layout.addWidget(self.topbar)
 
         self.stack = QStackedWidget()
@@ -174,13 +171,13 @@ class AppWindow(QMainWindow):
         self.progress_screen.chrome_changed.connect(self._sync_topbar)
         self.settings_screen.save_requested.connect(self._save_settings)
         self.settings_screen.reset_requested.connect(self._reset_settings)
-        self.settings_screen.theme_toggle_requested.connect(self._toggle_theme)
         self.settings_screen.refresh_cache_requested.connect(self._refresh_cache_now)
 
         self._refresh_home()
         self.ficha_screen.load_config(config)
         self.carom_screen.load_config(config)
         self.settings_screen.load_config(config)
+        self._update_theme_toggle_button()
         self.navigate_to("home")
 
     def _build_nav_label(self, text: str) -> QLabel:
@@ -192,6 +189,7 @@ class AppWindow(QMainWindow):
         widget = self.screens[screen]
         self._current_screen = screen
         self.stack.setCurrentWidget(widget)
+        self.topbar_title.setText(widget.__class__.__name__.replace("Screen", ""))
         button = self.menu_buttons.get(screen)
         if button is not None:
             button.setChecked(True)
@@ -285,7 +283,7 @@ class AppWindow(QMainWindow):
         self.ficha_screen.load_config(self.config)
         self.carom_screen.load_config(self.config)
         self.settings_screen.load_config(self.config)
-        self._refresh_home()
+        self._update_theme_toggle_button()
         QMessageBox.information(self, "Configuracoes", "Padroes restaurados.")
 
     def _toggle_theme(self) -> None:
@@ -296,6 +294,16 @@ class AppWindow(QMainWindow):
         if app is not None:
             app.setStyleSheet(theme.build_stylesheet(new_mode))
         self.settings_screen.load_config(self.config)
+        self._update_theme_toggle_button()
+
+    def _update_theme_toggle_button(self) -> None:
+        current = str(self.config.get("theme", "dark")).lower()
+        if current == "dark":
+            self.theme_toggle_button.setText("☀")
+            self.theme_toggle_button.setToolTip("Mudar para modo claro")
+        else:
+            self.theme_toggle_button.setText("☾")
+            self.theme_toggle_button.setToolTip("Mudar para modo escuro")
 
     def _refresh_cache_now(self) -> None:
         url = str(self.config.get("default_onedrive_url", "")).strip()

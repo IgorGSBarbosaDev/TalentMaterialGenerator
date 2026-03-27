@@ -20,3 +20,12 @@ def test_stylesheet_contains_core_brand_colors() -> None:
 
 def test_stylesheet_changes_between_modes() -> None:
     assert theme.build_stylesheet("dark") != theme.build_stylesheet("light")
+
+
+def test_stylesheet_has_contextual_input_background_rules() -> None:
+    stylesheet = theme.build_stylesheet("dark")
+
+    assert "QFrame#panel QLineEdit" in stylesheet
+    assert "QFrame#panelAction QLineEdit" in stylesheet
+    assert "QFrame#card QLineEdit" in stylesheet
+    assert "QFrame#subpanel QLineEdit" in stylesheet

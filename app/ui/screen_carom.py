@@ -55,22 +55,33 @@ class CaromScreen(QWidget):
         self._column_selectors: dict[str, QComboBox] = {}
         self._preview_rows: list[dict[str, str]] = []
 
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(28, 24, 28, 24)
-        layout.setSpacing(18)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(26, 26, 26, 26)
+        layout.setSpacing(16)
 
-        left_column = QVBoxLayout()
-        left_column.setSpacing(16)
-        left_container = QWidget()
-        left_container.setLayout(left_column)
-        left_container.setMinimumWidth(430)
-
-        source_card = SectionCard(
-            "Fonte e agrupamento",
-            "Configure a base, a forma de agrupar e o titulo do material antes de gerar o grid.",
+        title = QLabel("Carometro")
+        title.setObjectName("title")
+        subtitle = QLabel(
+            "Distribua melhor as configuracoes de grade sem reservar area para exemplos de colaboradores."
         )
-        source_form = QFormLayout()
-        source_form.setSpacing(10)
+        subtitle.setObjectName("muted")
+        subtitle.setWordWrap(True)
+        layout.addWidget(title)
+        layout.addWidget(subtitle)
+
+        top_split = QHBoxLayout()
+        top_split.setSpacing(16)
+        layout.addLayout(top_split, 1)
+
+        source_panel = QFrame()
+        source_panel.setObjectName("panel")
+        source_layout = QVBoxLayout(source_panel)
+        source_layout.setContentsMargins(18, 18, 18, 18)
+        source_layout.setSpacing(14)
+        source_layout.addWidget(self._panel_title("Fonte e layout"))
+        source_layout.addWidget(
+            self._panel_hint("Configure origem da base, agrupamento e dimensao da grade.")
+        )
 
         self.source_type = QComboBox()
         self.source_type.addItems(["OneDrive", "Arquivo local"])
@@ -78,7 +89,7 @@ class CaromScreen(QWidget):
         self.source_type.currentTextChanged.connect(self._refresh_preview)
 
         self.entry_source = QLineEdit(config.get("default_onedrive_url", ""))
-        self.entry_source.textChanged.connect(self._on_source_changed)
+        self.entry_source.setMinimumWidth(350)
         self.entry_output = QLineEdit(str(get_default_output_dir()))
         self.entry_output.setReadOnly(True)
         self.grouping = QComboBox()
@@ -88,165 +99,124 @@ class CaromScreen(QWidget):
         self.title_field.textChanged.connect(self._refresh_preview)
         self.columns = QComboBox()
         self.columns.addItems(["3", "4", "5"])
-        self.columns.currentTextChanged.connect(self._refresh_preview)
-        self.columns.setVisible(False)
+        self.columns.setCurrentText(str(config.get("default_carom_columns", 5)))
+        self.title_field = QLineEdit("Carometro")
 
-        source_form.addRow("Origem", self.source_type)
-        source_form.addRow("Planilha ou link", self.entry_source)
-        source_form.addRow("Pasta de saida", self.entry_output)
-        source_form.addRow("Agrupar por", self.grouping)
+        source_form = QFormLayout()
+        source_form.setHorizontalSpacing(16)
+        source_form.setVerticalSpacing(12)
+        source_form.addRow("Fonte", self.source_type)
+        source_form.addRow("Planilha/Link", self.entry_source)
+        source_form.addRow("Saida", self.entry_output)
+        source_form.addRow("Agrupamento", self.grouping)
+        source_form.addRow("Colunas", self.columns)
         source_form.addRow("Titulo", self.title_field)
-        source_card.add_layout(source_form)
+        source_layout.addLayout(source_form)
 
-        actions = QHBoxLayout()
-        self.btn_browse_file = QPushButton("Procurar planilha")
-        self.btn_browse_file.clicked.connect(self._choose_source_file)
-        self.btn_detect = QPushButton("Auto-detectar colunas")
-        self.btn_detect.clicked.connect(self._auto_detect_columns)
-        actions.addWidget(self.btn_browse_file)
-        actions.addWidget(self.btn_detect)
-        source_card.add_layout(actions)
-        left_column.addWidget(source_card)
+        source_actions = QHBoxLayout()
+        btn_browse_file = QPushButton("Procurar arquivo")
+        btn_browse_file.clicked.connect(self._choose_source_file)
+        btn_detect = QPushButton("Auto-detectar")
+        btn_detect.clicked.connect(self._auto_detect_columns)
+        source_actions.addWidget(btn_browse_file)
+        source_actions.addWidget(btn_detect)
+        source_actions.addStretch(1)
+        source_layout.addLayout(source_actions)
+        top_split.addWidget(source_panel, 5)
 
-        mapping_card = SectionCard(
-            "Mapeamento",
-            "Campos obrigatorios ficam realcados e a preview usa as primeiras linhas da base.",
+        mapping_panel = QFrame()
+        mapping_panel.setObjectName("panel")
+        mapping_layout = QVBoxLayout(mapping_panel)
+        mapping_layout.setContentsMargins(18, 18, 18, 18)
+        mapping_layout.setSpacing(14)
+        mapping_layout.addWidget(self._panel_title("Mapeamento"))
+        mapping_layout.addWidget(
+            self._panel_hint("Mantenha nome e cargo obrigatorios para liberar a geracao.")
         )
+
         mapping_form = QFormLayout()
-        mapping_form.setSpacing(10)
+        mapping_form.setHorizontalSpacing(16)
+        mapping_form.setVerticalSpacing(10)
         for field in self.column_fields:
             combo = QComboBox()
             combo.addItem("")
-            combo.currentTextChanged.connect(self._refresh_preview)
-            combo.currentTextChanged.connect(self._refresh_required_states)
+            combo.setMinimumWidth(300)
             self._column_selectors[field] = combo
             mapping_form.addRow(field.capitalize(), combo)
-        mapping_card.add_layout(mapping_form)
-        left_column.addWidget(mapping_card)
+        mapping_layout.addLayout(mapping_form)
+        top_split.addWidget(mapping_panel, 5)
 
-        options_card = SectionCard(
-            "Layout visual",
-            "Selecione quantas colunas entram por slide e quais dados devem aparecer nos cards.",
+        action_split = QHBoxLayout()
+        action_split.setSpacing(16)
+        layout.addLayout(action_split)
+
+        options_panel = QFrame()
+        options_panel.setObjectName("panel")
+        options_layout = QVBoxLayout(options_panel)
+        options_layout.setContentsMargins(18, 18, 18, 18)
+        options_layout.setSpacing(14)
+        options_layout.addWidget(self._panel_title("Exibicao do card"))
+        options_layout.addWidget(
+            self._panel_hint("Ajuste quais dados aparecem no card final do carometro.")
         )
-        chip_row = QHBoxLayout()
-        chip_row.setSpacing(8)
-        self.column_group = QButtonGroup(self)
-        self.column_group.setExclusive(True)
-        self.column_buttons: dict[str, QPushButton] = {}
-        for value in ("3", "4", "5"):
-            button = QPushButton(value)
-            button.setObjectName("chipButton")
-            button.setCheckable(True)
-            button.clicked.connect(lambda _checked=False, selected=value: self.columns.setCurrentText(selected))
-            self.column_group.addButton(button)
-            self.column_buttons[value] = button
-            chip_row.addWidget(button)
-        chip_row.addStretch(1)
-        options_card.add_layout(chip_row)
 
         self.chk_show_nota = QCheckBox("Mostrar nota")
         self.chk_show_nota.setChecked(True)
-        self.chk_show_nota.toggled.connect(self._refresh_preview)
         self.chk_show_potencial = QCheckBox("Mostrar potencial")
         self.chk_show_potencial.setChecked(True)
-        self.chk_show_potencial.toggled.connect(self._refresh_preview)
         self.chk_show_cargo = QCheckBox("Mostrar cargo")
         self.chk_show_cargo.setChecked(True)
-        self.chk_show_cargo.toggled.connect(self._refresh_preview)
         self.chk_cores = QCheckBox("Cores automaticas")
         self.chk_cores.setChecked(True)
-        self.chk_cores.toggled.connect(self._refresh_preview)
 
-        toggles_col = QVBoxLayout()
-        toggles_col.setSpacing(8)
-        toggles_col.addWidget(self.chk_show_nota)
-        toggles_col.addWidget(self.chk_show_potencial)
-        toggles_col.addWidget(self.chk_show_cargo)
-        toggles_col.addWidget(self.chk_cores)
-        options_card.add_layout(toggles_col)
-        left_column.addWidget(options_card)
+        toggles_grid = QGridLayout()
+        toggles_grid.setHorizontalSpacing(18)
+        toggles_grid.setVerticalSpacing(8)
+        toggles_grid.addWidget(self.chk_show_nota, 0, 0)
+        toggles_grid.addWidget(self.chk_show_potencial, 0, 1)
+        toggles_grid.addWidget(self.chk_show_cargo, 1, 0)
+        toggles_grid.addWidget(self.chk_cores, 1, 1)
+        options_layout.addLayout(toggles_grid)
+        action_split.addWidget(options_panel, 7)
 
-        action_card = SectionCard(
-            "Pronto para gerar",
-            "O preview ajuda a validar quantidade de cards, agrupamento e niveis de destaque visual.",
-        )
-        status_row = QHBoxLayout()
-        self.status_badge = StatusBadge("Aguardando", "neutral")
-        self.status_label = QLabel("Selecione uma fonte de dados para iniciar.")
-        self.status_label.setObjectName("bodyMuted")
+        action_panel = QFrame()
+        action_panel.setObjectName("panelAction")
+        action_layout = QVBoxLayout(action_panel)
+        action_layout.setContentsMargins(18, 16, 18, 16)
+        action_layout.setSpacing(10)
+        action_layout.addWidget(self._panel_title("Acao final"))
+        self.status_label = QLabel("")
+        self.status_label.setObjectName("statusLabel")
         self.status_label.setWordWrap(True)
-        status_row.addWidget(self.status_badge)
-        status_row.addWidget(self.status_label, 1)
-        action_card.add_layout(status_row)
-
-        self.btn_generate = QPushButton("Gerar carometro")
+        action_layout.addWidget(self.status_label)
+        self.btn_generate = QPushButton("GERAR CAROMETRO")
         self.btn_generate.setObjectName("primary")
         self.btn_generate.clicked.connect(self._start_generation)
-        action_card.add_widget(self.btn_generate)
-        left_column.addWidget(action_card)
-        left_column.addStretch(1)
+        action_layout.addWidget(self.btn_generate)
+        action_layout.addStretch(1)
+        action_split.addWidget(action_panel, 3)
 
-        right_column = QVBoxLayout()
-        right_column.setSpacing(16)
+        self._set_status("Informe a fonte de dados para iniciar.", "info")
 
-        preview_card = SectionCard(
-            "Preview do carometro",
-            "Mini-cards e grupos atualizam localmente conforme voce muda layout, titulo e atributos visiveis.",
-            object_name="previewPanel",
-        )
-        self.source_badge = StatusBadge("Fonte pendente", "warning")
-        self.layout_badge = StatusBadge("5 colunas", "info")
-        self.group_badge = StatusBadge("Agrupar por area", "info")
-        preview_card.add_widget(
-            build_badge_row([self.source_badge, self.layout_badge, self.group_badge])
-        )
+    def _panel_title(self, text: str) -> QLabel:
+        label = QLabel(text)
+        label.setObjectName("panelTitle")
+        return label
 
-        self.canvas = QFrame()
-        self.canvas.setObjectName("caromCanvas")
-        canvas_layout = QVBoxLayout(self.canvas)
-        canvas_layout.setContentsMargins(18, 18, 18, 18)
-        canvas_layout.setSpacing(12)
+    def _panel_hint(self, text: str) -> QLabel:
+        label = QLabel(text)
+        label.setObjectName("panelHint")
+        label.setWordWrap(True)
+        return label
 
-        self.preview_header = QLabel("Carometro")
-        self.preview_header.setObjectName("previewTitle")
-        self.preview_subheader = QLabel("Talent Development  |  Grupo atual")
-        self.preview_subheader.setObjectName("previewMeta")
-        canvas_layout.addWidget(self.preview_header)
-        canvas_layout.addWidget(self.preview_subheader)
-
-        self.preview_grid_wrap = QWidget()
-        self.preview_grid = QGridLayout(self.preview_grid_wrap)
-        self.preview_grid.setContentsMargins(0, 0, 0, 0)
-        self.preview_grid.setHorizontalSpacing(10)
-        self.preview_grid.setVerticalSpacing(10)
-        canvas_layout.addWidget(self.preview_grid_wrap)
-        preview_card.add_widget(self.canvas)
-
-        sample_card = SectionCard(
-            "Amostra de colaboradores",
-            "Use esta lista para validar nome, cargo, nota e potencial lidos da base.",
-            object_name="previewCard",
-            compact=True,
-        )
-        self.preview_people_wrap = QWidget()
-        self.preview_people_layout = QVBoxLayout(self.preview_people_wrap)
-        self.preview_people_layout.setContentsMargins(0, 0, 0, 0)
-        self.preview_people_layout.setSpacing(8)
-        sample_card.add_widget(self.preview_people_wrap)
-        preview_card.add_widget(sample_card)
-
-        right_column.addWidget(preview_card)
-        right_column.addStretch(1)
-
-        layout.addWidget(left_container, 0)
-        layout.addLayout(right_column, 1)
-
-        if config.get("spreadsheet_source") == "local":
-            self.source_type.setCurrentText("Arquivo local")
-        self.load_config(config)
-        self._sync_source_mode()
-        self._sync_column_buttons()
-        self._refresh_preview()
+    def _set_status(self, message: str, state: str) -> None:
+        self.status_label.setText(message)
+        self.status_label.setProperty("state", state)
+        style = self.status_label.style()
+        if style is not None:
+            style.unpolish(self.status_label)
+            style.polish(self.status_label)
+        self.status_label.update()
 
     def load_config(self, config: dict[str, Any]) -> None:
         source_kind = str(config.get("spreadsheet_source", "onedrive")).lower()
@@ -337,12 +307,10 @@ class CaromScreen(QWidget):
             return False
 
         if self.source_type.currentText() == "Arquivo local" and not Path(source).is_file():
-            self._set_invalid(self.entry_source, True)
             self._set_status("A planilha local nao foi encontrada.", "error")
             return False
 
         if self.source_type.currentText() == "OneDrive" and not source.startswith("https://"):
-            self._set_invalid(self.entry_source, True)
             self._set_status("Informe um link valido do OneDrive.", "error")
             return False
 
@@ -355,13 +323,12 @@ class CaromScreen(QWidget):
             )
             return False
 
-        self._set_status("Configuracao valida para geracao.", "success")
+        self._set_status("Configuracao valida. Pronto para gerar.", "success")
         return True
 
     def _auto_detect_columns(self) -> None:
         source = self.entry_source.text().strip()
         if source == "":
-            self._set_invalid(self.entry_source, True)
             self._set_status("Informe a fonte antes da auto-deteccao.", "warning")
             return
 
@@ -383,132 +350,9 @@ class CaromScreen(QWidget):
                     idx = combo.findText(value)
                     if idx >= 0:
                         combo.setCurrentIndex(idx)
-            self._set_invalid(self.entry_source, False)
-            self._set_status("Colunas detectadas e preview atualizado.", "success")
-            self._refresh_required_states()
-            self._refresh_preview()
+            self._set_status("Colunas detectadas com sucesso.", "success")
         except Exception as exc:
             self._set_status(str(exc), "error")
-
-    def _preview_value(self, row: dict[str, str], field: str, fallback: str) -> str:
-        mapping = self._get_column_mapping()
-        source_field = mapping.get(field)
-        if self._preview_rows and source_field:
-            value = str(row.get(source_field, "")).strip()
-            if value:
-                return value
-        return fallback
-
-    def _render_preview_grid(self) -> None:
-        clear_layout(self.preview_grid)
-        rows = self._preview_rows[:6]
-        fallback = [
-            {"nome": "Ana Martins", "cargo": "Analista Sr.", "nota": "4.5", "potencial": "Alto"},
-            {"nome": "Carlos Ferreira", "cargo": "Coordenador", "nota": "4.3", "potencial": "Alto"},
-            {"nome": "Julia Lima", "cargo": "Analista Pl.", "nota": "3.9", "potencial": "Medio"},
-            {"nome": "Rafael Silva", "cargo": "Especialista", "nota": "4.1", "potencial": "Alto"},
-            {"nome": "Lucas Moura", "cargo": "Analista Jr.", "nota": "3.2", "potencial": "Baixo"},
-        ]
-        dataset = rows if rows else fallback
-        columns = max(1, int(self.columns.currentText()))
-        max_items = min(len(dataset), columns * 2)
-        for index, row in enumerate(dataset[:max_items]):
-            card = QFrame()
-            card.setObjectName("subpanel")
-            card_layout = QVBoxLayout(card)
-            card_layout.setContentsMargins(10, 10, 10, 10)
-            card_layout.setSpacing(4)
-
-            name = self._preview_value(row, "nome", str(row.get("nome", "Sem nome")))
-            cargo = self._preview_value(row, "cargo", str(row.get("cargo", "Cargo")))
-            nota = self._preview_value(row, "nota", str(row.get("nota", "4.0")))
-            potencial = self._preview_value(
-                row, "potencial", str(row.get("potencial", "Alto"))
-            )
-
-            avatar = QLabel("".join(part[:1] for part in name.split()[:2]).upper() or "?")
-            avatar.setObjectName("avatarBadge")
-            avatar.setAlignment(Qt.AlignCenter)
-            avatar.setMinimumSize(36, 36)
-            avatar.setMaximumSize(36, 36)
-            card_layout.addWidget(avatar, 0, Qt.AlignLeft)
-
-            title = QLabel(name)
-            title.setObjectName("previewItemTitle")
-            title.setWordWrap(True)
-            card_layout.addWidget(title)
-
-            if self.chk_show_cargo.isChecked():
-                cargo_label = QLabel(cargo)
-                cargo_label.setObjectName("previewItemMeta")
-                cargo_label.setWordWrap(True)
-                card_layout.addWidget(cargo_label)
-
-            accent_bits: list[str] = []
-            if self.chk_show_nota.isChecked():
-                accent_bits.append(f"Nota {nota}")
-            if self.chk_show_potencial.isChecked():
-                accent_bits.append(potencial)
-            accent_label = QLabel("  |  ".join(accent_bits) if accent_bits else "Card compacto")
-            accent_label.setObjectName("previewItemAccent")
-            accent_label.setWordWrap(True)
-            card_layout.addWidget(accent_label)
-
-            self.preview_grid.addWidget(card, index // columns, index % columns)
-
-    def _render_people_preview(self) -> None:
-        clear_layout(self.preview_people_layout)
-        rows = self._preview_rows[:4]
-        mapping = self._get_column_mapping()
-        name_key = mapping.get("nome")
-        cargo_key = mapping.get("cargo")
-        note_key = mapping.get("nota")
-        fallback_rows = [
-            {"nome": "Ana Martins", "cargo": "Analista Sr.", "nota": "4.5"},
-            {"nome": "Carlos Ferreira", "cargo": "Coordenador", "nota": "4.3"},
-            {"nome": "Julia Lima", "cargo": "Analista Pl.", "nota": "3.9"},
-        ]
-        dataset = rows if rows else fallback_rows
-        for row in dataset:
-            title = (
-                str(row.get(name_key, "")).strip()
-                if rows and name_key
-                else str(row.get("nome", "")).strip()
-            ) or "Sem nome"
-            role = (
-                str(row.get(cargo_key, "")).strip()
-                if rows and cargo_key
-                else str(row.get("cargo", "")).strip()
-            ) or "Cargo nao identificado"
-            note = (
-                str(row.get(note_key, "")).strip()
-                if rows and note_key
-                else str(row.get("nota", "")).strip()
-            )
-            self.preview_people_layout.addWidget(PreviewListItem(title, role, note))
-        self.preview_people_layout.addStretch(1)
-
-    def _refresh_preview(self) -> None:
-        self._sync_column_buttons()
-        mapped_count = sum(
-            1 for combo in self._column_selectors.values() if combo.currentText().strip()
-        )
-        self.source_badge.update_status(
-            "Arquivo local" if self.source_type.currentText() == "Arquivo local" else "OneDrive",
-            "info" if self.entry_source.text().strip() else "warning",
-        )
-        self.layout_badge.update_status(f"{self.columns.currentText()} colunas", "info")
-        grouping = self.grouping.currentText()
-        self.group_badge.update_status(
-            "Sem agrupamento" if grouping == "sem agrupamento" else f"Agrupar por {grouping}",
-            "success" if mapped_count >= 4 else "warning",
-        )
-        self.preview_header.setText(self.title_field.text().strip() or "Carometro")
-        self.preview_subheader.setText(
-            f"Talent Development  |  {self.group_badge.text()}"
-        )
-        self._render_preview_grid()
-        self._render_people_preview()
 
     def _start_generation(self) -> None:
         if not self._validate_inputs():

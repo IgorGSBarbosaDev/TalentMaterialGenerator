@@ -19,7 +19,6 @@ from app.ui.components import SectionCard
 class SettingsScreen(QWidget):
     save_requested = Signal(dict)
     reset_requested = Signal()
-    theme_toggle_requested = Signal()
     refresh_cache_requested = Signal()
 
     page_title = "Configuracoes"
@@ -29,9 +28,9 @@ class SettingsScreen(QWidget):
     def __init__(self, config: dict) -> None:
         super().__init__()
 
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(28, 24, 28, 24)
-        layout.setSpacing(18)
+        title = QLabel("Configuracoes")
+        title.setObjectName("title")
+        layout.addWidget(title)
 
         intro = SectionCard(
             "Preferencias do aplicativo",
@@ -68,9 +67,18 @@ class SettingsScreen(QWidget):
         cache_form.addRow("TTL do cache (horas)", self.cache_ttl)
         cache_card.add_layout(cache_form)
 
-        cache_actions = QHBoxLayout()
-        btn_theme = QPushButton("Alternar tema")
-        btn_theme.clicked.connect(self.theme_toggle_requested.emit)
+        form.addRow("Planilha local padrao", self.default_spreadsheet)
+        form.addRow("Link padrao OneDrive", self.default_onedrive)
+        form.addRow("Pasta de saida padrao", self.default_output)
+        form.addRow("TTL cache (horas)", self.cache_ttl)
+        layout.addWidget(panel)
+
+        button_row = QHBoxLayout()
+        btn_save = QPushButton("Salvar")
+        btn_save.setObjectName("primary")
+        btn_save.clicked.connect(self._emit_save)
+        btn_reset = QPushButton("Restaurar padroes")
+        btn_reset.clicked.connect(self.reset_requested.emit)
         btn_refresh = QPushButton("Atualizar base agora")
         btn_refresh.clicked.connect(self.refresh_cache_requested.emit)
         cache_actions.addWidget(btn_theme)
@@ -87,6 +95,7 @@ class SettingsScreen(QWidget):
         btn_reset.clicked.connect(self.reset_requested.emit)
         button_row.addWidget(btn_save)
         button_row.addWidget(btn_reset)
+        button_row.addWidget(btn_refresh)
         button_row.addStretch(1)
         layout.addLayout(button_row)
         layout.addStretch(1)

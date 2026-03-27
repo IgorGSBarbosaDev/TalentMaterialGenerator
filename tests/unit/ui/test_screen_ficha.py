@@ -3,6 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 from uuid import uuid4
 
+from PySide6.QtWidgets import QLabel
+
 from app.config.settings import get_default_output_dir
 from app.ui.screen_ficha import FichaScreen
 
@@ -43,34 +45,9 @@ def test_ficha_screen_get_config_returns_output_mode(qtbot) -> None:
     assert config["output_dir"] == str(get_default_output_dir())
 
 
-def test_ficha_screen_exposes_new_schema_fields(qtbot) -> None:
+def test_ficha_screen_has_no_preview_placeholder_text(qtbot) -> None:
     screen = FichaScreen({})
     qtbot.addWidget(screen)
 
-    for field in ("matricula", "nota_2025", "nota_2024", "nota_2023", "performance"):
-        assert field in screen._column_selectors
-
-
-def test_ficha_screen_refreshes_preview_from_selected_mapping(qtbot) -> None:
-    screen = FichaScreen({})
-    qtbot.addWidget(screen)
-    screen._preview_rows = [
-        {
-            "Nome Coluna": "Marina Souza",
-            "Cargo Coluna": "Especialista de Desenvolvimento",
-            "Resumo": "Atua na consolidacao de trilhas de aprendizagem.",
-        }
-    ]
-    for field, header in (
-        ("nome", "Nome Coluna"),
-        ("cargo", "Cargo Coluna"),
-        ("resumo_perfil", "Resumo"),
-    ):
-        screen._column_selectors[field].addItem(header)
-        screen._column_selectors[field].setCurrentText(header)
-
-    screen._refresh_preview()
-
-    assert screen.preview_name.text() == "Marina Souza"
-    assert "Especialista" in screen.preview_role.text()
-    assert "aprendizagem" in screen.preview_summary.text()
+    labels = [label.text() for label in screen.findChildren(QLabel)]
+    assert all("Preview:" not in text for text in labels)

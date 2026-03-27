@@ -59,11 +59,8 @@ class FichaScreen(QWidget):
             "cargo": "Cargo*",
             "antiguidade": "Antiguidade",
             "formacao": "Formacao",
-            "resumo_perfil": "Resumo de Perfil",
+            "resumo_perfil": "Resumo de perfil",
             "trajetoria": "Trajetoria",
-            "nota_2025": "Nota 2025",
-            "nota_2024": "Nota 2024",
-            "nota_2023": "Nota 2023",
             "performance": "Performance",
         }
         self._column_selectors: dict[str, QComboBox] = {}
@@ -73,18 +70,33 @@ class FichaScreen(QWidget):
         layout.setContentsMargins(28, 24, 28, 24)
         layout.setSpacing(18)
 
-        left_column = QVBoxLayout()
-        left_column.setSpacing(16)
-        left_container = QWidget()
-        left_container.setLayout(left_column)
-        left_container.setMinimumWidth(430)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(26, 26, 26, 26)
+        layout.setSpacing(16)
 
-        source_card = SectionCard(
-            "Fonte de dados",
-            "Escolha a origem da planilha e valide a base antes de gerar os slides.",
+        title = QLabel("Ficha de Curriculo")
+        title.setObjectName("title")
+        subtitle = QLabel(
+            "Configure a base e o mapeamento em paines amplos para gerar fichas com menos atrito."
         )
-        source_form = QFormLayout()
-        source_form.setSpacing(10)
+        subtitle.setObjectName("muted")
+        subtitle.setWordWrap(True)
+        layout.addWidget(title)
+        layout.addWidget(subtitle)
+
+        split = QHBoxLayout()
+        split.setSpacing(16)
+        layout.addLayout(split, 1)
+
+        source_panel = QFrame()
+        source_panel.setObjectName("panel")
+        source_layout = QVBoxLayout(source_panel)
+        source_layout.setContentsMargins(18, 18, 18, 18)
+        source_layout.setSpacing(14)
+        source_layout.addWidget(self._panel_title("Fonte de dados"))
+        source_layout.addWidget(
+            self._panel_hint("Defina origem, saida e modo de geracao em um unico bloco.")
+        )
 
         self.source_type = QComboBox()
         self.source_type.addItems(["OneDrive", "Arquivo local"])
@@ -92,170 +104,103 @@ class FichaScreen(QWidget):
         self.source_type.currentTextChanged.connect(self._refresh_preview)
 
         self.entry_source = QLineEdit(config.get("default_onedrive_url", ""))
-        self.entry_source.textChanged.connect(self._on_source_changed)
+        self.entry_source.setMinimumWidth(360)
         self.entry_output = QLineEdit(str(get_default_output_dir()))
         self.entry_output.setReadOnly(True)
 
         self.output_mode = QComboBox()
         self.output_mode.addItems(["one_file_per_employee", "single_deck"])
-        self.output_mode.currentTextChanged.connect(self._refresh_preview)
-
-        source_actions = QHBoxLayout()
-        self.btn_browse_file = QPushButton("Procurar planilha")
-        self.btn_browse_file.clicked.connect(self._choose_source_file)
-        self.btn_detect = QPushButton("Auto-detectar colunas")
-        self.btn_detect.clicked.connect(self._auto_detect_columns)
-        source_actions.addWidget(self.btn_browse_file)
-        source_actions.addWidget(self.btn_detect)
-
-        source_form.addRow("Origem", self.source_type)
-        source_form.addRow("Planilha ou link", self.entry_source)
-        source_form.addRow("Pasta de saida", self.entry_output)
-        source_form.addRow("Modo de saida", self.output_mode)
-        source_card.add_layout(source_form)
-        source_card.add_layout(source_actions)
-        left_column.addWidget(source_card)
-
-        mapping_card = SectionCard(
-            "Mapeamento",
-            "Campos obrigatorios ficam destacados quando ainda nao foram associados.",
+        self.output_mode.setCurrentText(
+            config.get("default_output_mode", "one_file_per_employee")
         )
+
+        source_form = QFormLayout()
+        source_form.setHorizontalSpacing(16)
+        source_form.setVerticalSpacing(12)
+        source_form.addRow("Fonte", self.source_type)
+        source_form.addRow("Planilha/Link", self.entry_source)
+        source_form.addRow("Saida", self.entry_output)
+        source_form.addRow("Modo de saida", self.output_mode)
+        source_layout.addLayout(source_form)
+
+        actions = QHBoxLayout()
+        btn_browse_file = QPushButton("Procurar arquivo")
+        btn_browse_file.clicked.connect(self._choose_source_file)
+        btn_detect = QPushButton("Auto-detectar")
+        btn_detect.clicked.connect(self._auto_detect_columns)
+        actions.addWidget(btn_browse_file)
+        actions.addWidget(btn_detect)
+        actions.addStretch(1)
+        source_layout.addLayout(actions)
+        split.addWidget(source_panel, 5)
+
+        mapping_panel = QFrame()
+        mapping_panel.setObjectName("panel")
+        mapping_layout = QVBoxLayout(mapping_panel)
+        mapping_layout.setContentsMargins(18, 18, 18, 18)
+        mapping_layout.setSpacing(14)
+        mapping_layout.addWidget(self._panel_title("Mapeamento de colunas"))
+        mapping_layout.addWidget(
+            self._panel_hint("Mapeie os campos obrigatorios e revise os complementares.")
+        )
+
         mapping_form = QFormLayout()
-        mapping_form.setSpacing(10)
+        mapping_form.setHorizontalSpacing(16)
+        mapping_form.setVerticalSpacing(10)
         for field in self.column_fields:
             combo = QComboBox()
             combo.addItem("")
-            combo.currentTextChanged.connect(self._refresh_preview)
-            combo.currentTextChanged.connect(self._refresh_required_states)
+            combo.setMinimumWidth(340)
             self._column_selectors[field] = combo
             mapping_form.addRow(self.column_labels[field], combo)
-        mapping_card.add_layout(mapping_form)
-        left_column.addWidget(mapping_card)
+        mapping_layout.addLayout(mapping_form)
+        split.addWidget(mapping_panel, 5)
 
-        action_card = SectionCard(
-            "Pronto para gerar",
-            "A interface atualiza badges, preview e checklist localmente antes da execucao.",
-        )
-        status_row = QHBoxLayout()
-        self.status_badge = StatusBadge("Aguardando", "neutral")
-        self.status_label = QLabel("Selecione uma fonte de dados para iniciar.")
-        self.status_label.setObjectName("bodyMuted")
+        action_panel = QFrame()
+        action_panel.setObjectName("panelAction")
+        action_layout = QHBoxLayout(action_panel)
+        action_layout.setContentsMargins(18, 16, 18, 16)
+        action_layout.setSpacing(14)
+
+        status_col = QVBoxLayout()
+        status_col.setSpacing(6)
+        status_title = self._panel_title("Acao final")
+        status_title.setObjectName("panelTitle")
+        self.status_label = QLabel("")
+        self.status_label.setObjectName("statusLabel")
         self.status_label.setWordWrap(True)
-        status_row.addWidget(self.status_badge)
-        status_row.addWidget(self.status_label, 1)
-        action_card.add_layout(status_row)
-
-        self.preview_hint = QLabel(
-            "Preview baseado nas colunas escolhidas e, quando disponivel, nas primeiras linhas da planilha."
-        )
-        self.preview_hint.setObjectName("dim")
-        self.preview_hint.setWordWrap(True)
-        action_card.add_widget(self.preview_hint)
+        status_col.addWidget(status_title)
+        status_col.addWidget(self.status_label)
+        action_layout.addLayout(status_col, 1)
 
         self.btn_generate = QPushButton("Gerar fichas")
         self.btn_generate.setObjectName("primary")
         self.btn_generate.clicked.connect(self._start_generation)
-        action_card.add_widget(self.btn_generate)
-        left_column.addWidget(action_card)
-        left_column.addStretch(1)
+        self.btn_generate.setMinimumWidth(210)
+        action_layout.addWidget(self.btn_generate)
+        layout.addWidget(action_panel)
 
-        right_column = QVBoxLayout()
-        right_column.setSpacing(16)
+        self._set_status("Informe a fonte de dados para iniciar.", "info")
 
-        preview_card = SectionCard(
-            "Preview da ficha",
-            "Visual persistente para validar leitura da base, estrutura do slide e ordem dos colaboradores.",
-            object_name="previewPanel",
-        )
-        self.source_badge = StatusBadge("Fonte pendente", "warning")
-        self.mapping_badge = StatusBadge("Mapeamento parcial", "warning")
-        self.output_badge = StatusBadge("1 por colaborador", "info")
-        preview_card.add_widget(
-            build_badge_row([self.source_badge, self.mapping_badge, self.output_badge])
-        )
+    def _panel_title(self, text: str) -> QLabel:
+        label = QLabel(text)
+        label.setObjectName("panelTitle")
+        return label
 
-        self.slide_card = QFrame()
-        self.slide_card.setObjectName("slideCard")
-        slide_layout = QHBoxLayout(self.slide_card)
-        slide_layout.setContentsMargins(18, 18, 18, 18)
-        slide_layout.setSpacing(16)
+    def _panel_hint(self, text: str) -> QLabel:
+        label = QLabel(text)
+        label.setObjectName("panelHint")
+        label.setWordWrap(True)
+        return label
 
-        identity_col = QVBoxLayout()
-        identity_col.setSpacing(8)
-        avatar = QLabel("AM")
-        avatar.setObjectName("avatarBadge")
-        avatar.setMinimumSize(56, 56)
-        avatar.setMaximumSize(56, 56)
-        avatar.setAlignment(Qt.AlignCenter)
-        self.preview_name = QLabel("Ana Martins")
-        self.preview_name.setObjectName("previewTitle")
-        self.preview_role = QLabel("Analista de RH Sr.")
-        self.preview_role.setObjectName("previewMeta")
-        self.preview_meta = QLabel("34 anos  |  6 anos de empresa")
-        self.preview_meta.setObjectName("previewMeta")
-        identity_col.addWidget(avatar, 0, Qt.AlignLeft)
-        identity_col.addWidget(self.preview_name)
-        identity_col.addWidget(self.preview_role)
-        identity_col.addWidget(self.preview_meta)
-        identity_col.addStretch(1)
-
-        content_col = QVBoxLayout()
-        content_col.setSpacing(10)
-        performance_label = QLabel("Performance")
-        performance_label.setObjectName("previewLabel")
-        self.preview_performance = QLabel("2025 - 4.5 | 2024 - 4.2 | 2023 - 3.9")
-        self.preview_performance.setWordWrap(True)
-        self.preview_performance.setObjectName("previewMeta")
-        summary_label = QLabel("Resumo")
-        summary_label.setObjectName("previewLabel")
-        self.preview_summary = QLabel(
-            "Profissional com boa leitura de contexto, foco em desenvolvimento e visao sistêmica."
-        )
-        self.preview_summary.setWordWrap(True)
-        self.preview_summary.setObjectName("previewItemTitle")
-        career_label = QLabel("Trajetoria")
-        career_label.setObjectName("previewLabel")
-        self.preview_trajectory = QLabel(
-            "Evolucao interna com projetos de treinamento, rituais de performance e suporte a liderancas."
-        )
-        self.preview_trajectory.setWordWrap(True)
-        self.preview_trajectory.setObjectName("previewMeta")
-        content_col.addWidget(performance_label)
-        content_col.addWidget(self.preview_performance)
-        content_col.addWidget(summary_label)
-        content_col.addWidget(self.preview_summary)
-        content_col.addWidget(career_label)
-        content_col.addWidget(self.preview_trajectory)
-        content_col.addStretch(1)
-
-        slide_layout.addLayout(identity_col, 1)
-        slide_layout.addLayout(content_col, 2)
-        preview_card.add_widget(self.slide_card)
-
-        people_card = SectionCard(
-            "Amostra da base",
-            "Os primeiros colaboradores ajudam a validar se o mapeamento esta coerente.",
-            object_name="previewCard",
-            compact=True,
-        )
-        self.preview_people_wrap = QWidget()
-        self.preview_people_layout = QVBoxLayout(self.preview_people_wrap)
-        self.preview_people_layout.setContentsMargins(0, 0, 0, 0)
-        self.preview_people_layout.setSpacing(8)
-        people_card.add_widget(self.preview_people_wrap)
-        preview_card.add_widget(people_card)
-
-        right_column.addWidget(preview_card)
-        right_column.addStretch(1)
-
-        layout.addWidget(left_container, 0)
-        layout.addLayout(right_column, 1)
-
-        if config.get("spreadsheet_source") == "local":
-            self.source_type.setCurrentText("Arquivo local")
-        self.load_config(config)
-        self._sync_source_mode()
-        self._refresh_preview()
+    def _set_status(self, message: str, state: str) -> None:
+        self.status_label.setText(message)
+        self.status_label.setProperty("state", state)
+        style = self.status_label.style()
+        if style is not None:
+            style.unpolish(self.status_label)
+            style.polish(self.status_label)
+        self.status_label.update()
 
     def load_config(self, config: dict[str, Any]) -> None:
         source_kind = str(config.get("spreadsheet_source", "onedrive")).lower()
@@ -329,19 +274,15 @@ class FichaScreen(QWidget):
 
     def _validate_inputs(self) -> bool:
         source = self.entry_source.text().strip()
-        source_missing = source == ""
-        self._set_invalid(self.entry_source, source_missing)
-        if source_missing:
+        if source == "":
             self._set_status("Informe a fonte de dados.", "warning")
             return False
 
         if self.source_type.currentText() == "Arquivo local" and not Path(source).is_file():
-            self._set_invalid(self.entry_source, True)
             self._set_status("A planilha local nao foi encontrada.", "error")
             return False
 
         if self.source_type.currentText() == "OneDrive" and not source.startswith("https://"):
-            self._set_invalid(self.entry_source, True)
             self._set_status("Informe um link valido do OneDrive.", "error")
             return False
 
@@ -354,7 +295,7 @@ class FichaScreen(QWidget):
             )
             return False
 
-        self._set_status("Configuracao valida para geracao.", "success")
+        self._set_status("Configuracao valida. Pronto para gerar.", "success")
         return True
 
     def _get_column_mapping(self) -> dict[str, str | None]:
@@ -378,7 +319,6 @@ class FichaScreen(QWidget):
     def _auto_detect_columns(self) -> None:
         source = self.entry_source.text().strip()
         if source == "":
-            self._set_invalid(self.entry_source, True)
             self._set_status("Informe a fonte antes da auto-deteccao.", "warning")
             return
 
@@ -400,96 +340,9 @@ class FichaScreen(QWidget):
                     idx = combo.findText(value)
                     if idx >= 0:
                         combo.setCurrentIndex(idx)
-            self._set_invalid(self.entry_source, False)
-            self._set_status("Colunas detectadas e preview atualizado.", "success")
-            self._refresh_required_states()
-            self._refresh_preview()
+            self._set_status("Colunas detectadas com sucesso.", "success")
         except Exception as exc:
             self._set_status(str(exc), "error")
-
-    def _preview_value(self, field: str, fallback: str) -> str:
-        mapping = self._get_column_mapping()
-        source_field = mapping.get(field)
-        if self._preview_rows and source_field:
-            value = str(self._preview_rows[0].get(source_field, "")).strip()
-            if value:
-                return value
-        return fallback
-
-    def _render_people_preview(self) -> None:
-        clear_layout(self.preview_people_layout)
-        rows = self._preview_rows[:4]
-        mapping = self._get_column_mapping()
-        name_key = mapping.get("nome")
-        cargo_key = mapping.get("cargo")
-        idade_key = mapping.get("idade")
-        fallback_rows = [
-            {"nome": "Ana Martins", "cargo": "Analista de RH Sr.", "idade": "34"},
-            {"nome": "Carlos Ferreira", "cargo": "Coordenador de T&D", "idade": "41"},
-            {"nome": "Julia Lima", "cargo": "Analista Pl.", "idade": "29"},
-        ]
-        dataset = rows if rows else fallback_rows
-        for row in dataset:
-            title = (
-                str(row.get(name_key, "")).strip()
-                if rows and name_key
-                else str(row.get("nome", "")).strip()
-            ) or "Sem nome"
-            role = (
-                str(row.get(cargo_key, "")).strip()
-                if rows and cargo_key
-                else str(row.get("cargo", "")).strip()
-            ) or "Cargo nao identificado"
-            age = (
-                str(row.get(idade_key, "")).strip()
-                if rows and idade_key
-                else str(row.get("idade", "")).strip()
-            )
-            meta = role if not age else f"{role}  |  {age} anos"
-            self.preview_people_layout.addWidget(PreviewListItem(title, meta))
-        self.preview_people_layout.addStretch(1)
-
-    def _refresh_preview(self) -> None:
-        mapped_count = sum(
-            1 for combo in self._column_selectors.values() if combo.currentText().strip()
-        )
-        mapping_tone = "success" if mapped_count >= 4 else "warning"
-        output_mode = self.output_mode.currentText()
-        self.source_badge.update_status(
-            "Arquivo local" if self.source_type.currentText() == "Arquivo local" else "OneDrive",
-            "info" if self.entry_source.text().strip() else "warning",
-        )
-        self.mapping_badge.update_status(
-            f"{mapped_count}/{len(self.column_fields)} mapeadas", mapping_tone
-        )
-        self.output_badge.update_status(
-            "1 por colaborador" if output_mode == "one_file_per_employee" else "Deck unico",
-            "info",
-        )
-
-        name = self._preview_value("nome", "Ana Martins")
-        role = self._preview_value("cargo", "Analista de RH Sr.")
-        idade = self._preview_value("idade", "34")
-        antiguidade = self._preview_value("antiguidade", "6")
-        performance = self._preview_value(
-            "performance", "2025 - 4.5 | 2024 - 4.2 | 2023 - 3.9"
-        )
-        resumo = self._preview_value(
-            "resumo_perfil",
-            "Profissional com boa leitura de contexto, foco em desenvolvimento e visao sistemica.",
-        )
-        trajetoria = self._preview_value(
-            "trajetoria",
-            "Evolucao interna com projetos de treinamento, rituais de performance e suporte a liderancas.",
-        )
-
-        self.preview_name.setText(name)
-        self.preview_role.setText(role)
-        self.preview_meta.setText(f"{idade} anos  |  {antiguidade} anos de empresa")
-        self.preview_performance.setText(performance)
-        self.preview_summary.setText(resumo)
-        self.preview_trajectory.setText(trajetoria)
-        self._render_people_preview()
 
     def _start_generation(self) -> None:
         if not self._validate_inputs():

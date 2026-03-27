@@ -70,7 +70,7 @@ QWidget {{
     background-color: {palette["bg"]};
     color: {palette["text"]};
     font-family: "Segoe UI";
-    font-size: 12px;
+    font-size: 13px;
 }}
 QMainWindow {{
     background-color: {palette["bg"]};
@@ -86,94 +86,18 @@ QWidget#contentRoot {{
     background-color: {palette["bg"]};
 }}
 QFrame#topbar {{
-    background-color: {palette["sidebar"]};
+    background-color: {palette["surface"]};
     border-bottom: 1px solid {palette["border"]};
 }}
-QLabel#topbarTitle {{
-    font-size: 19px;
-    font-weight: 700;
-    color: {palette["text"]};
-}}
-QLabel#topbarSubtitle {{
-    color: {palette["text_dim"]};
-    font-size: 11px;
-}}
-QLabel#topbarBadge {{
-    background-color: {palette["accent_soft"]};
-    color: {palette["accent"]};
-    border: 1px solid {palette["accent"]};
-    border-radius: 12px;
-    padding: 4px 10px;
-    font-size: 11px;
-    font-weight: 700;
-}}
-QLabel#brandMark {{
-    background-color: {VERDE_USIMINAS};
-    color: #111111;
-    border-radius: 10px;
-    font-size: 20px;
-    font-weight: 900;
-    padding: 8px;
-}}
-QLabel#brandTitle {{
-    font-size: 15px;
-    font-weight: 800;
-    letter-spacing: 0.4px;
-}}
-QLabel#brandSubtitle {{
-    color: {palette["accent"]};
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-}}
-QLabel#navSectionLabel {{
-    color: {palette["text_dim"]};
-    font-size: 10px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    padding: 6px 10px 2px 10px;
-}}
-QPushButton#navButton {{
-    background-color: transparent;
-    color: {palette["text_muted"]};
-    text-align: left;
-    border: 1px solid transparent;
-    border-radius: 10px;
-    padding: 11px 12px;
-    font-weight: 600;
-}}
-QPushButton#navButton:hover {{
-    background-color: {palette["surface_alt"]};
-    color: {palette["text"]};
-    border-color: {palette["border"]};
-}}
-QPushButton#navButton:checked {{
-    background-color: {palette["accent_soft"]};
-    color: {palette["accent"]};
-    border-color: {palette["accent"]};
-}}
-QFrame#heroCard,
-QFrame#sectionCard,
-QFrame#previewCard,
-QFrame#previewPanel,
-QFrame#metricCard,
-QFrame#panel,
-QFrame#subpanel,
-QFrame#slideCard,
-QFrame#caromCanvas,
-QFrame#logPanel,
-QFrame#statusPanel,
-QFrame#settingsPanel,
-QFrame#previewListItem {{
+QFrame#card, QFrame#panel {{
     background-color: {palette["surface"]};
     border: 1px solid {palette["border"]};
-    border-radius: 16px;
+    border-radius: 12px;
 }}
-QFrame#slideCard,
-QFrame#caromCanvas {{
-    background-color: {palette["bg_alt"]};
+QFrame#panelAction {{
+    background-color: {palette["surface_2"]};
+    border: 1px solid {palette["border_hover"]};
+    border-radius: 12px;
 }}
 QFrame#subpanel {{
     background-color: {palette["surface_alt"]};
@@ -300,9 +224,8 @@ QPushButton {{
     background-color: {palette["surface_alt"]};
     color: {palette["text"]};
     border: 1px solid {palette["border"]};
-    border-radius: 10px;
+    border-radius: 8px;
     padding: 9px 14px;
-    font-weight: 600;
 }}
 QPushButton:hover {{
     border-color: {palette["border_hover"]};
@@ -319,8 +242,9 @@ QPushButton:disabled {{
 QPushButton#primary {{
     background-color: {VERDE_USIMINAS};
     color: #111111;
-    border: 1px solid {VERDE_USIMINAS};
-    font-weight: 800;
+    border-color: {VERDE_USIMINAS};
+    font-weight: 700;
+    min-height: 38px;
 }}
 QPushButton#primary:hover {{
     background-color: {palette["accent_hover"]};
@@ -330,29 +254,66 @@ QPushButton#secondaryGhost {{
     background-color: transparent;
     color: {palette["text_muted"]};
 }}
-QPushButton#chipButton {{
-    min-width: 42px;
+QPushButton#theme_toggle {{
+    background-color: {palette["surface_2"]};
+    border: 1px solid {palette["border"]};
+    border-radius: 10px;
+    font-size: 16px;
+    font-weight: 700;
+    padding: 0px;
 }}
-QPushButton#chipButton:checked {{
-    background-color: {palette["accent_soft"]};
-    color: {palette["accent"]};
-    border-color: {palette["accent"]};
+QPushButton#theme_toggle:hover {{
+    border-color: {VERDE_USIMINAS};
+    color: {VERDE_USIMINAS};
 }}
-QCheckBox {{
-    spacing: 10px;
+QPushButton#theme_toggle:focus {{
+    border-color: {VERDE_USIMINAS};
+}}
+QLineEdit, QComboBox, QTextEdit, QListWidget, QSpinBox {{
+    background-color: transparent;
+    border: 1px solid {palette["border"]};
+    border-radius: 8px;
+    padding: 8px;
     color: {palette["text"]};
-    font-weight: 600;
+    min-height: 22px;
 }}
-QCheckBox::indicator {{
-    width: 18px;
-    height: 18px;
-    border-radius: 9px;
-    border: 1px solid {palette["border_strong"]};
-    background-color: {palette["surface_alt"]};
+QLineEdit:focus, QComboBox:focus, QTextEdit:focus, QListWidget:focus, QSpinBox:focus {{
+    border-color: {VERDE_USIMINAS};
 }}
-QCheckBox::indicator:checked {{
-    background-color: {palette["accent"]};
-    border: 1px solid {palette["accent"]};
+QFrame#panel QLineEdit,
+QFrame#panel QComboBox,
+QFrame#panel QTextEdit,
+QFrame#panel QListWidget,
+QFrame#panel QSpinBox {{
+    background-color: {palette["surface"]};
+}}
+QFrame#panelAction QLineEdit,
+QFrame#panelAction QComboBox,
+QFrame#panelAction QTextEdit,
+QFrame#panelAction QListWidget,
+QFrame#panelAction QSpinBox {{
+    background-color: {palette["surface_2"]};
+}}
+QFrame#card QLineEdit,
+QFrame#card QComboBox,
+QFrame#card QTextEdit,
+QFrame#card QListWidget,
+QFrame#card QSpinBox {{
+    background-color: {palette["surface"]};
+}}
+QFrame#subpanel QLineEdit,
+QFrame#subpanel QComboBox,
+QFrame#subpanel QTextEdit,
+QFrame#subpanel QListWidget,
+QFrame#subpanel QSpinBox {{
+    background-color: {palette["surface_2"]};
+}}
+QComboBox QAbstractItemView {{
+    background-color: {palette["surface"]};
+    color: {palette["text"]};
+    border: 1px solid {palette["border"]};
+    selection-background-color: {palette["surface_2"]};
+    selection-color: {palette["text"]};
 }}
 QProgressBar {{
     background-color: {palette["surface_alt"]};
@@ -365,15 +326,8 @@ QProgressBar::chunk {{
     background-color: {VERDE_USIMINAS};
     border-radius: 7px;
 }}
-QTextEdit#logBox {{
-    background-color: {palette["bg_alt"]};
-    border: 1px solid {palette["border"]};
-    border-radius: 14px;
-    padding: 10px;
-}}
-QLabel#previewLabel {{
-    color: {palette["text_dim"]};
-    font-size: 11px;
+QLabel#title {{
+    font-size: 22px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 1px;
@@ -419,5 +373,35 @@ QScrollBar::add-page:vertical,
 QScrollBar::sub-page:vertical {{
     background: transparent;
     border: none;
+}}
+QLabel#panelTitle {{
+    font-size: 16px;
+    font-weight: 700;
+}}
+QLabel#panelHint {{
+    color: {palette["text_dim"]};
+    font-size: 12px;
+}}
+QLabel#statusLabel {{
+    border-radius: 8px;
+    padding: 8px 10px;
+    border: 1px solid {palette["border"]};
+    background-color: {palette["surface"]};
+}}
+QLabel#statusLabel[state="info"] {{
+    border-color: {palette["border_hover"]};
+    color: {palette["text_muted"]};
+}}
+QLabel#statusLabel[state="warning"] {{
+    border-color: {COR_AVISO};
+    color: {COR_AVISO};
+}}
+QLabel#statusLabel[state="error"] {{
+    border-color: {COR_ERRO};
+    color: {COR_ERRO};
+}}
+QLabel#statusLabel[state="success"] {{
+    border-color: {VERDE_USIMINAS};
+    color: {VERDE_USIMINAS};
 }}
 """

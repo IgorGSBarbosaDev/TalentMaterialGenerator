@@ -3,6 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 from uuid import uuid4
 
+from PySide6.QtWidgets import QLabel
+
 from app.config.settings import get_default_output_dir
 from app.ui.screen_carom import CaromScreen
 
@@ -48,37 +50,10 @@ def test_carom_screen_get_config_uses_default_output_dir(qtbot) -> None:
     assert received[0]["output_dir"] == str(get_default_output_dir())
 
 
-def test_carom_screen_exposes_new_schema_fields(qtbot) -> None:
+def test_carom_screen_has_no_preview_or_sample_text(qtbot) -> None:
     screen = CaromScreen({})
     qtbot.addWidget(screen)
 
-    for field in ("matricula", "nota_2025", "nota_2024", "nota_2023"):
-        assert field in screen._column_selectors
-
-
-def test_carom_screen_refreshes_preview_when_layout_changes(qtbot) -> None:
-    screen = CaromScreen({})
-    qtbot.addWidget(screen)
-    screen._preview_rows = [
-        {
-            "Nome Coluna": "Marina Souza",
-            "Cargo Coluna": "Especialista",
-            "Nota Coluna": "4.8",
-            "Potencial Coluna": "Alto",
-        }
-    ]
-    for field, header in (
-        ("nome", "Nome Coluna"),
-        ("cargo", "Cargo Coluna"),
-        ("nota", "Nota Coluna"),
-        ("potencial", "Potencial Coluna"),
-    ):
-        screen._column_selectors[field].addItem(header)
-        screen._column_selectors[field].setCurrentText(header)
-
-    screen.columns.setCurrentText("3")
-    screen.title_field.setText("Carometro Lideranca")
-    screen._refresh_preview()
-
-    assert screen.preview_header.text() == "Carometro Lideranca"
-    assert screen.layout_badge.text() == "3 colunas"
+    labels = [label.text().lower() for label in screen.findChildren(QLabel)]
+    assert all("preview" not in text for text in labels)
+    assert all("amostra" not in text for text in labels)
