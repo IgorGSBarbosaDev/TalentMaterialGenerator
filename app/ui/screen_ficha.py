@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
     QComboBox,
     QFileDialog,
@@ -19,14 +19,7 @@ from PySide6.QtWidgets import (
 
 from app.config.settings import get_default_output_dir
 from app.core import reader
-from app.ui.components import (
-    PreviewListItem,
-    SectionCard,
-    StatusBadge,
-    build_badge_row,
-    clear_layout,
-    repolish,
-)
+from app.ui.components import repolish
 
 
 class FichaScreen(QWidget):
@@ -104,6 +97,7 @@ class FichaScreen(QWidget):
 
         self.entry_source = QLineEdit(config.get("default_onedrive_url", ""))
         self.entry_source.setMinimumWidth(360)
+        self.entry_source.textChanged.connect(self._on_source_changed)
         self.entry_output = QLineEdit(str(get_default_output_dir()))
         self.entry_output.setReadOnly(True)
 
@@ -112,6 +106,7 @@ class FichaScreen(QWidget):
         self.output_mode.setCurrentText(
             config.get("default_output_mode", "one_file_per_employee")
         )
+        self.output_mode.currentTextChanged.connect(self._refresh_preview)
 
         source_form = QFormLayout()
         source_form.setHorizontalSpacing(16)
@@ -123,12 +118,11 @@ class FichaScreen(QWidget):
         source_layout.addLayout(source_form)
 
         actions = QHBoxLayout()
-        btn_browse_file = QPushButton("Procurar arquivo")
-        self.btn_browse_file = btn_browse_file
-        btn_browse_file.clicked.connect(self._choose_source_file)
+        self.btn_browse_file = QPushButton("Procurar arquivo")
+        self.btn_browse_file.clicked.connect(self._choose_source_file)
         btn_detect = QPushButton("Auto-detectar")
         btn_detect.clicked.connect(self._auto_detect_columns)
-        actions.addWidget(btn_browse_file)
+        actions.addWidget(self.btn_browse_file)
         actions.addWidget(btn_detect)
         actions.addStretch(1)
         source_layout.addLayout(actions)
@@ -180,6 +174,7 @@ class FichaScreen(QWidget):
         action_layout.addWidget(self.btn_generate)
         layout.addWidget(action_panel)
 
+        self._sync_source_mode()
         self._set_status("Informe a fonte de dados para iniciar.", "info")
 
     def _panel_title(self, text: str) -> QLabel:
@@ -261,8 +256,17 @@ class FichaScreen(QWidget):
             self._set_invalid(combo, combo.currentText().strip() == "")
 
     def _refresh_preview(self) -> None:
-        # Keep preview state coherent while refined preview widgets are not mounted.
-        self._set_invalid(self.entry_source, self.entry_source.text().strip() == "")
+        if self._preview_rows:
+            self._set_status(
+                f"Preview carregado: {len(self._preview_rows)} colaborador(es).", "info"
+            )
+            return
+
+        source = self.entry_source.text().strip()
+        if source:
+            self._set_status(
+                "Fonte configurada. Use Auto-detectar para validar o mapeamento.", "info"
+            )
 
     def _validate_inputs(self) -> bool:
         source = self.entry_source.text().strip()

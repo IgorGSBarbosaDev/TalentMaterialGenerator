@@ -27,7 +27,6 @@ class SettingsScreen(QWidget):
 
     def __init__(self, config: dict) -> None:
         super().__init__()
-
         layout = QVBoxLayout(self)
         layout.setContentsMargins(26, 26, 26, 26)
         layout.setSpacing(16)
@@ -70,10 +69,9 @@ class SettingsScreen(QWidget):
         self.cache_ttl.setValue(int(config.get("cache_ttl_hours", 24)))
         cache_form.addRow("TTL do cache (horas)", self.cache_ttl)
         cache_card.add_layout(cache_form)
-
-        cache_actions = QHBoxLayout()
         btn_refresh = QPushButton("Atualizar base agora")
         btn_refresh.clicked.connect(self.refresh_cache_requested.emit)
+        cache_actions = QHBoxLayout()
         cache_actions.addWidget(btn_refresh)
         cache_actions.addStretch(1)
         cache_card.add_layout(cache_actions)
@@ -85,8 +83,11 @@ class SettingsScreen(QWidget):
         btn_save.clicked.connect(self._emit_save)
         btn_reset = QPushButton("Restaurar padroes")
         btn_reset.clicked.connect(self.reset_requested.emit)
+        btn_refresh_footer = QPushButton("Atualizar base agora")
+        btn_refresh_footer.clicked.connect(self.refresh_cache_requested.emit)
         button_row.addWidget(btn_save)
         button_row.addWidget(btn_reset)
+        button_row.addWidget(btn_refresh_footer)
         button_row.addStretch(1)
         layout.addLayout(button_row)
         layout.addStretch(1)

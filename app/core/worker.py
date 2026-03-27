@@ -70,7 +70,7 @@ class GenerationWorker(QThread):
                 carom_config: CaromConfig = {
                     "colunas": int(self.config.get("colunas", 5)),
                     "agrupamento": self.config.get("agrupamento"),
-                    "titulo": str(self.config.get("titulo", "Carômetro")),
+                    "titulo": str(self.config.get("titulo", "Carometro")),
                     "show_nota": bool(self.config.get("show_nota", True)),
                     "show_potencial": bool(self.config.get("show_potencial", True)),
                     "show_cargo": bool(self.config.get("show_cargo", True)),
@@ -100,3 +100,4 @@ class GenerationWorker(QThread):
         finally:
             if source_result is not None:
                 cleanup_source(source_result)
+

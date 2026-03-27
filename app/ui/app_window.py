@@ -124,14 +124,26 @@ class AppWindow(QMainWindow):
         topbar_layout.setContentsMargins(20, 14, 20, 14)
         topbar_layout.setSpacing(12)
 
+        title_col = QVBoxLayout()
+        title_col.setSpacing(2)
         self.topbar_title = QLabel("USI Generator")
         self.topbar_title.setObjectName("title")
-        topbar_layout.addWidget(self.topbar_title)
+        self.topbar_subtitle = QLabel("")
+        self.topbar_subtitle.setObjectName("muted")
+        self.topbar_subtitle.setWordWrap(True)
+        title_col.addWidget(self.topbar_title)
+        title_col.addWidget(self.topbar_subtitle)
+        topbar_layout.addLayout(title_col, 1)
+
+        self.topbar_badge = QLabel("")
+        self.topbar_badge.setObjectName("statusBadge")
+        self.topbar_badge.setVisible(False)
+        topbar_layout.addWidget(self.topbar_badge)
         topbar_layout.addStretch(1)
 
-        self.theme_toggle_button = QPushButton("☀")
+        self.theme_toggle_button = QPushButton("\u2600")
         self.theme_toggle_button.setObjectName("theme_toggle")
-        self.theme_toggle_button.setFixedSize(44, 36)
+        self.theme_toggle_button.setFixedSize(56, 36)
         self.theme_toggle_button.clicked.connect(self._toggle_theme)
         topbar_layout.addWidget(self.theme_toggle_button)
         content_layout.addWidget(self.topbar)
@@ -190,7 +202,6 @@ class AppWindow(QMainWindow):
         widget = self.screens[screen]
         self._current_screen = screen
         self.stack.setCurrentWidget(widget)
-        self.topbar_title.setText(widget.__class__.__name__.replace("Screen", ""))
         button = self.menu_buttons.get(screen)
         if button is not None:
             button.setChecked(True)
@@ -203,6 +214,14 @@ class AppWindow(QMainWindow):
         badge = getattr(widget, "page_badge", "")
         self.topbar_badge.setText(badge)
         self.topbar_badge.setVisible(bool(badge))
+
+    def _has_running_worker(self) -> bool:
+        return self.current_worker is not None and self.current_worker.isRunning()
+
+    def _set_generation_busy(self, busy: bool) -> None:
+        self.ficha_screen.btn_generate.setEnabled(not busy)
+        self.carom_screen.btn_generate.setEnabled(not busy)
+        self.settings_screen.setEnabled(not busy)
 
     def _start_generation(self, job_type: str, payload: dict[str, Any]) -> None:
         if self._has_running_worker():
@@ -260,6 +279,8 @@ class AppWindow(QMainWindow):
         self._refresh_home()
 
     def _handle_worker_error(self, message: str) -> None:
+        self._set_generation_busy(False)
+        self.current_worker = None
         self.progress_screen.on_error(message)
         QMessageBox.critical(self, "Erro", message)
 
@@ -300,10 +321,10 @@ class AppWindow(QMainWindow):
     def _update_theme_toggle_button(self) -> None:
         current = str(self.config.get("theme", "dark")).lower()
         if current == "dark":
-            self.theme_toggle_button.setText("☀")
+            self.theme_toggle_button.setText("\u2600")
             self.theme_toggle_button.setToolTip("Mudar para modo claro")
         else:
-            self.theme_toggle_button.setText("☾")
+            self.theme_toggle_button.setText("\u263E")
             self.theme_toggle_button.setToolTip("Mudar para modo escuro")
 
     def _refresh_cache_now(self) -> None:
