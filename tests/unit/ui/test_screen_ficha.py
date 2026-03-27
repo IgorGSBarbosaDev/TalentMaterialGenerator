@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from app.config.settings import get_default_output_dir
 from app.ui.screen_ficha import FichaScreen
 
 
@@ -13,7 +14,6 @@ def test_ficha_screen_validates_local_file_and_mapping(tmp_path: Path, qtbot) ->
     qtbot.addWidget(screen)
     screen.source_type.setCurrentText("Arquivo local")
     screen.entry_source.setText(str(file_path))
-    screen.entry_output.setText(str(tmp_path))
     screen._column_selectors["nome"].addItem("Nome")
     screen._column_selectors["cargo"].addItem("Cargo")
     screen._column_selectors["nome"].setCurrentText("Nome")
@@ -26,6 +26,8 @@ def test_ficha_screen_get_config_returns_output_mode(qtbot) -> None:
     screen = FichaScreen({})
     qtbot.addWidget(screen)
     screen.entry_source.setText("https://example.com/file.xlsx")
-    screen.entry_output.setText("C:/saida")
 
-    assert "output_mode" in screen._get_config()
+    config = screen._get_config()
+
+    assert "output_mode" in config
+    assert config["output_dir"] == str(get_default_output_dir())
