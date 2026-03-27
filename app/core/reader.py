@@ -14,21 +14,24 @@ from openpyxl import load_workbook
 from app.config import settings
 
 COLUMN_VARIATIONS: dict[str, tuple[str, ...]] = {
+    "matricula": ("matricula", "matricula_funcional", "matricula_colaborador", "id", "id_unico"),
     "nome": ("nome", "name", "nome_completo", "colaborador", "funcionario"),
     "idade": ("idade", "age", "anos"),
-    "cargo": ("cargo", "funcao", "função", "role", "posicao", "posição"),
+    "cargo": ("cargo", "funcao", "funcao_atual", "role", "posicao"),
     "antiguidade": ("antiguidade", "tempo_empresa", "anos_empresa", "admissao"),
-    "formacao": ("formacao", "formação", "graduacao", "escolaridade", "education"),
+    "formacao": ("formacao", "graduacao", "escolaridade", "education"),
     "resumo_perfil": ("resumo", "perfil", "resumo_perfil", "descricao", "bio"),
-    "trajetoria": ("trajetoria", "trajetória", "historico", "histórico", "carreira"),
+    "trajetoria": ("trajetoria", "historico", "carreira"),
+    "nota_2025": ("nota_2025", "nota 2025", "avaliacao_2025", "avaliacao 2025"),
+    "nota_2024": ("nota_2024", "nota 2024", "avaliacao_2024", "avaliacao 2024"),
+    "nota_2023": ("nota_2023", "nota 2023", "avaliacao_2023", "avaliacao 2023"),
     "performance": (
         "performance",
         "avaliacao",
-        "avaliação",
         "resultado",
         "nota_historico",
     ),
-    "area": ("area", "área", "departamento", "setor", "gerencia"),
+    "area": ("area", "departamento", "setor", "gerencia"),
     "potencial": ("potencial", "potential"),
     "nota": ("nota", "score", "avaliacao_atual", "resultado_atual"),
 }
@@ -99,6 +102,7 @@ def read_spreadsheet(path: str) -> list[dict[str, str]]:
 
 def detect_columns(headers: list[str]) -> dict[str, str | None]:
     mapping: dict[str, str | None] = {
+        "matricula": None,
         "nome": None,
         "idade": None,
         "cargo": None,
@@ -106,6 +110,9 @@ def detect_columns(headers: list[str]) -> dict[str, str | None]:
         "formacao": None,
         "resumo_perfil": None,
         "trajetoria": None,
+        "nota_2025": None,
+        "nota_2024": None,
+        "nota_2023": None,
         "performance": None,
         "area": None,
         "potencial": None,
@@ -265,7 +272,7 @@ def resolve_spreadsheet_source(
                 ).isoformat(),
             )
         raise RuntimeError(
-            "Não foi possível acessar o link. Verifique a conexão com a rede da organização."
+            "Nao foi possivel acessar o link. Verifique a conexao com a rede da organizacao."
         ) from exc
 
 
@@ -277,6 +284,19 @@ def cleanup_source(result: SpreadsheetSourceResult) -> None:
             pass
 
 
+def _build_performance_from_annual_notes(normalized: dict[str, str]) -> str:
+    items: list[str] = []
+    for field, year in (
+        ("nota_2025", "2025"),
+        ("nota_2024", "2024"),
+        ("nota_2023", "2023"),
+    ):
+        value = normalized.get(field, "").strip()
+        if value:
+            items.append(f"{year} - {value}")
+    return "\n".join(items)
+
+
 def remap_rows(
     rows: list[dict[str, str]], mapping: dict[str, str | None]
 ) -> list[dict[str, str]]:
@@ -285,6 +305,11 @@ def remap_rows(
         normalized: dict[str, str] = {}
         for target_field, source_field in mapping.items():
             normalized[target_field] = row.get(source_field, "") if source_field else ""
+
+        annual_performance = _build_performance_from_annual_notes(normalized)
+        if annual_performance:
+            normalized["performance"] = annual_performance
+
         normalized_rows.append(normalized)
     return normalized_rows
 
