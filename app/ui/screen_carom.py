@@ -3,8 +3,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
+    QButtonGroup,
     QCheckBox,
     QComboBox,
     QFileDialog,
@@ -21,15 +22,38 @@ from PySide6.QtWidgets import (
 
 from app.config.settings import get_default_output_dir
 from app.core import reader
+from app.ui.components import (
+    PreviewListItem,
+    SectionCard,
+    StatusBadge,
+    build_badge_row,
+    clear_layout,
+    repolish,
+)
 
 
 class CaromScreen(QWidget):
     generate_requested = Signal(dict)
 
+    page_title = "Carometro"
+    page_subtitle = "Agrupamento, layout do grid e preview dos cards"
+    page_badge = "Grid"
+
     def __init__(self, config: dict[str, Any]) -> None:
         super().__init__()
-        self.column_fields = ["nome", "cargo", "area", "nota", "potencial"]
+        self.column_fields = [
+            "matricula",
+            "nome",
+            "cargo",
+            "area",
+            "nota",
+            "potencial",
+            "nota_2025",
+            "nota_2024",
+            "nota_2023",
+        ]
         self._column_selectors: dict[str, QComboBox] = {}
+        self._preview_rows: list[dict[str, str]] = []
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(26, 26, 26, 26)
@@ -61,8 +85,8 @@ class CaromScreen(QWidget):
 
         self.source_type = QComboBox()
         self.source_type.addItems(["OneDrive", "Arquivo local"])
-        if config.get("spreadsheet_source") == "local":
-            self.source_type.setCurrentText("Arquivo local")
+        self.source_type.currentTextChanged.connect(self._sync_source_mode)
+        self.source_type.currentTextChanged.connect(self._refresh_preview)
 
         self.entry_source = QLineEdit(config.get("default_onedrive_url", ""))
         self.entry_source.setMinimumWidth(350)
@@ -70,6 +94,9 @@ class CaromScreen(QWidget):
         self.entry_output.setReadOnly(True)
         self.grouping = QComboBox()
         self.grouping.addItems(["area", "cargo", "potencial", "sem agrupamento"])
+        self.grouping.currentTextChanged.connect(self._refresh_preview)
+        self.title_field = QLineEdit("Carometro")
+        self.title_field.textChanged.connect(self._refresh_preview)
         self.columns = QComboBox()
         self.columns.addItems(["3", "4", "5"])
         self.columns.setCurrentText(str(config.get("default_carom_columns", 5)))
@@ -202,7 +229,12 @@ class CaromScreen(QWidget):
             else config.get("default_onedrive_url", "")
         )
         self.entry_output.setText(str(get_default_output_dir()))
+        self.grouping.setCurrentText(str(config.get("default_grouping", "area")))
         self.columns.setCurrentText(str(config.get("default_carom_columns", 5)))
+        self.title_field.setText("Carometro")
+        self._sync_column_buttons()
+        self._refresh_required_states()
+        self._refresh_preview()
 
     def _choose_source_file(self) -> None:
         file_path, _filter = QFileDialog.getOpenFileName(
@@ -211,6 +243,23 @@ class CaromScreen(QWidget):
         if file_path:
             self.source_type.setCurrentText("Arquivo local")
             self.entry_source.setText(file_path)
+
+    def _sync_source_mode(self) -> None:
+        local_mode = self.source_type.currentText() == "Arquivo local"
+        self.btn_browse_file.setEnabled(local_mode)
+        self.entry_source.setPlaceholderText(
+            "C:\\dados\\colaboradores.xlsx"
+            if local_mode
+            else "https://... link compartilhado do OneDrive"
+        )
+
+    def _sync_column_buttons(self) -> None:
+        for value, button in self.column_buttons.items():
+            button.setChecked(value == self.columns.currentText())
+
+    def _on_source_changed(self) -> None:
+        self._set_invalid(self.entry_source, False)
+        self._refresh_preview()
 
     def _populate_column_selectors(self, headers: list[str]) -> None:
         for combo in self._column_selectors.values():
@@ -223,6 +272,27 @@ class CaromScreen(QWidget):
                 if index >= 0:
                     combo.setCurrentIndex(index)
 
+    def _set_invalid(self, widget: QWidget, is_invalid: bool) -> None:
+        widget.setProperty("invalid", is_invalid)
+        repolish(widget)
+
+    def _refresh_required_states(self) -> None:
+        for field in ("nome", "cargo"):
+            combo = self._column_selectors[field]
+            self._set_invalid(combo, combo.currentText().strip() == "")
+
+    def _set_status(self, message: str, tone: str) -> None:
+        self.status_label.setText(message)
+        self.status_badge.update_status(
+            {
+                "success": "Pronto",
+                "warning": "Atencao",
+                "error": "Erro",
+                "info": "Info",
+            }.get(tone, "Aguardando"),
+            tone,
+        )
+
     def _get_column_mapping(self) -> dict[str, str | None]:
         return {
             field: combo.currentText() or None
@@ -231,6 +301,7 @@ class CaromScreen(QWidget):
 
     def _validate_inputs(self) -> bool:
         source = self.entry_source.text().strip()
+        self._set_invalid(self.entry_source, source == "")
         if source == "":
             self._set_status("Informe a fonte de dados.", "warning")
             return False
@@ -244,6 +315,7 @@ class CaromScreen(QWidget):
             return False
 
         missing_required = reader.validate_required_columns(self._get_column_mapping())
+        self._refresh_required_states()
         if missing_required:
             self._set_status(
                 f"Mapeie os campos obrigatorios: {', '.join(missing_required)}.",
@@ -270,6 +342,7 @@ class CaromScreen(QWidget):
                 rows = reader.read_spreadsheet(result.path)
 
             headers = list(rows[0].keys()) if rows else []
+            self._preview_rows = rows
             self._populate_column_selectors(headers)
             for field, value in detected.items():
                 combo = self._column_selectors.get(field)

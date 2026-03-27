@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QComboBox,
     QFileDialog,
@@ -19,14 +19,27 @@ from PySide6.QtWidgets import (
 
 from app.config.settings import get_default_output_dir
 from app.core import reader
+from app.ui.components import (
+    PreviewListItem,
+    SectionCard,
+    StatusBadge,
+    build_badge_row,
+    clear_layout,
+    repolish,
+)
 
 
 class FichaScreen(QWidget):
     generate_requested = Signal(dict)
 
+    page_title = "Ficha de Curriculo"
+    page_subtitle = "Base, mapeamento e preview do material individual"
+    page_badge = "Template"
+
     def __init__(self, config: dict[str, Any]) -> None:
         super().__init__()
         self.column_fields = [
+            "matricula",
             "nome",
             "idade",
             "cargo",
@@ -34,9 +47,13 @@ class FichaScreen(QWidget):
             "formacao",
             "resumo_perfil",
             "trajetoria",
+            "nota_2025",
+            "nota_2024",
+            "nota_2023",
             "performance",
         ]
         self.column_labels = {
+            "matricula": "Matricula",
             "nome": "Nome*",
             "idade": "Idade",
             "cargo": "Cargo*",
@@ -47,6 +64,11 @@ class FichaScreen(QWidget):
             "performance": "Performance",
         }
         self._column_selectors: dict[str, QComboBox] = {}
+        self._preview_rows: list[dict[str, str]] = []
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(28, 24, 28, 24)
+        layout.setSpacing(18)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(26, 26, 26, 26)
@@ -78,13 +100,14 @@ class FichaScreen(QWidget):
 
         self.source_type = QComboBox()
         self.source_type.addItems(["OneDrive", "Arquivo local"])
-        if config.get("spreadsheet_source") == "local":
-            self.source_type.setCurrentText("Arquivo local")
+        self.source_type.currentTextChanged.connect(self._sync_source_mode)
+        self.source_type.currentTextChanged.connect(self._refresh_preview)
 
         self.entry_source = QLineEdit(config.get("default_onedrive_url", ""))
         self.entry_source.setMinimumWidth(360)
         self.entry_output = QLineEdit(str(get_default_output_dir()))
         self.entry_output.setReadOnly(True)
+
         self.output_mode = QComboBox()
         self.output_mode.addItems(["one_file_per_employee", "single_deck"])
         self.output_mode.setCurrentText(
@@ -150,7 +173,7 @@ class FichaScreen(QWidget):
         status_col.addWidget(self.status_label)
         action_layout.addLayout(status_col, 1)
 
-        self.btn_generate = QPushButton("GERAR FICHAS")
+        self.btn_generate = QPushButton("Gerar fichas")
         self.btn_generate.setObjectName("primary")
         self.btn_generate.clicked.connect(self._start_generation)
         self.btn_generate.setMinimumWidth(210)
@@ -193,6 +216,8 @@ class FichaScreen(QWidget):
         self.output_mode.setCurrentText(
             config.get("default_output_mode", "one_file_per_employee")
         )
+        self._refresh_required_states()
+        self._refresh_preview()
 
     def _choose_source_file(self) -> None:
         file_path, _filter = QFileDialog.getOpenFileName(
@@ -201,6 +226,19 @@ class FichaScreen(QWidget):
         if file_path:
             self.source_type.setCurrentText("Arquivo local")
             self.entry_source.setText(file_path)
+
+    def _sync_source_mode(self) -> None:
+        local_mode = self.source_type.currentText() == "Arquivo local"
+        self.btn_browse_file.setEnabled(local_mode)
+        self.entry_source.setPlaceholderText(
+            "C:\\dados\\colaboradores.xlsx"
+            if local_mode
+            else "https://... link compartilhado do OneDrive"
+        )
+
+    def _on_source_changed(self) -> None:
+        self._set_invalid(self.entry_source, False)
+        self._refresh_preview()
 
     def _populate_column_selectors(self, headers: list[str]) -> None:
         for combo in self._column_selectors.values():
@@ -212,6 +250,27 @@ class FichaScreen(QWidget):
                 index = combo.findText(current)
                 if index >= 0:
                     combo.setCurrentIndex(index)
+
+    def _set_invalid(self, widget: QWidget, is_invalid: bool) -> None:
+        widget.setProperty("invalid", is_invalid)
+        repolish(widget)
+
+    def _refresh_required_states(self) -> None:
+        for field in ("nome", "cargo"):
+            combo = self._column_selectors[field]
+            self._set_invalid(combo, combo.currentText().strip() == "")
+
+    def _set_status(self, message: str, tone: str) -> None:
+        self.status_label.setText(message)
+        self.status_badge.update_status(
+            {
+                "success": "Pronto",
+                "warning": "Atencao",
+                "error": "Erro",
+                "info": "Info",
+            }.get(tone, "Aguardando"),
+            tone,
+        )
 
     def _validate_inputs(self) -> bool:
         source = self.entry_source.text().strip()
@@ -228,6 +287,7 @@ class FichaScreen(QWidget):
             return False
 
         missing_required = reader.validate_required_columns(self._get_column_mapping())
+        self._refresh_required_states()
         if missing_required:
             self._set_status(
                 f"Mapeie os campos obrigatorios: {', '.join(missing_required)}.",
@@ -272,6 +332,7 @@ class FichaScreen(QWidget):
                 rows = reader.read_spreadsheet(result.path)
 
             headers = list(rows[0].keys()) if rows else []
+            self._preview_rows = rows
             self._populate_column_selectors(headers)
             for field, value in detected.items():
                 combo = self._column_selectors.get(field)

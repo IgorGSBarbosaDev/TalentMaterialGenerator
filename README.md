@@ -1,6 +1,6 @@
 # USI Generator v2
 
-Aplicativo desktop em PySide6 para geração de fichas de currículo e carômetros a partir de planilhas locais ou de um link do OneDrive com cache local automático.
+Aplicativo desktop em PySide6 para geracao de fichas de curriculo e carometros a partir de planilhas locais ou de um link do OneDrive com cache local automatico.
 
 ## Stack
 
@@ -14,14 +14,31 @@ Aplicativo desktop em PySide6 para geração de fichas de currículo e carômetr
 ## Fluxo de dados
 
 - Arquivo local `.xlsx`
-- Link do OneDrive com cache local automático
-- TTL padrão do cache: 24 horas
-- Atualização manual da base disponível na tela de configurações
+- Link do OneDrive com cache local automatico
+- TTL padrao do cache: 24 horas
+- Atualizacao manual da base disponivel na tela de configuracoes
 
-## Saída
+## Colunas padrao da planilha
+
+- `Matricula`
+- `Nome`
+- `Idade`
+- `Cargo`
+- `Antiguidade`
+- `Formacao`
+- `Resumo do perfil`
+- `Trajetoria`
+- `Nota 2025`
+- `Nota 2024`
+- `Nota 2023`
+
+O sistema continua aceitando aliases conhecidos por auto-deteccao.
+Quando as colunas `Nota 2025`, `Nota 2024` e `Nota 2023` estiverem mapeadas, o campo interno `performance` sera montado automaticamente como historico multilinha.
+
+## Saida
 
 - Fichas em `Documents/Usi Generator/fichas`
-- Carômetros em `Documents/Usi Generator/carometros`
+- Carometros em `Documents/Usi Generator/carometros`
 - Os slides usam placeholder circular branco com borda verde para fotos
 
 ## Setup
@@ -34,8 +51,8 @@ pip install -r requirements-dev.txt
 python main.py
 ```
 
-## Limitações do MVP
+## Limitacoes do MVP
 
-- Exportação PDF continua desacoplada da UI principal
-- Preview visual em tempo real ainda é simplificado
-- Histórico exibido na home é resumido
+- Exportacao PDF continua desacoplada da UI principal
+- Preview visual em tempo real ainda e simplificado
+- Historico exibido na home e resumido

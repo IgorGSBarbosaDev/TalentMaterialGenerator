@@ -13,7 +13,6 @@ from PySide6.QtWidgets import (
     QLabel,
     QMainWindow,
     QMessageBox,
-    QPushButton,
     QStackedWidget,
     QVBoxLayout,
     QWidget,
@@ -22,6 +21,7 @@ from PySide6.QtWidgets import (
 from app.config import settings, theme
 from app.core.reader import resolve_spreadsheet_source
 from app.core.worker import GenerationWorker
+from app.ui.components import NavButton
 from app.ui.screen_carom import CaromScreen
 from app.ui.screen_ficha import FichaScreen
 from app.ui.screen_home import HomeScreen
@@ -36,11 +36,14 @@ class AppWindow(QMainWindow):
         self.current_worker: GenerationWorker | None = None
         self._stats = {"ficha": 0, "carom": 0}
         self._history: list[str] = list(config.get("last_generations", []))
+        self._current_screen = "home"
 
         self.setWindowTitle("USI Generator")
-        self.resize(1200, 760)
+        self.resize(1320, 820)
+        self.setMinimumSize(1180, 760)
 
-        root = QWidget()
+        root = QFrame()
+        root.setObjectName("appShell")
         root_layout = QHBoxLayout(root)
         root_layout.setContentsMargins(0, 0, 0, 0)
         root_layout.setSpacing(0)
@@ -48,35 +51,65 @@ class AppWindow(QMainWindow):
 
         sidebar = QFrame()
         sidebar.setObjectName("sidebar")
-        sidebar.setFixedWidth(220)
+        sidebar.setFixedWidth(248)
         sidebar_layout = QVBoxLayout(sidebar)
-        sidebar_layout.setContentsMargins(12, 18, 12, 18)
-        sidebar_layout.setSpacing(8)
-        sidebar_layout.addWidget(QLabel("USIMINAS"))
-        subtitle = QLabel("MINERACAO")
-        subtitle.setObjectName("muted")
-        sidebar_layout.addWidget(subtitle)
+        sidebar_layout.setContentsMargins(18, 18, 18, 18)
+        sidebar_layout.setSpacing(14)
 
+        brand_row = QHBoxLayout()
+        brand_mark = QLabel("U")
+        brand_mark.setObjectName("brandMark")
+        brand_mark.setFixedSize(48, 48)
+        brand_name_col = QVBoxLayout()
+        brand_name_col.setSpacing(1)
+        brand_title = QLabel("USIMINAS")
+        brand_title.setObjectName("brandTitle")
+        brand_subtitle = QLabel("Talent Development")
+        brand_subtitle.setObjectName("brandSubtitle")
+        brand_name_col.addWidget(brand_title)
+        brand_name_col.addWidget(brand_subtitle)
+        brand_row.addWidget(brand_mark)
+        brand_row.addLayout(brand_name_col, 1)
+        sidebar_layout.addLayout(brand_row)
+
+        intro = QLabel(
+            "Geracao guiada de fichas e carometros com preview persistente e feedback visual."
+        )
+        intro.setObjectName("bodyMuted")
+        intro.setWordWrap(True)
+        sidebar_layout.addWidget(intro)
+
+        sidebar_layout.addWidget(self._build_nav_label("Principal"))
         self.menu_group = QButtonGroup(self)
         self.menu_group.setExclusive(True)
-        self.menu_buttons: dict[str, QPushButton] = {}
+        self.menu_buttons: dict[str, NavButton] = {}
         for key, label in (
-            ("home", "Home"),
-            ("ficha", "Ficha"),
+            ("home", "Inicio"),
+            ("ficha", "Ficha de curriculo"),
             ("carom", "Carometro"),
-            ("progress", "Progresso"),
-            ("settings", "Configuracoes"),
+            ("progress", "Geracao"),
         ):
-            button = QPushButton(label)
-            button.setCheckable(True)
-            button.setObjectName("menu_item")
+            button = NavButton(label)
             button.clicked.connect(
-                lambda checked=False, target=key: self.navigate_to(target)
+                lambda _checked=False, target=key: self.navigate_to(target)
             )
             self.menu_group.addButton(button)
             self.menu_buttons[key] = button
             sidebar_layout.addWidget(button)
+
+        sidebar_layout.addSpacing(10)
+        sidebar_layout.addWidget(self._build_nav_label("Sistema"))
+        settings_button = NavButton("Configuracoes")
+        settings_button.clicked.connect(lambda _checked=False: self.navigate_to("settings"))
+        self.menu_group.addButton(settings_button)
+        self.menu_buttons["settings"] = settings_button
+        sidebar_layout.addWidget(settings_button)
         sidebar_layout.addStretch(1)
+
+        version = QLabel("v1.0.0  |  UI refresh PySide6")
+        version.setObjectName("muted")
+        version.setWordWrap(True)
+        sidebar_layout.addWidget(version)
 
         content_root = QWidget()
         content_root.setObjectName("contentRoot")
@@ -126,9 +159,7 @@ class AppWindow(QMainWindow):
 
         self.home_screen.ficha_requested.connect(lambda: self.navigate_to("ficha"))
         self.home_screen.carom_requested.connect(lambda: self.navigate_to("carom"))
-        self.home_screen.settings_requested.connect(
-            lambda: self.navigate_to("settings")
-        )
+        self.home_screen.settings_requested.connect(lambda: self.navigate_to("settings"))
         self.ficha_screen.generate_requested.connect(
             lambda payload: self._start_generation("ficha", payload)
         )
@@ -137,6 +168,7 @@ class AppWindow(QMainWindow):
         )
         self.progress_screen.reset_requested.connect(lambda: self.navigate_to("home"))
         self.progress_screen.open_output_requested.connect(self._open_output_dir)
+        self.progress_screen.chrome_changed.connect(self._sync_topbar)
         self.settings_screen.save_requested.connect(self._save_settings)
         self.settings_screen.reset_requested.connect(self._reset_settings)
         self.settings_screen.refresh_cache_requested.connect(self._refresh_cache_now)
@@ -148,15 +180,39 @@ class AppWindow(QMainWindow):
         self._update_theme_toggle_button()
         self.navigate_to("home")
 
+    def _build_nav_label(self, text: str) -> QLabel:
+        label = QLabel(text)
+        label.setObjectName("navSectionLabel")
+        return label
+
     def navigate_to(self, screen: str) -> None:
         widget = self.screens[screen]
+        self._current_screen = screen
         self.stack.setCurrentWidget(widget)
         self.topbar_title.setText(widget.__class__.__name__.replace("Screen", ""))
         button = self.menu_buttons.get(screen)
         if button is not None:
             button.setChecked(True)
+        self._sync_topbar()
+
+    def _sync_topbar(self) -> None:
+        widget = self.screens[self._current_screen]
+        self.topbar_title.setText(getattr(widget, "page_title", "USI Generator"))
+        self.topbar_subtitle.setText(getattr(widget, "page_subtitle", ""))
+        badge = getattr(widget, "page_badge", "")
+        self.topbar_badge.setText(badge)
+        self.topbar_badge.setVisible(bool(badge))
 
     def _start_generation(self, job_type: str, payload: dict[str, Any]) -> None:
+        if self._has_running_worker():
+            self.navigate_to("progress")
+            QMessageBox.information(
+                self,
+                "Geracao em andamento",
+                "Ja existe uma geracao em andamento. Aguarde a conclusao atual.",
+            )
+            return
+
         worker_payload = {
             **payload,
             "cache_enabled": self.config.get("cache_enabled", True),
@@ -165,12 +221,14 @@ class AppWindow(QMainWindow):
         }
         self.progress_screen.reset()
         subtitle = (
-            "Gerando fichas de curriculo..."
+            "Gerando fichas de curriculo a partir da base selecionada."
             if job_type == "ficha"
-            else "Gerando carometro..."
+            else "Gerando carometro com agrupamento e layout configurados."
         )
-        self.progress_screen.set_context("Progresso", subtitle)
+        badge = "Ficha" if job_type == "ficha" else "Carometro"
+        self.progress_screen.set_context("Geracao", subtitle, badge)
         self.navigate_to("progress")
+        self._set_generation_busy(True)
 
         self.current_worker = GenerationWorker(job_type, worker_payload)
         self.current_worker.progress.connect(self.progress_screen.update_progress)
@@ -182,6 +240,8 @@ class AppWindow(QMainWindow):
         self.current_worker.start()
 
     def _handle_worker_finished(self, job_type: str, result: dict[str, Any]) -> None:
+        self._set_generation_busy(False)
+        self.current_worker = None
         self.progress_screen.on_complete(
             result["output_dir"], int(result["count"]), str(result["elapsed"])
         )
@@ -199,7 +259,7 @@ class AppWindow(QMainWindow):
         self._refresh_home()
 
     def _handle_worker_error(self, message: str) -> None:
-        self.progress_screen.append_log(message, "error")
+        self.progress_screen.on_error(message)
         QMessageBox.critical(self, "Erro", message)
 
     def _refresh_home(self) -> None:
@@ -215,6 +275,8 @@ class AppWindow(QMainWindow):
 
     def _reset_settings(self) -> None:
         self.config = settings.reset_to_defaults()
+        self._history = []
+        self._stats = {"ficha": 0, "carom": 0}
         app = QApplication.instance()
         if app is not None:
             app.setStyleSheet(theme.build_stylesheet(self.config.get("theme", "dark")))

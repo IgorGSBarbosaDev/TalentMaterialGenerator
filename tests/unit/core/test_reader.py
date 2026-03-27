@@ -19,11 +19,20 @@ def test_read_spreadsheet_returns_rows() -> None:
 
 
 def test_detect_columns_maps_known_headers() -> None:
-    mapping = reader.detect_columns(["Nome", "Função", "Área"])
+    mapping = reader.detect_columns(["Matricula", "Nome", "Funcao", "Area"])
 
+    assert mapping["matricula"] == "Matricula"
     assert mapping["nome"] == "Nome"
-    assert mapping["cargo"] == "Função"
-    assert mapping["area"] == "Área"
+    assert mapping["cargo"] == "Funcao"
+    assert mapping["area"] == "Area"
+
+
+def test_detect_columns_maps_annual_note_headers() -> None:
+    mapping = reader.detect_columns(["Nota 2025", "Nota 2024", "Nota 2023"])
+
+    assert mapping["nota_2025"] == "Nota 2025"
+    assert mapping["nota_2024"] == "Nota 2024"
+    assert mapping["nota_2023"] == "Nota 2023"
 
 
 def test_validate_required_columns_returns_missing_fields() -> None:
@@ -32,12 +41,20 @@ def test_validate_required_columns_returns_missing_fields() -> None:
     assert missing == ["nome"]
 
 
+def test_validate_required_columns_does_not_require_matricula() -> None:
+    missing = reader.validate_required_columns(
+        {"matricula": None, "nome": "Nome", "cargo": "Cargo"}
+    )
+
+    assert missing == []
+
+
 def test_parse_multiline_field_splits_semicolon_and_newline() -> None:
     assert reader.parse_multiline_field("A;B\nC") == ["A", "B", "C"]
 
 
 def test_normalize_filename_removes_accents() -> None:
-    assert reader.normalize_filename("João Silva") == "Joao_Silva"
+    assert reader.normalize_filename("Joao Silva") == "Joao_Silva"
 
 
 def test_resolve_local_spreadsheet_source_returns_local_file(tmp_path: Path) -> None:
@@ -69,7 +86,9 @@ def test_resolve_remote_source_uses_recent_cache(monkeypatch, tmp_path: Path) ->
     assert result.path == str(cache_path)
 
 
-def test_resolve_remote_source_downloads_when_cache_expired(monkeypatch, tmp_path: Path) -> None:
+def test_resolve_remote_source_downloads_when_cache_expired(
+    monkeypatch, tmp_path: Path
+) -> None:
     url = "https://example.com/data.xlsx"
     cache_path = tmp_path / "cache.xlsx"
     content = b"new"
@@ -112,3 +131,62 @@ def test_remap_rows_returns_normalized_field_names() -> None:
     result = reader.remap_rows(rows, mapping)
 
     assert result == [{"nome": "Ana", "cargo": "Analista", "idade": ""}]
+
+
+def test_remap_rows_builds_performance_from_annual_notes() -> None:
+    rows = [
+        {
+            "Matricula": "123",
+            "Nome": "Ana",
+            "Cargo": "Analista",
+            "Nota 2025": "3/PROM",
+            "Nota 2024": "5/MN+",
+            "Nota 2023": "4/AP",
+        }
+    ]
+    mapping = {
+        "matricula": "Matricula",
+        "nome": "Nome",
+        "cargo": "Cargo",
+        "nota_2025": "Nota 2025",
+        "nota_2024": "Nota 2024",
+        "nota_2023": "Nota 2023",
+        "performance": None,
+    }
+
+    result = reader.remap_rows(rows, mapping)
+
+    assert result[0]["matricula"] == "123"
+    assert result[0]["performance"] == "2025 - 3/PROM\n2024 - 5/MN+\n2023 - 4/AP"
+
+
+def test_remap_rows_uses_available_annual_notes_only() -> None:
+    rows = [{"Nome": "Ana", "Cargo": "Analista", "Nota 2024": "5/MN+"}]
+    mapping = {
+        "nome": "Nome",
+        "cargo": "Cargo",
+        "nota_2025": None,
+        "nota_2024": "Nota 2024",
+        "nota_2023": None,
+        "performance": None,
+    }
+
+    result = reader.remap_rows(rows, mapping)
+
+    assert result[0]["performance"] == "2024 - 5/MN+"
+
+
+def test_remap_rows_preserves_direct_performance_when_annual_notes_absent() -> None:
+    rows = [{"Nome": "Ana", "Cargo": "Analista", "Performance": "Historico legado"}]
+    mapping = {
+        "nome": "Nome",
+        "cargo": "Cargo",
+        "nota_2025": None,
+        "nota_2024": None,
+        "nota_2023": None,
+        "performance": "Performance",
+    }
+
+    result = reader.remap_rows(rows, mapping)
+
+    assert result[0]["performance"] == "Historico legado"

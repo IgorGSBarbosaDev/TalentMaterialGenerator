@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+from types import SimpleNamespace
+
+from PySide6.QtWidgets import QMessageBox
+
+from app.config import settings
 from app.ui.app_window import AppWindow
 
 
@@ -10,6 +15,8 @@ def test_app_window_navigates_between_screens(qtbot) -> None:
     window.navigate_to("settings")
 
     assert window.stack.currentWidget() is window.settings_screen
+    assert window.topbar_title.text() == "Configuracoes"
+    assert window.menu_buttons["settings"].isChecked() is True
 
 
 def test_app_window_refreshes_home_stats(qtbot) -> None:
