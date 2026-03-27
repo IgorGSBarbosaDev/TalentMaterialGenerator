@@ -206,6 +206,15 @@ class AppWindow(QMainWindow):
         self.topbar_badge.setVisible(bool(badge))
 
     def _start_generation(self, job_type: str, payload: dict[str, Any]) -> None:
+        if self._has_running_worker():
+            self.navigate_to("progress")
+            QMessageBox.information(
+                self,
+                "Geracao em andamento",
+                "Ja existe uma geracao em andamento. Aguarde a conclusao atual.",
+            )
+            return
+
         worker_payload = {
             **payload,
             "cache_enabled": self.config.get("cache_enabled", True),
@@ -221,6 +230,7 @@ class AppWindow(QMainWindow):
         badge = "Ficha" if job_type == "ficha" else "Carometro"
         self.progress_screen.set_context("Geracao", subtitle, badge)
         self.navigate_to("progress")
+        self._set_generation_busy(True)
 
         self.current_worker = GenerationWorker(job_type, worker_payload)
         self.current_worker.progress.connect(self.progress_screen.update_progress)
@@ -232,6 +242,8 @@ class AppWindow(QMainWindow):
         self.current_worker.start()
 
     def _handle_worker_finished(self, job_type: str, result: dict[str, Any]) -> None:
+        self._set_generation_busy(False)
+        self.current_worker = None
         self.progress_screen.on_complete(
             result["output_dir"], int(result["count"]), str(result["elapsed"])
         )
@@ -265,12 +277,15 @@ class AppWindow(QMainWindow):
 
     def _reset_settings(self) -> None:
         self.config = settings.reset_to_defaults()
+        self._history = []
+        self._stats = {"ficha": 0, "carom": 0}
         app = QApplication.instance()
         if app is not None:
             app.setStyleSheet(theme.build_stylesheet(self.config.get("theme", "dark")))
         self.ficha_screen.load_config(self.config)
         self.carom_screen.load_config(self.config)
         self.settings_screen.load_config(self.config)
+        self._refresh_home()
         QMessageBox.information(self, "Configuracoes", "Padroes restaurados.")
 
     def _toggle_theme(self) -> None:

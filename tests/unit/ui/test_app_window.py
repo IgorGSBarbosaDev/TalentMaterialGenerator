@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+from types import SimpleNamespace
+
+from PySide6.QtWidgets import QMessageBox
+
+from app.config import settings
 from app.ui.app_window import AppWindow
 
 
