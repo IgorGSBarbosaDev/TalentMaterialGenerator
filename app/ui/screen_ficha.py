@@ -27,6 +27,7 @@ class FichaScreen(QWidget):
     def __init__(self, config: dict[str, Any]) -> None:
         super().__init__()
         self.column_fields = [
+            "matricula",
             "nome",
             "idade",
             "cargo",
@@ -34,16 +35,23 @@ class FichaScreen(QWidget):
             "formacao",
             "resumo_perfil",
             "trajetoria",
+            "nota_2025",
+            "nota_2024",
+            "nota_2023",
             "performance",
         ]
         self.column_labels = {
+            "matricula": "Matricula",
             "nome": "Nome*",
             "idade": "Idade",
             "cargo": "Cargo*",
             "antiguidade": "Antiguidade",
-            "formacao": "Formação",
+            "formacao": "Formacao",
             "resumo_perfil": "Resumo de Perfil",
-            "trajetoria": "Trajetória",
+            "trajetoria": "Trajetoria",
+            "nota_2025": "Nota 2025",
+            "nota_2024": "Nota 2024",
+            "nota_2023": "Nota 2023",
             "performance": "Performance",
         }
         self.column_mapping: dict[str, str | None] = {
@@ -55,7 +63,7 @@ class FichaScreen(QWidget):
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(14)
 
-        title = QLabel("Ficha de Currículo")
+        title = QLabel("Ficha de Curriculo")
         title.setObjectName("title")
         layout.addWidget(title)
 
@@ -69,7 +77,9 @@ class FichaScreen(QWidget):
         self.entry_output.setReadOnly(True)
         self.output_mode = QComboBox()
         self.output_mode.addItems(["one_file_per_employee", "single_deck"])
-        self.output_mode.setCurrentText(config.get("default_output_mode", "one_file_per_employee"))
+        self.output_mode.setCurrentText(
+            config.get("default_output_mode", "one_file_per_employee")
+        )
         self.status_label = QLabel("")
         self.status_label.setObjectName("muted")
 
@@ -78,8 +88,8 @@ class FichaScreen(QWidget):
         source_form = QFormLayout(source_panel)
         source_form.addRow("Fonte", self.source_type)
         source_form.addRow("Planilha/Link", self.entry_source)
-        source_form.addRow("Saída", self.entry_output)
-        source_form.addRow("Modo de saída", self.output_mode)
+        source_form.addRow("Saida", self.entry_output)
+        source_form.addRow("Modo de saida", self.output_mode)
         layout.addWidget(source_panel)
 
         actions = QHBoxLayout()
@@ -103,7 +113,9 @@ class FichaScreen(QWidget):
             mapping_form.addRow(self.column_labels[field], combo)
         layout.addWidget(mapping_panel)
 
-        self.preview_label = QLabel("Preview: ficha no template oficial com placeholder circular.")
+        self.preview_label = QLabel(
+            "Preview: ficha no template oficial com placeholder circular."
+        )
         self.preview_label.setWordWrap(True)
         self.preview_label.setObjectName("dim")
         layout.addWidget(self.preview_label)
@@ -155,21 +167,21 @@ class FichaScreen(QWidget):
             return False
 
         if self.source_type.currentText() == "Arquivo local" and not Path(source).is_file():
-            self.status_label.setText("A planilha local não foi encontrada.")
+            self.status_label.setText("A planilha local nao foi encontrada.")
             return False
 
         if self.source_type.currentText() == "OneDrive" and not source.startswith("https://"):
-            self.status_label.setText("Informe um link válido do OneDrive.")
+            self.status_label.setText("Informe um link valido do OneDrive.")
             return False
 
         missing_required = reader.validate_required_columns(self._get_column_mapping())
         if missing_required:
             self.status_label.setText(
-                f"Mapeie os campos obrigatórios: {', '.join(missing_required)}."
+                f"Mapeie os campos obrigatorios: {', '.join(missing_required)}."
             )
             return False
 
-        self.status_label.setText("Configuração válida.")
+        self.status_label.setText("Configuracao valida.")
         return True
 
     def _get_column_mapping(self) -> dict[str, str | None]:
@@ -179,7 +191,9 @@ class FichaScreen(QWidget):
         }
 
     def _get_config(self) -> dict[str, Any]:
-        source_kind = "local" if self.source_type.currentText() == "Arquivo local" else "onedrive"
+        source_kind = (
+            "local" if self.source_type.currentText() == "Arquivo local" else "onedrive"
+        )
         return {
             "spreadsheet_source": self.entry_source.text().strip(),
             "source_kind": source_kind,
@@ -191,7 +205,7 @@ class FichaScreen(QWidget):
     def _auto_detect_columns(self) -> None:
         source = self.entry_source.text().strip()
         if source == "":
-            self.status_label.setText("Informe a fonte antes da auto-detecção.")
+            self.status_label.setText("Informe a fonte antes da auto-deteccao.")
             return
 
         try:

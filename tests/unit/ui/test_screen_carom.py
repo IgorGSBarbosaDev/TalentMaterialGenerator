@@ -36,3 +36,11 @@ def test_carom_screen_get_config_uses_default_output_dir(qtbot) -> None:
     screen._start_generation()
 
     assert received[0]["output_dir"] == str(get_default_output_dir())
+
+
+def test_carom_screen_exposes_new_schema_fields(qtbot) -> None:
+    screen = CaromScreen({})
+    qtbot.addWidget(screen)
+
+    for field in ("matricula", "nota_2025", "nota_2024", "nota_2023"):
+        assert field in screen._column_selectors

@@ -31,3 +31,11 @@ def test_ficha_screen_get_config_returns_output_mode(qtbot) -> None:
 
     assert "output_mode" in config
     assert config["output_dir"] == str(get_default_output_dir())
+
+
+def test_ficha_screen_exposes_new_schema_fields(qtbot) -> None:
+    screen = FichaScreen({})
+    qtbot.addWidget(screen)
+
+    for field in ("matricula", "nota_2025", "nota_2024", "nota_2023", "performance"):
+        assert field in screen._column_selectors

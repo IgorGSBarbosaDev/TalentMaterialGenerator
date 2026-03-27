@@ -27,14 +27,35 @@ class CaromScreen(QWidget):
 
     def __init__(self, config: dict[str, Any]) -> None:
         super().__init__()
-        self.column_fields = ["nome", "cargo", "area", "nota", "potencial"]
+        self.column_fields = [
+            "matricula",
+            "nome",
+            "cargo",
+            "area",
+            "nota",
+            "potencial",
+            "nota_2025",
+            "nota_2024",
+            "nota_2023",
+        ]
+        self.column_labels = {
+            "matricula": "Matricula",
+            "nome": "Nome",
+            "cargo": "Cargo",
+            "area": "Area",
+            "nota": "Nota",
+            "potencial": "Potencial",
+            "nota_2025": "Nota 2025",
+            "nota_2024": "Nota 2024",
+            "nota_2023": "Nota 2023",
+        }
         self._column_selectors: dict[str, QComboBox] = {}
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(14)
 
-        title = QLabel("Carômetro")
+        title = QLabel("Carometro")
         title.setObjectName("title")
         layout.addWidget(title)
 
@@ -51,7 +72,7 @@ class CaromScreen(QWidget):
         self.columns = QComboBox()
         self.columns.addItems(["3", "4", "5"])
         self.columns.setCurrentText(str(config.get("default_carom_columns", 5)))
-        self.title_field = QLineEdit("Carômetro")
+        self.title_field = QLineEdit("Carometro")
         self.status_label = QLabel("")
         self.status_label.setObjectName("muted")
 
@@ -61,7 +82,7 @@ class CaromScreen(QWidget):
         self.chk_show_potencial.setChecked(True)
         self.chk_show_cargo = QCheckBox("Mostrar cargo")
         self.chk_show_cargo.setChecked(True)
-        self.chk_cores = QCheckBox("Cores automáticas")
+        self.chk_cores = QCheckBox("Cores automaticas")
         self.chk_cores.setChecked(True)
 
         source_panel = QFrame()
@@ -69,10 +90,10 @@ class CaromScreen(QWidget):
         source_form = QFormLayout(source_panel)
         source_form.addRow("Fonte", self.source_type)
         source_form.addRow("Planilha/Link", self.entry_source)
-        source_form.addRow("Saída", self.entry_output)
+        source_form.addRow("Saida", self.entry_output)
         source_form.addRow("Agrupamento", self.grouping)
         source_form.addRow("Colunas", self.columns)
-        source_form.addRow("Título", self.title_field)
+        source_form.addRow("Titulo", self.title_field)
         layout.addWidget(source_panel)
 
         actions = QHBoxLayout()
@@ -93,7 +114,7 @@ class CaromScreen(QWidget):
             combo = QComboBox()
             combo.addItem("")
             self._column_selectors[field] = combo
-            mapping_form.addRow(field.capitalize(), combo)
+            mapping_form.addRow(self.column_labels[field], combo)
         layout.addWidget(mapping_panel)
 
         toggles = QHBoxLayout()
@@ -104,7 +125,7 @@ class CaromScreen(QWidget):
         toggles.addStretch(1)
         layout.addLayout(toggles)
 
-        self.btn_generate = QPushButton("GERAR CARÔMETRO")
+        self.btn_generate = QPushButton("GERAR CAROMETRO")
         self.btn_generate.setObjectName("primary")
         self.btn_generate.clicked.connect(self._start_generation)
         layout.addWidget(self.btn_generate)
@@ -155,27 +176,27 @@ class CaromScreen(QWidget):
             return False
 
         if self.source_type.currentText() == "Arquivo local" and not Path(source).is_file():
-            self.status_label.setText("A planilha local não foi encontrada.")
+            self.status_label.setText("A planilha local nao foi encontrada.")
             return False
 
         if self.source_type.currentText() == "OneDrive" and not source.startswith("https://"):
-            self.status_label.setText("Informe um link válido do OneDrive.")
+            self.status_label.setText("Informe um link valido do OneDrive.")
             return False
 
         missing_required = reader.validate_required_columns(self._get_column_mapping())
         if missing_required:
             self.status_label.setText(
-                f"Mapeie os campos obrigatórios: {', '.join(missing_required)}."
+                f"Mapeie os campos obrigatorios: {', '.join(missing_required)}."
             )
             return False
 
-        self.status_label.setText("Configuração válida.")
+        self.status_label.setText("Configuracao valida.")
         return True
 
     def _auto_detect_columns(self) -> None:
         source = self.entry_source.text().strip()
         if source == "":
-            self.status_label.setText("Informe a fonte antes da auto-detecção.")
+            self.status_label.setText("Informe a fonte antes da auto-deteccao.")
             return
 
         try:
@@ -214,7 +235,7 @@ class CaromScreen(QWidget):
                 "column_mapping": self._get_column_mapping(),
                 "agrupamento": None if grouping == "sem agrupamento" else grouping,
                 "colunas": int(self.columns.currentText()),
-                "titulo": self.title_field.text().strip() or "Carômetro",
+                "titulo": self.title_field.text().strip() or "Carometro",
                 "show_nota": self.chk_show_nota.isChecked(),
                 "show_potencial": self.chk_show_potencial.isChecked(),
                 "show_cargo": self.chk_show_cargo.isChecked(),
