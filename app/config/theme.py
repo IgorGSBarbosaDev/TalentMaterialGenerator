@@ -44,7 +44,7 @@ QWidget {{
     background-color: {palette["bg"]};
     color: {palette["text"]};
     font-family: "Segoe UI";
-    font-size: 12px;
+    font-size: 13px;
 }}
 QMainWindow {{
     background-color: {palette["bg"]};
@@ -56,10 +56,19 @@ QWidget#sidebar {{
 QWidget#contentRoot {{
     background-color: {palette["bg"]};
 }}
+QFrame#topbar {{
+    background-color: {palette["surface"]};
+    border-bottom: 1px solid {palette["border"]};
+}}
 QFrame#card, QFrame#panel {{
     background-color: {palette["surface"]};
     border: 1px solid {palette["border"]};
-    border-radius: 10px;
+    border-radius: 12px;
+}}
+QFrame#panelAction {{
+    background-color: {palette["surface_2"]};
+    border: 1px solid {palette["border_hover"]};
+    border-radius: 12px;
 }}
 QFrame#subpanel {{
     background-color: {palette["surface_2"]};
@@ -70,7 +79,7 @@ QPushButton {{
     background-color: {palette["surface_2"]};
     border: 1px solid {palette["border"]};
     border-radius: 8px;
-    padding: 8px 12px;
+    padding: 9px 14px;
 }}
 QPushButton:hover {{
     border-color: {palette["border_hover"]};
@@ -80,6 +89,7 @@ QPushButton#primary {{
     color: #111111;
     border-color: {VERDE_USIMINAS};
     font-weight: 700;
+    min-height: 38px;
 }}
 QPushButton#menu_item {{
     background: transparent;
@@ -96,12 +106,31 @@ QPushButton#menu_item:checked {{
     border-right: 2px solid {VERDE_USIMINAS};
     font-weight: 700;
 }}
+QPushButton#theme_toggle {{
+    background-color: {palette["surface_2"]};
+    border: 1px solid {palette["border"]};
+    border-radius: 10px;
+    font-size: 16px;
+    font-weight: 700;
+    padding: 0px;
+}}
+QPushButton#theme_toggle:hover {{
+    border-color: {VERDE_USIMINAS};
+    color: {VERDE_USIMINAS};
+}}
+QPushButton#theme_toggle:focus {{
+    border-color: {VERDE_USIMINAS};
+}}
 QLineEdit, QComboBox, QTextEdit, QListWidget, QSpinBox {{
     background-color: {palette["surface"]};
     border: 1px solid {palette["border"]};
     border-radius: 8px;
-    padding: 6px;
+    padding: 8px;
     color: {palette["text"]};
+    min-height: 22px;
+}}
+QLineEdit:focus, QComboBox:focus, QTextEdit:focus, QListWidget:focus, QSpinBox:focus {{
+    border-color: {VERDE_USIMINAS};
 }}
 QProgressBar {{
     background-color: {palette["surface"]};
@@ -114,7 +143,7 @@ QProgressBar::chunk {{
     border-radius: 5px;
 }}
 QLabel#title {{
-    font-size: 20px;
+    font-size: 22px;
     font-weight: 700;
 }}
 QLabel#muted {{
@@ -122,5 +151,35 @@ QLabel#muted {{
 }}
 QLabel#dim {{
     color: {palette["text_dim"]};
+}}
+QLabel#panelTitle {{
+    font-size: 16px;
+    font-weight: 700;
+}}
+QLabel#panelHint {{
+    color: {palette["text_dim"]};
+    font-size: 12px;
+}}
+QLabel#statusLabel {{
+    border-radius: 8px;
+    padding: 8px 10px;
+    border: 1px solid {palette["border"]};
+    background-color: {palette["surface"]};
+}}
+QLabel#statusLabel[state="info"] {{
+    border-color: {palette["border_hover"]};
+    color: {palette["text_muted"]};
+}}
+QLabel#statusLabel[state="warning"] {{
+    border-color: {COR_AVISO};
+    color: {COR_AVISO};
+}}
+QLabel#statusLabel[state="error"] {{
+    border-color: {COR_ERRO};
+    color: {COR_ERRO};
+}}
+QLabel#statusLabel[state="success"] {{
+    border-color: {VERDE_USIMINAS};
+    color: {VERDE_USIMINAS};
 }}
 """

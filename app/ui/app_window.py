@@ -84,9 +84,22 @@ class AppWindow(QMainWindow):
         content_layout.setContentsMargins(0, 0, 0, 0)
         content_layout.setSpacing(0)
 
-        self.topbar = QLabel("USI Generator")
-        self.topbar.setObjectName("title")
-        self.topbar.setMargin(20)
+        self.topbar = QFrame()
+        self.topbar.setObjectName("topbar")
+        topbar_layout = QHBoxLayout(self.topbar)
+        topbar_layout.setContentsMargins(20, 14, 20, 14)
+        topbar_layout.setSpacing(12)
+
+        self.topbar_title = QLabel("USI Generator")
+        self.topbar_title.setObjectName("title")
+        topbar_layout.addWidget(self.topbar_title)
+        topbar_layout.addStretch(1)
+
+        self.theme_toggle_button = QPushButton("☀")
+        self.theme_toggle_button.setObjectName("theme_toggle")
+        self.theme_toggle_button.setFixedSize(44, 36)
+        self.theme_toggle_button.clicked.connect(self._toggle_theme)
+        topbar_layout.addWidget(self.theme_toggle_button)
         content_layout.addWidget(self.topbar)
 
         self.stack = QStackedWidget()
@@ -126,19 +139,19 @@ class AppWindow(QMainWindow):
         self.progress_screen.open_output_requested.connect(self._open_output_dir)
         self.settings_screen.save_requested.connect(self._save_settings)
         self.settings_screen.reset_requested.connect(self._reset_settings)
-        self.settings_screen.theme_toggle_requested.connect(self._toggle_theme)
         self.settings_screen.refresh_cache_requested.connect(self._refresh_cache_now)
 
         self._refresh_home()
         self.ficha_screen.load_config(config)
         self.carom_screen.load_config(config)
         self.settings_screen.load_config(config)
+        self._update_theme_toggle_button()
         self.navigate_to("home")
 
     def navigate_to(self, screen: str) -> None:
         widget = self.screens[screen]
         self.stack.setCurrentWidget(widget)
-        self.topbar.setText(widget.__class__.__name__.replace("Screen", ""))
+        self.topbar_title.setText(widget.__class__.__name__.replace("Screen", ""))
         button = self.menu_buttons.get(screen)
         if button is not None:
             button.setChecked(True)
@@ -208,6 +221,7 @@ class AppWindow(QMainWindow):
         self.ficha_screen.load_config(self.config)
         self.carom_screen.load_config(self.config)
         self.settings_screen.load_config(self.config)
+        self._update_theme_toggle_button()
         QMessageBox.information(self, "Configuracoes", "Padroes restaurados.")
 
     def _toggle_theme(self) -> None:
@@ -218,6 +232,16 @@ class AppWindow(QMainWindow):
         if app is not None:
             app.setStyleSheet(theme.build_stylesheet(new_mode))
         self.settings_screen.load_config(self.config)
+        self._update_theme_toggle_button()
+
+    def _update_theme_toggle_button(self) -> None:
+        current = str(self.config.get("theme", "dark")).lower()
+        if current == "dark":
+            self.theme_toggle_button.setText("☀")
+            self.theme_toggle_button.setToolTip("Mudar para modo claro")
+        else:
+            self.theme_toggle_button.setText("☾")
+            self.theme_toggle_button.setToolTip("Mudar para modo escuro")
 
     def _refresh_cache_now(self) -> None:
         url = str(self.config.get("default_onedrive_url", "")).strip()

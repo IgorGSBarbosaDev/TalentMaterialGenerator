@@ -21,3 +21,27 @@ def test_app_window_refreshes_home_stats(qtbot) -> None:
     window._refresh_home()
 
     assert "3" in window.home_screen.stats_label.text()
+
+
+def test_app_window_has_global_theme_button_on_topbar(qtbot) -> None:
+    window = AppWindow({"last_generations": [], "theme": "dark"})
+    qtbot.addWidget(window)
+
+    assert window.theme_toggle_button.text() == "☀"
+    assert "claro" in window.theme_toggle_button.toolTip().lower()
+
+
+def test_app_window_toggle_theme_updates_symbol_and_config(qtbot, monkeypatch) -> None:
+    window = AppWindow({"last_generations": [], "theme": "dark"})
+    qtbot.addWidget(window)
+
+    def fake_update_config(payload):
+        return payload
+
+    monkeypatch.setattr("app.ui.app_window.settings.update_config", fake_update_config)
+
+    window._toggle_theme()
+
+    assert window.config["theme"] == "light"
+    assert window.theme_toggle_button.text() == "☾"
+    assert "escuro" in window.theme_toggle_button.toolTip().lower()

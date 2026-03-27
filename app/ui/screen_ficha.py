@@ -41,23 +41,40 @@ class FichaScreen(QWidget):
             "idade": "Idade",
             "cargo": "Cargo*",
             "antiguidade": "Antiguidade",
-            "formacao": "Formação",
-            "resumo_perfil": "Resumo de Perfil",
-            "trajetoria": "Trajetória",
+            "formacao": "Formacao",
+            "resumo_perfil": "Resumo de perfil",
+            "trajetoria": "Trajetoria",
             "performance": "Performance",
-        }
-        self.column_mapping: dict[str, str | None] = {
-            field: None for field in self.column_fields
         }
         self._column_selectors: dict[str, QComboBox] = {}
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(20, 20, 20, 20)
-        layout.setSpacing(14)
+        layout.setContentsMargins(26, 26, 26, 26)
+        layout.setSpacing(16)
 
-        title = QLabel("Ficha de Currículo")
+        title = QLabel("Ficha de Curriculo")
         title.setObjectName("title")
+        subtitle = QLabel(
+            "Configure a base e o mapeamento em paines amplos para gerar fichas com menos atrito."
+        )
+        subtitle.setObjectName("muted")
+        subtitle.setWordWrap(True)
         layout.addWidget(title)
+        layout.addWidget(subtitle)
+
+        split = QHBoxLayout()
+        split.setSpacing(16)
+        layout.addLayout(split, 1)
+
+        source_panel = QFrame()
+        source_panel.setObjectName("panel")
+        source_layout = QVBoxLayout(source_panel)
+        source_layout.setContentsMargins(18, 18, 18, 18)
+        source_layout.setSpacing(14)
+        source_layout.addWidget(self._panel_title("Fonte de dados"))
+        source_layout.addWidget(
+            self._panel_hint("Defina origem, saida e modo de geracao em um unico bloco.")
+        )
 
         self.source_type = QComboBox()
         self.source_type.addItems(["OneDrive", "Arquivo local"])
@@ -65,22 +82,23 @@ class FichaScreen(QWidget):
             self.source_type.setCurrentText("Arquivo local")
 
         self.entry_source = QLineEdit(config.get("default_onedrive_url", ""))
+        self.entry_source.setMinimumWidth(360)
         self.entry_output = QLineEdit(str(get_default_output_dir()))
         self.entry_output.setReadOnly(True)
         self.output_mode = QComboBox()
         self.output_mode.addItems(["one_file_per_employee", "single_deck"])
-        self.output_mode.setCurrentText(config.get("default_output_mode", "one_file_per_employee"))
-        self.status_label = QLabel("")
-        self.status_label.setObjectName("muted")
+        self.output_mode.setCurrentText(
+            config.get("default_output_mode", "one_file_per_employee")
+        )
 
-        source_panel = QFrame()
-        source_panel.setObjectName("panel")
-        source_form = QFormLayout(source_panel)
+        source_form = QFormLayout()
+        source_form.setHorizontalSpacing(16)
+        source_form.setVerticalSpacing(12)
         source_form.addRow("Fonte", self.source_type)
         source_form.addRow("Planilha/Link", self.entry_source)
-        source_form.addRow("Saída", self.entry_output)
-        source_form.addRow("Modo de saída", self.output_mode)
-        layout.addWidget(source_panel)
+        source_form.addRow("Saida", self.entry_output)
+        source_form.addRow("Modo de saida", self.output_mode)
+        source_layout.addLayout(source_form)
 
         actions = QHBoxLayout()
         btn_browse_file = QPushButton("Procurar arquivo")
@@ -90,29 +108,76 @@ class FichaScreen(QWidget):
         actions.addWidget(btn_browse_file)
         actions.addWidget(btn_detect)
         actions.addStretch(1)
-        layout.addLayout(actions)
-        layout.addWidget(self.status_label)
+        source_layout.addLayout(actions)
+        split.addWidget(source_panel, 5)
 
         mapping_panel = QFrame()
         mapping_panel.setObjectName("panel")
-        mapping_form = QFormLayout(mapping_panel)
+        mapping_layout = QVBoxLayout(mapping_panel)
+        mapping_layout.setContentsMargins(18, 18, 18, 18)
+        mapping_layout.setSpacing(14)
+        mapping_layout.addWidget(self._panel_title("Mapeamento de colunas"))
+        mapping_layout.addWidget(
+            self._panel_hint("Mapeie os campos obrigatorios e revise os complementares.")
+        )
+
+        mapping_form = QFormLayout()
+        mapping_form.setHorizontalSpacing(16)
+        mapping_form.setVerticalSpacing(10)
         for field in self.column_fields:
             combo = QComboBox()
             combo.addItem("")
+            combo.setMinimumWidth(340)
             self._column_selectors[field] = combo
             mapping_form.addRow(self.column_labels[field], combo)
-        layout.addWidget(mapping_panel)
+        mapping_layout.addLayout(mapping_form)
+        split.addWidget(mapping_panel, 5)
 
-        self.preview_label = QLabel("Preview: ficha no template oficial com placeholder circular.")
-        self.preview_label.setWordWrap(True)
-        self.preview_label.setObjectName("dim")
-        layout.addWidget(self.preview_label)
+        action_panel = QFrame()
+        action_panel.setObjectName("panelAction")
+        action_layout = QHBoxLayout(action_panel)
+        action_layout.setContentsMargins(18, 16, 18, 16)
+        action_layout.setSpacing(14)
+
+        status_col = QVBoxLayout()
+        status_col.setSpacing(6)
+        status_title = self._panel_title("Acao final")
+        status_title.setObjectName("panelTitle")
+        self.status_label = QLabel("")
+        self.status_label.setObjectName("statusLabel")
+        self.status_label.setWordWrap(True)
+        status_col.addWidget(status_title)
+        status_col.addWidget(self.status_label)
+        action_layout.addLayout(status_col, 1)
 
         self.btn_generate = QPushButton("GERAR FICHAS")
         self.btn_generate.setObjectName("primary")
         self.btn_generate.clicked.connect(self._start_generation)
-        layout.addWidget(self.btn_generate)
-        layout.addStretch(1)
+        self.btn_generate.setMinimumWidth(210)
+        action_layout.addWidget(self.btn_generate)
+        layout.addWidget(action_panel)
+
+        self._set_status("Informe a fonte de dados para iniciar.", "info")
+
+    def _panel_title(self, text: str) -> QLabel:
+        label = QLabel(text)
+        label.setObjectName("panelTitle")
+        return label
+
+    def _panel_hint(self, text: str) -> QLabel:
+        label = QLabel(text)
+        label.setObjectName("panelHint")
+        label.setWordWrap(True)
+        return label
+
+    def _set_status(self, message: str, state: str) -> None:
+        self.status_label.setText(message)
+        self.status_label.setProperty("state", state)
+        style = self.status_label.style()
+        if style is not None:
+            style.unpolish(self.status_label)
+            style.polish(self.status_label)
+        self.status_label.update()
 
     def load_config(self, config: dict[str, Any]) -> None:
         source_kind = str(config.get("spreadsheet_source", "onedrive")).lower()
@@ -151,25 +216,26 @@ class FichaScreen(QWidget):
     def _validate_inputs(self) -> bool:
         source = self.entry_source.text().strip()
         if source == "":
-            self.status_label.setText("Informe a fonte de dados.")
+            self._set_status("Informe a fonte de dados.", "warning")
             return False
 
         if self.source_type.currentText() == "Arquivo local" and not Path(source).is_file():
-            self.status_label.setText("A planilha local não foi encontrada.")
+            self._set_status("A planilha local nao foi encontrada.", "error")
             return False
 
         if self.source_type.currentText() == "OneDrive" and not source.startswith("https://"):
-            self.status_label.setText("Informe um link válido do OneDrive.")
+            self._set_status("Informe um link valido do OneDrive.", "error")
             return False
 
         missing_required = reader.validate_required_columns(self._get_column_mapping())
         if missing_required:
-            self.status_label.setText(
-                f"Mapeie os campos obrigatórios: {', '.join(missing_required)}."
+            self._set_status(
+                f"Mapeie os campos obrigatorios: {', '.join(missing_required)}.",
+                "warning",
             )
             return False
 
-        self.status_label.setText("Configuração válida.")
+        self._set_status("Configuracao valida. Pronto para gerar.", "success")
         return True
 
     def _get_column_mapping(self) -> dict[str, str | None]:
@@ -179,7 +245,9 @@ class FichaScreen(QWidget):
         }
 
     def _get_config(self) -> dict[str, Any]:
-        source_kind = "local" if self.source_type.currentText() == "Arquivo local" else "onedrive"
+        source_kind = (
+            "local" if self.source_type.currentText() == "Arquivo local" else "onedrive"
+        )
         return {
             "spreadsheet_source": self.entry_source.text().strip(),
             "source_kind": source_kind,
@@ -191,7 +259,7 @@ class FichaScreen(QWidget):
     def _auto_detect_columns(self) -> None:
         source = self.entry_source.text().strip()
         if source == "":
-            self.status_label.setText("Informe a fonte antes da auto-detecção.")
+            self._set_status("Informe a fonte antes da auto-deteccao.", "warning")
             return
 
         try:
@@ -211,9 +279,9 @@ class FichaScreen(QWidget):
                     idx = combo.findText(value)
                     if idx >= 0:
                         combo.setCurrentIndex(idx)
-            self.status_label.setText("Colunas detectadas.")
+            self._set_status("Colunas detectadas com sucesso.", "success")
         except Exception as exc:
-            self.status_label.setText(str(exc))
+            self._set_status(str(exc), "error")
 
     def _start_generation(self) -> None:
         if not self._validate_inputs():

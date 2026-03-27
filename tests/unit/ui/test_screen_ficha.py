@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from PySide6.QtWidgets import QLabel
+
 from app.config.settings import get_default_output_dir
 from app.ui.screen_ficha import FichaScreen
 
@@ -31,3 +33,11 @@ def test_ficha_screen_get_config_returns_output_mode(qtbot) -> None:
 
     assert "output_mode" in config
     assert config["output_dir"] == str(get_default_output_dir())
+
+
+def test_ficha_screen_has_no_preview_placeholder_text(qtbot) -> None:
+    screen = FichaScreen({})
+    qtbot.addWidget(screen)
+
+    labels = [label.text() for label in screen.findChildren(QLabel)]
+    assert all("Preview:" not in text for text in labels)

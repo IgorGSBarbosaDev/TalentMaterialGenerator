@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from PySide6.QtWidgets import QLabel
+
 from app.config.settings import get_default_output_dir
 from app.ui.screen_carom import CaromScreen
 
@@ -36,3 +38,12 @@ def test_carom_screen_get_config_uses_default_output_dir(qtbot) -> None:
     screen._start_generation()
 
     assert received[0]["output_dir"] == str(get_default_output_dir())
+
+
+def test_carom_screen_has_no_preview_or_sample_text(qtbot) -> None:
+    screen = CaromScreen({})
+    qtbot.addWidget(screen)
+
+    labels = [label.text().lower() for label in screen.findChildren(QLabel)]
+    assert all("preview" not in text for text in labels)
+    assert all("amostra" not in text for text in labels)
