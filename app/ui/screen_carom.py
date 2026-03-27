@@ -115,6 +115,7 @@ class CaromScreen(QWidget):
 
         source_actions = QHBoxLayout()
         btn_browse_file = QPushButton("Procurar arquivo")
+        self.btn_browse_file = btn_browse_file
         btn_browse_file.clicked.connect(self._choose_source_file)
         btn_detect = QPushButton("Auto-detectar")
         btn_detect.clicked.connect(self._auto_detect_columns)
@@ -254,7 +255,10 @@ class CaromScreen(QWidget):
         )
 
     def _sync_column_buttons(self) -> None:
-        for value, button in self.column_buttons.items():
+        buttons = getattr(self, "column_buttons", None)
+        if not buttons:
+            return
+        for value, button in buttons.items():
             button.setChecked(value == self.columns.currentText())
 
     def _on_source_changed(self) -> None:
@@ -281,17 +285,9 @@ class CaromScreen(QWidget):
             combo = self._column_selectors[field]
             self._set_invalid(combo, combo.currentText().strip() == "")
 
-    def _set_status(self, message: str, tone: str) -> None:
-        self.status_label.setText(message)
-        self.status_badge.update_status(
-            {
-                "success": "Pronto",
-                "warning": "Atencao",
-                "error": "Erro",
-                "info": "Info",
-            }.get(tone, "Aguardando"),
-            tone,
-        )
+    def _refresh_preview(self) -> None:
+        # Keep preview state coherent while refined preview widgets are not mounted.
+        self._set_invalid(self.entry_source, self.entry_source.text().strip() == "")
 
     def _get_column_mapping(self) -> dict[str, str | None]:
         return {

@@ -61,14 +61,13 @@ class FichaScreen(QWidget):
             "formacao": "Formacao",
             "resumo_perfil": "Resumo de perfil",
             "trajetoria": "Trajetoria",
+            "nota_2025": "Nota 2025",
+            "nota_2024": "Nota 2024",
+            "nota_2023": "Nota 2023",
             "performance": "Performance",
         }
         self._column_selectors: dict[str, QComboBox] = {}
         self._preview_rows: list[dict[str, str]] = []
-
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(28, 24, 28, 24)
-        layout.setSpacing(18)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(26, 26, 26, 26)
@@ -125,6 +124,7 @@ class FichaScreen(QWidget):
 
         actions = QHBoxLayout()
         btn_browse_file = QPushButton("Procurar arquivo")
+        self.btn_browse_file = btn_browse_file
         btn_browse_file.clicked.connect(self._choose_source_file)
         btn_detect = QPushButton("Auto-detectar")
         btn_detect.clicked.connect(self._auto_detect_columns)
@@ -260,17 +260,9 @@ class FichaScreen(QWidget):
             combo = self._column_selectors[field]
             self._set_invalid(combo, combo.currentText().strip() == "")
 
-    def _set_status(self, message: str, tone: str) -> None:
-        self.status_label.setText(message)
-        self.status_badge.update_status(
-            {
-                "success": "Pronto",
-                "warning": "Atencao",
-                "error": "Erro",
-                "info": "Info",
-            }.get(tone, "Aguardando"),
-            tone,
-        )
+    def _refresh_preview(self) -> None:
+        # Keep preview state coherent while refined preview widgets are not mounted.
+        self._set_invalid(self.entry_source, self.entry_source.text().strip() == "")
 
     def _validate_inputs(self) -> bool:
         source = self.entry_source.text().strip()
