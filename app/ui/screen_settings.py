@@ -28,6 +28,10 @@ class SettingsScreen(QWidget):
     def __init__(self, config: dict) -> None:
         super().__init__()
 
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(26, 26, 26, 26)
+        layout.setSpacing(16)
+
         title = QLabel("Configuracoes")
         title.setObjectName("title")
         layout.addWidget(title)
@@ -67,21 +71,9 @@ class SettingsScreen(QWidget):
         cache_form.addRow("TTL do cache (horas)", self.cache_ttl)
         cache_card.add_layout(cache_form)
 
-        form.addRow("Planilha local padrao", self.default_spreadsheet)
-        form.addRow("Link padrao OneDrive", self.default_onedrive)
-        form.addRow("Pasta de saida padrao", self.default_output)
-        form.addRow("TTL cache (horas)", self.cache_ttl)
-        layout.addWidget(panel)
-
-        button_row = QHBoxLayout()
-        btn_save = QPushButton("Salvar")
-        btn_save.setObjectName("primary")
-        btn_save.clicked.connect(self._emit_save)
-        btn_reset = QPushButton("Restaurar padroes")
-        btn_reset.clicked.connect(self.reset_requested.emit)
+        cache_actions = QHBoxLayout()
         btn_refresh = QPushButton("Atualizar base agora")
         btn_refresh.clicked.connect(self.refresh_cache_requested.emit)
-        cache_actions.addWidget(btn_theme)
         cache_actions.addWidget(btn_refresh)
         cache_actions.addStretch(1)
         cache_card.add_layout(cache_actions)
@@ -95,7 +87,6 @@ class SettingsScreen(QWidget):
         btn_reset.clicked.connect(self.reset_requested.emit)
         button_row.addWidget(btn_save)
         button_row.addWidget(btn_reset)
-        button_row.addWidget(btn_refresh)
         button_row.addStretch(1)
         layout.addLayout(button_row)
         layout.addStretch(1)
