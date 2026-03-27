@@ -20,8 +20,8 @@ Aplicativo desktop em PySide6 para geração de fichas de currículo e carômetr
 
 ## Saída
 
-- Fichas em `output_dir/fichas`
-- Carômetros em `output_dir/carometros`
+- Fichas em `Documents/Usi Generator/fichas`
+- Carômetros em `Documents/Usi Generator/carometros`
 - Os slides usam placeholder circular branco com borda verde para fotos
 
 ## Setup

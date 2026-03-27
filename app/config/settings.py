@@ -8,12 +8,17 @@ from typing import Any
 
 APP_DIR_NAME = "USIGenerator"
 
+
+def get_default_output_dir() -> Path:
+    return Path.home() / "Documents" / "Usi Generator"
+
+
 DEFAULT_CONFIG: dict[str, Any] = {
     "theme": "dark",
     "spreadsheet_source": "onedrive",
     "default_spreadsheet_path": "",
     "default_onedrive_url": "",
-    "default_output_dir": "",
+    "default_output_dir": str(get_default_output_dir()),
     "default_output_mode": "one_file_per_employee",
     "default_grouping": "area",
     "default_carom_columns": 5,
@@ -42,24 +47,33 @@ def load_config() -> dict[str, Any]:
     try:
         config_path = get_config_path()
         if not config_path.exists():
-            return deepcopy(DEFAULT_CONFIG)
+            config = deepcopy(DEFAULT_CONFIG)
+            config["default_output_dir"] = str(get_default_output_dir())
+            return config
 
         payload = json.loads(config_path.read_text(encoding="utf-8"))
         if not isinstance(payload, dict):
-            return deepcopy(DEFAULT_CONFIG)
+            config = deepcopy(DEFAULT_CONFIG)
+            config["default_output_dir"] = str(get_default_output_dir())
+            return config
 
         merged = deepcopy(DEFAULT_CONFIG)
         merged.update(payload)
+        merged["default_output_dir"] = str(get_default_output_dir())
         return merged
     except Exception:
-        return deepcopy(DEFAULT_CONFIG)
+        config = deepcopy(DEFAULT_CONFIG)
+        config["default_output_dir"] = str(get_default_output_dir())
+        return config
 
 
 def save_config(data: dict[str, Any]) -> None:
     config_path = get_config_path()
     config_path.parent.mkdir(parents=True, exist_ok=True)
+    payload = deepcopy(data)
+    payload["default_output_dir"] = str(get_default_output_dir())
     config_path.write_text(
-        json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
+        json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
     )
 
 
@@ -72,5 +86,6 @@ def update_config(updates: dict[str, Any]) -> dict[str, Any]:
 
 def reset_to_defaults() -> dict[str, Any]:
     config = deepcopy(DEFAULT_CONFIG)
+    config["default_output_dir"] = str(get_default_output_dir())
     save_config(config)
     return config

@@ -13,6 +13,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from app.config.settings import get_default_output_dir
+
 
 class SettingsScreen(QWidget):
     save_requested = Signal(dict)
@@ -36,7 +38,8 @@ class SettingsScreen(QWidget):
 
         self.default_spreadsheet = QLineEdit(config.get("default_spreadsheet_path", ""))
         self.default_onedrive = QLineEdit(config.get("default_onedrive_url", ""))
-        self.default_output = QLineEdit(config.get("default_output_dir", ""))
+        self.default_output = QLineEdit(str(get_default_output_dir()))
+        self.default_output.setReadOnly(True)
         self.cache_ttl = QSpinBox()
         self.cache_ttl.setRange(1, 168)
         self.cache_ttl.setValue(int(config.get("cache_ttl_hours", 24)))
@@ -69,7 +72,7 @@ class SettingsScreen(QWidget):
     def load_config(self, config: dict) -> None:
         self.default_spreadsheet.setText(config.get("default_spreadsheet_path", ""))
         self.default_onedrive.setText(config.get("default_onedrive_url", ""))
-        self.default_output.setText(config.get("default_output_dir", ""))
+        self.default_output.setText(str(get_default_output_dir()))
         self.cache_ttl.setValue(int(config.get("cache_ttl_hours", 24)))
 
     def _emit_save(self) -> None:
@@ -77,7 +80,6 @@ class SettingsScreen(QWidget):
             {
                 "default_spreadsheet_path": self.default_spreadsheet.text().strip(),
                 "default_onedrive_url": self.default_onedrive.text().strip(),
-                "default_output_dir": self.default_output.text().strip(),
                 "cache_ttl_hours": self.cache_ttl.value(),
             }
         )

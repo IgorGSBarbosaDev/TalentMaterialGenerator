@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
+from app.config.settings import get_default_output_dir
 from app.core import reader
 
 
@@ -43,7 +44,8 @@ class CaromScreen(QWidget):
             self.source_type.setCurrentText("Arquivo local")
 
         self.entry_source = QLineEdit(config.get("default_onedrive_url", ""))
-        self.entry_output = QLineEdit(config.get("default_output_dir", ""))
+        self.entry_output = QLineEdit(str(get_default_output_dir()))
+        self.entry_output.setReadOnly(True)
         self.grouping = QComboBox()
         self.grouping.addItems(["area", "cargo", "potencial", "sem agrupamento"])
         self.columns = QComboBox()
@@ -76,12 +78,9 @@ class CaromScreen(QWidget):
         actions = QHBoxLayout()
         btn_browse_file = QPushButton("Procurar arquivo")
         btn_browse_file.clicked.connect(self._choose_source_file)
-        btn_browse_output = QPushButton("Procurar saída")
-        btn_browse_output.clicked.connect(self._choose_output_dir)
         btn_detect = QPushButton("Auto-detectar")
         btn_detect.clicked.connect(self._auto_detect_columns)
         actions.addWidget(btn_browse_file)
-        actions.addWidget(btn_browse_output)
         actions.addWidget(btn_detect)
         actions.addStretch(1)
         layout.addLayout(actions)
@@ -121,7 +120,7 @@ class CaromScreen(QWidget):
             if source_kind == "local"
             else config.get("default_onedrive_url", "")
         )
-        self.entry_output.setText(config.get("default_output_dir", ""))
+        self.entry_output.setText(str(get_default_output_dir()))
         self.columns.setCurrentText(str(config.get("default_carom_columns", 5)))
 
     def _choose_source_file(self) -> None:
@@ -131,11 +130,6 @@ class CaromScreen(QWidget):
         if file_path:
             self.source_type.setCurrentText("Arquivo local")
             self.entry_source.setText(file_path)
-
-    def _choose_output_dir(self) -> None:
-        directory = QFileDialog.getExistingDirectory(self, "Selecionar pasta de saída")
-        if directory:
-            self.entry_output.setText(directory)
 
     def _populate_column_selectors(self, headers: list[str]) -> None:
         for combo in self._column_selectors.values():
@@ -156,9 +150,8 @@ class CaromScreen(QWidget):
 
     def _validate_inputs(self) -> bool:
         source = self.entry_source.text().strip()
-        output_dir = self.entry_output.text().strip()
-        if source == "" or output_dir == "":
-            self.status_label.setText("Informe a fonte de dados e a pasta de saída.")
+        if source == "":
+            self.status_label.setText("Informe a fonte de dados.")
             return False
 
         if self.source_type.currentText() == "Arquivo local" and not Path(source).is_file():
@@ -217,7 +210,7 @@ class CaromScreen(QWidget):
                 "source_kind": "local"
                 if self.source_type.currentText() == "Arquivo local"
                 else "onedrive",
-                "output_dir": self.entry_output.text().strip(),
+                "output_dir": str(get_default_output_dir()),
                 "column_mapping": self._get_column_mapping(),
                 "agrupamento": None if grouping == "sem agrupamento" else grouping,
                 "colunas": int(self.columns.currentText()),
