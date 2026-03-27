@@ -26,7 +26,7 @@ PALETTE: dict[str, dict[str, str]] = {
         "info": "#60A5FA",
     },
     "light": {
-        "bg": "#F0F0F0",
+        "bg": "#f0f0f0",
         "bg_alt": "#E7EBE2",
         "surface": "#FFFFFF",
         "surface_alt": "#F7F8F4",

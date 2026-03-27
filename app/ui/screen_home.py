@@ -138,7 +138,7 @@ class HomeScreen(QWidget):
 
     def refresh_history(self, items: list[str]) -> None:
         self.history_label.setText(
-            "Ultimas operacoes concluídas." if items else "Historico vazio."
+            f"Ultimo registro: {items[0]}" if items else "Historico vazio."
         )
         self.history_list.clear()
         for item in items:
