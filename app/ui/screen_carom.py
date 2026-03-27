@@ -41,7 +41,17 @@ class CaromScreen(QWidget):
 
     def __init__(self, config: dict[str, Any]) -> None:
         super().__init__()
-        self.column_fields = ["nome", "cargo", "area", "nota", "potencial"]
+        self.column_fields = [
+            "matricula",
+            "nome",
+            "cargo",
+            "area",
+            "nota",
+            "potencial",
+            "nota_2025",
+            "nota_2024",
+            "nota_2023",
+        ]
         self._column_selectors: dict[str, QComboBox] = {}
         self._preview_rows: list[dict[str, str]] = []
 

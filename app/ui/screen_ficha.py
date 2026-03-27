@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QComboBox,
     QFileDialog,
@@ -10,6 +11,7 @@ from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QPushButton,
     QVBoxLayout,
     QWidget,
@@ -37,6 +39,7 @@ class FichaScreen(QWidget):
     def __init__(self, config: dict[str, Any]) -> None:
         super().__init__()
         self.column_fields = [
+            "matricula",
             "nome",
             "idade",
             "cargo",
@@ -44,9 +47,13 @@ class FichaScreen(QWidget):
             "formacao",
             "resumo_perfil",
             "trajetoria",
+            "nota_2025",
+            "nota_2024",
+            "nota_2023",
             "performance",
         ]
         self.column_labels = {
+            "matricula": "Matricula",
             "nome": "Nome*",
             "idade": "Idade",
             "cargo": "Cargo*",
@@ -54,6 +61,9 @@ class FichaScreen(QWidget):
             "formacao": "Formacao",
             "resumo_perfil": "Resumo de Perfil",
             "trajetoria": "Trajetoria",
+            "nota_2025": "Nota 2025",
+            "nota_2024": "Nota 2024",
+            "nota_2023": "Nota 2023",
             "performance": "Performance",
         }
         self._column_selectors: dict[str, QComboBox] = {}
