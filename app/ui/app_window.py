@@ -53,7 +53,7 @@ class AppWindow(QMainWindow):
         sidebar_layout.setContentsMargins(12, 18, 12, 18)
         sidebar_layout.setSpacing(8)
         sidebar_layout.addWidget(QLabel("USIMINAS"))
-        subtitle = QLabel("MINERACAO")
+        subtitle = QLabel("Talent Development")
         subtitle.setObjectName("muted")
         sidebar_layout.addWidget(subtitle)
 
@@ -135,6 +135,18 @@ class AppWindow(QMainWindow):
         self.settings_screen.load_config(config)
         self.navigate_to("home")
 
+    def _set_generation_busy(self, busy: bool) -> None:
+        self.ficha_screen.btn_generate.setEnabled(not busy)
+        self.carom_screen.btn_generate.setEnabled(not busy)
+
+        for key in ("ficha", "carom"):
+            button = self.menu_buttons.get(key)
+            if button is not None:
+                button.setEnabled(not busy)
+
+    def _has_running_worker(self) -> bool:
+        return self.current_worker is not None and self.current_worker.isRunning()
+
     def navigate_to(self, screen: str) -> None:
         widget = self.screens[screen]
         self.stack.setCurrentWidget(widget)
@@ -144,6 +156,15 @@ class AppWindow(QMainWindow):
             button.setChecked(True)
 
     def _start_generation(self, job_type: str, payload: dict[str, Any]) -> None:
+        if self._has_running_worker():
+            self.navigate_to("progress")
+            QMessageBox.information(
+                self,
+                "Geracao em andamento",
+                "Ja existe uma geracao em andamento. Aguarde a conclusao atual.",
+            )
+            return
+
         worker_payload = {
             **payload,
             "cache_enabled": self.config.get("cache_enabled", True),
@@ -158,6 +179,7 @@ class AppWindow(QMainWindow):
         )
         self.progress_screen.set_context("Progresso", subtitle)
         self.navigate_to("progress")
+        self._set_generation_busy(True)
 
         self.current_worker = GenerationWorker(job_type, worker_payload)
         self.current_worker.progress.connect(self.progress_screen.update_progress)
@@ -169,6 +191,8 @@ class AppWindow(QMainWindow):
         self.current_worker.start()
 
     def _handle_worker_finished(self, job_type: str, result: dict[str, Any]) -> None:
+        self._set_generation_busy(False)
+        self.current_worker = None
         self.progress_screen.on_complete(
             result["output_dir"], int(result["count"]), str(result["elapsed"])
         )
@@ -186,6 +210,8 @@ class AppWindow(QMainWindow):
         self._refresh_home()
 
     def _handle_worker_error(self, message: str) -> None:
+        self._set_generation_busy(False)
+        self.current_worker = None
         self.progress_screen.append_log(message, "error")
         QMessageBox.critical(self, "Erro", message)
 
@@ -202,12 +228,15 @@ class AppWindow(QMainWindow):
 
     def _reset_settings(self) -> None:
         self.config = settings.reset_to_defaults()
+        self._history = []
+        self._stats = {"ficha": 0, "carom": 0}
         app = QApplication.instance()
         if app is not None:
             app.setStyleSheet(theme.build_stylesheet(self.config.get("theme", "dark")))
         self.ficha_screen.load_config(self.config)
         self.carom_screen.load_config(self.config)
         self.settings_screen.load_config(self.config)
+        self._refresh_home()
         QMessageBox.information(self, "Configuracoes", "Padroes restaurados.")
 
     def _toggle_theme(self) -> None:
