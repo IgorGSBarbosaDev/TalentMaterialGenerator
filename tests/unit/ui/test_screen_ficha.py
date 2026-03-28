@@ -49,8 +49,10 @@ def test_ficha_screen_has_no_preview_placeholder_text(qtbot) -> None:
     screen = FichaScreen({})
     qtbot.addWidget(screen)
 
-    labels = [label.text() for label in screen.findChildren(QLabel)]
+    labels = [label.text().lower() for label in screen.findChildren(QLabel)]
     assert all("preview" not in text.lower() for text in labels)
+    assert all("origem, saida e modo" not in text for text in labels)
+    assert all("mapeie campos obrigatorios" not in text for text in labels)
 
 
 def test_ficha_screen_handles_sidebar_collapsed_state(qtbot) -> None:
@@ -58,9 +60,7 @@ def test_ficha_screen_handles_sidebar_collapsed_state(qtbot) -> None:
     qtbot.addWidget(screen)
 
     screen.set_sidebar_collapsed(True)
-    assert screen.source_hint.isHidden() is True
-    assert screen.mapping_hint.isHidden() is True
+    assert screen._root_layout.spacing() == 12
 
     screen.set_sidebar_collapsed(False)
-    assert screen.source_hint.isHidden() is False
-    assert screen.mapping_hint.isHidden() is False
+    assert screen._root_layout.spacing() == 16

@@ -445,6 +445,11 @@ QLabel#panelTitle {{
     font-size: 16px;
     font-weight: 700;
 }}
+QLabel#panelTitleStrong {{
+    color: {palette["text"]};
+    font-size: 17px;
+    font-weight: 800;
+}}
 QLabel#panelHint {{
     color: {palette["text_dim"]};
     font-size: 12px;

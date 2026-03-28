@@ -85,11 +85,11 @@ class FichaScreen(QWidget):
         source_panel = QFrame()
         source_panel.setObjectName("panel")
         source_layout = QVBoxLayout(source_panel)
-        source_layout.setContentsMargins(18, 18, 18, 18)
-        source_layout.setSpacing(14)
-        source_layout.addWidget(self._panel_title("Fonte de dados"))
-        self.source_hint = self._panel_hint("Origem, saida e modo.")
-        source_layout.addWidget(self.source_hint)
+        source_layout.setContentsMargins(20, 20, 20, 20)
+        source_layout.setSpacing(12)
+        source_title = self._panel_title("Fonte de dados")
+        source_title.setObjectName("panelTitleStrong")
+        source_layout.addWidget(source_title)
 
         self.source_type = QComboBox()
         self.source_type.addItems(["OneDrive", "Arquivo local"])
@@ -110,8 +110,8 @@ class FichaScreen(QWidget):
         self.output_mode.currentTextChanged.connect(self._refresh_preview)
 
         source_form = QFormLayout()
-        source_form.setHorizontalSpacing(16)
-        source_form.setVerticalSpacing(12)
+        source_form.setHorizontalSpacing(18)
+        source_form.setVerticalSpacing(14)
         source_form.addRow("Fonte", self.source_type)
         source_form.addRow("Planilha/Link", self.entry_source)
         source_form.addRow("Saida", self.entry_output)
@@ -119,6 +119,7 @@ class FichaScreen(QWidget):
         source_layout.addLayout(source_form)
 
         actions = QHBoxLayout()
+        actions.setSpacing(10)
         self.btn_browse_file = QPushButton("Procurar arquivo")
         self.btn_browse_file.clicked.connect(self._choose_source_file)
         btn_detect = QPushButton("Auto-detectar")
@@ -126,6 +127,7 @@ class FichaScreen(QWidget):
         actions.addWidget(self.btn_browse_file)
         actions.addWidget(btn_detect)
         actions.addStretch(1)
+        source_layout.addSpacing(4)
         source_layout.addLayout(actions)
         split.addWidget(source_panel, 5)
 
@@ -135,8 +137,6 @@ class FichaScreen(QWidget):
         mapping_layout.setContentsMargins(18, 18, 18, 18)
         mapping_layout.setSpacing(14)
         mapping_layout.addWidget(self._panel_title("Mapeamento de colunas"))
-        self.mapping_hint = self._panel_hint("Mapeie campos obrigatorios.")
-        mapping_layout.addWidget(self.mapping_hint)
 
         mapping_form = QFormLayout()
         mapping_form.setHorizontalSpacing(16)
@@ -176,7 +176,7 @@ class FichaScreen(QWidget):
 
         self._sync_source_mode()
         self._set_status("Informe a fonte de dados para iniciar.", "info")
-        self._compact_labels = [subtitle, self.source_hint, self.mapping_hint]
+        self._compact_labels = [subtitle]
 
     def _panel_title(self, text: str) -> QLabel:
         label = QLabel(text)
