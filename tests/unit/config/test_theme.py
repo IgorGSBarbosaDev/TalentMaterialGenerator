@@ -29,6 +29,19 @@ def test_stylesheet_has_contextual_input_background_rules() -> None:
     assert "QFrame#panelAction QLineEdit" in stylesheet
     assert "QFrame#card QLineEdit" in stylesheet
     assert "QFrame#subpanel QLineEdit" in stylesheet
+    assert "QFrame#sectionCard QLineEdit" in stylesheet
+    assert "QFrame#heroCard QLineEdit" in stylesheet
+    assert "QFrame#statusPanel QLineEdit" in stylesheet
+    assert "QFrame#logPanel QLineEdit" in stylesheet
+    assert "QFrame#settingsPanel QLineEdit" in stylesheet
+    assert "QFrame#metricCard QLineEdit" in stylesheet
+    assert "QFrame#logPanel QTextEdit#logBox" in stylesheet
+
+
+def test_stylesheet_has_no_global_transparent_input_override() -> None:
+    stylesheet = theme.build_stylesheet("dark")
+
+    assert "QLineEdit, QComboBox, QTextEdit, QListWidget, QSpinBox {{\n    background-color: transparent;" not in stylesheet
 
 
 def test_stylesheet_has_sidebar_compact_and_toggle_rules() -> None:

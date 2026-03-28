@@ -35,3 +35,11 @@ def test_progress_screen_handles_sidebar_collapsed_state(qtbot) -> None:
 
     screen.set_sidebar_collapsed(False)
     assert screen.summary_card.subtitle_label.isHidden() is False
+
+
+def test_progress_screen_log_box_is_bound_to_log_panel_context(qtbot) -> None:
+    screen = ProgressScreen()
+    qtbot.addWidget(screen)
+
+    assert screen.log_box.objectName() == "logBox"
+    assert screen.log_box.parentWidget().objectName() == "logPanel"

@@ -64,3 +64,11 @@ def test_ficha_screen_handles_sidebar_collapsed_state(qtbot) -> None:
 
     screen.set_sidebar_collapsed(False)
     assert screen._root_layout.spacing() == 16
+
+
+def test_ficha_screen_form_controls_live_inside_panel_container(qtbot) -> None:
+    screen = FichaScreen({})
+    qtbot.addWidget(screen)
+
+    assert screen.entry_source.parentWidget().objectName() == "panel"
+    assert screen.source_type.parentWidget().objectName() == "panel"

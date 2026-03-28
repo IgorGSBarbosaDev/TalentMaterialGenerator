@@ -336,17 +336,6 @@ QPushButton#sidebar_toggle:focus {{
     border-color: {VERDE_USIMINAS};
     color: {VERDE_USIMINAS};
 }}
-QLineEdit, QComboBox, QTextEdit, QListWidget, QSpinBox {{
-    background-color: transparent;
-    border: 1px solid {palette["border"]};
-    border-radius: 8px;
-    padding: 8px;
-    color: {palette["text"]};
-    min-height: 22px;
-}}
-QLineEdit:focus, QComboBox:focus, QTextEdit:focus, QListWidget:focus, QSpinBox:focus {{
-    border-color: {VERDE_USIMINAS};
-}}
 QFrame#panel QLineEdit,
 QFrame#panel QComboBox,
 QFrame#panel QTextEdit,
@@ -374,6 +363,43 @@ QFrame#subpanel QTextEdit,
 QFrame#subpanel QListWidget,
 QFrame#subpanel QSpinBox {{
     background-color: {palette["surface_2"]};
+}}
+QFrame#sectionCard QLineEdit,
+QFrame#sectionCard QComboBox,
+QFrame#sectionCard QTextEdit,
+QFrame#sectionCard QListWidget,
+QFrame#sectionCard QSpinBox,
+QFrame#heroCard QLineEdit,
+QFrame#heroCard QComboBox,
+QFrame#heroCard QTextEdit,
+QFrame#heroCard QListWidget,
+QFrame#heroCard QSpinBox,
+QFrame#statusPanel QLineEdit,
+QFrame#statusPanel QComboBox,
+QFrame#statusPanel QTextEdit,
+QFrame#statusPanel QListWidget,
+QFrame#statusPanel QSpinBox,
+QFrame#logPanel QLineEdit,
+QFrame#logPanel QComboBox,
+QFrame#logPanel QTextEdit,
+QFrame#logPanel QListWidget,
+QFrame#logPanel QSpinBox,
+QFrame#settingsPanel QLineEdit,
+QFrame#settingsPanel QComboBox,
+QFrame#settingsPanel QTextEdit,
+QFrame#settingsPanel QListWidget,
+QFrame#settingsPanel QSpinBox {{
+    background-color: {palette["surface"]};
+}}
+QFrame#metricCard QLineEdit,
+QFrame#metricCard QComboBox,
+QFrame#metricCard QTextEdit,
+QFrame#metricCard QListWidget,
+QFrame#metricCard QSpinBox {{
+    background-color: {palette["accent_surface"]};
+}}
+QFrame#logPanel QTextEdit#logBox {{
+    background-color: {palette["surface_alt"]};
 }}
 QComboBox QAbstractItemView {{
     background-color: {palette["surface"]};

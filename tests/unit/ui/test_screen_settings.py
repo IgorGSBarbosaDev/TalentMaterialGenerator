@@ -36,3 +36,10 @@ def test_settings_screen_handles_sidebar_collapsed_state(qtbot) -> None:
 
     screen.set_sidebar_collapsed(False)
     assert screen.intro_card.subtitle_label.isHidden() is False
+
+
+def test_settings_inputs_live_inside_section_card_container(qtbot) -> None:
+    screen = SettingsScreen({})
+    qtbot.addWidget(screen)
+
+    assert screen.default_spreadsheet.parentWidget().objectName() == "sectionCard"

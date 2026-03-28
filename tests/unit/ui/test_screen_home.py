@@ -38,3 +38,10 @@ def test_home_screen_handles_sidebar_collapsed_state(qtbot) -> None:
 
     screen.set_sidebar_collapsed(False)
     assert screen.stats_label.isHidden() is False
+
+
+def test_home_screen_history_list_lives_inside_section_card(qtbot) -> None:
+    screen = HomeScreen()
+    qtbot.addWidget(screen)
+
+    assert screen.history_list.parentWidget().objectName() == "sectionCard"
