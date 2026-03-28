@@ -33,40 +33,20 @@ class HomeScreen(QWidget):
         layout.setSpacing(18)
 
         hero_card = SectionCard(
-            "Gerar ficha e carometro",
-            "Escolha o fluxo e siga para a execucao.",
+            "TALENT DEVELOPMENT",
+            "",
             object_name="heroCard",
+            compact=True,
         )
         self.hero_card = hero_card
-        eyebrow = QLabel("Talent Development")
-        eyebrow.setObjectName("pageEyebrow")
-        hero_card.body_layout.insertWidget(0, eyebrow)
         hero_card.title_label.setObjectName("heroTitle")
-        hero_card.subtitle_label.setObjectName("heroSubtitle")
-        self.hero_eyebrow = eyebrow
-
-        hero_actions = QHBoxLayout()
-        self.hero_actions = hero_actions
-        hero_actions.setSpacing(10)
-        btn_ficha = QPushButton("Abrir ficha de curriculo")
-        btn_ficha.setObjectName("primary")
-        btn_ficha.clicked.connect(self.ficha_requested.emit)
-        btn_carom = QPushButton("Abrir carometro")
-        btn_carom.clicked.connect(self.carom_requested.emit)
-        btn_settings = QPushButton("Preferencias")
-        btn_settings.setObjectName("secondaryGhost")
-        btn_settings.clicked.connect(self.settings_requested.emit)
-        hero_actions.addWidget(btn_ficha)
-        hero_actions.addWidget(btn_carom)
-        hero_actions.addWidget(btn_settings)
-        hero_actions.addStretch(1)
-        hero_card.add_layout(hero_actions)
+        hero_card.subtitle_label.setVisible(False)
         layout.addWidget(hero_card)
 
         actions_grid = QGridLayout()
         self.actions_grid = actions_grid
-        actions_grid.setHorizontalSpacing(16)
-        actions_grid.setVerticalSpacing(16)
+        actions_grid.setHorizontalSpacing(14)
+        actions_grid.setVerticalSpacing(14)
 
         ficha_card = self._build_action_card(
             "Ficha de Curriculo",
@@ -115,9 +95,7 @@ class HomeScreen(QWidget):
         self.stats_label.setObjectName("muted")
         layout.addWidget(self.stats_label)
         layout.addStretch(1)
-        self._compact_labels.extend(
-            [self.hero_eyebrow, self.hero_card.subtitle_label, self.stats_label]
-        )
+        self._compact_labels.append(self.stats_label)
 
     def _build_action_card(
         self, title: str, body: str, button_label: str, action
@@ -129,7 +107,7 @@ class HomeScreen(QWidget):
         open_button = QPushButton(button_label)
         open_button.setObjectName("primary")
         open_button.clicked.connect(action)
-        hint = QLabel("Fluxo guiado")
+        hint = QLabel("")
         hint.setObjectName("bodyMuted")
 
         action_row.addWidget(open_button)
@@ -141,8 +119,7 @@ class HomeScreen(QWidget):
 
     def set_sidebar_collapsed(self, collapsed: bool) -> None:
         self._root_layout.setContentsMargins(20, 20, 20, 20)
-        self._root_layout.setSpacing(14 if collapsed else 18)
-        self.hero_actions.setSpacing(8 if collapsed else 10)
+        self._root_layout.setSpacing(12 if collapsed else 16)
         self.actions_grid.setHorizontalSpacing(12 if collapsed else 16)
         self.actions_grid.setVerticalSpacing(12 if collapsed else 16)
         self.metrics_row.setSpacing(10 if collapsed else 14)

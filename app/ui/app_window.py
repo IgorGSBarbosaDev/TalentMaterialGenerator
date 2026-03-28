@@ -62,19 +62,22 @@ class AppWindow(QMainWindow):
         self.sidebar_layout = sidebar_layout
 
         brand_row = QHBoxLayout()
-        brand_mark = QLabel("U")
-        brand_mark.setObjectName("brandMark")
-        brand_mark.setFixedSize(48, 48)
-        brand_name_col = QVBoxLayout()
+        self.brand_row = brand_row
+        self.brand_mark = QLabel("U")
+        self.brand_mark.setObjectName("brandMark")
+        self.brand_mark.setFixedSize(48, 48)
+        self.brand_name_widget = QWidget()
+        brand_name_col = QVBoxLayout(self.brand_name_widget)
+        brand_name_col.setContentsMargins(0, 0, 0, 0)
         brand_name_col.setSpacing(1)
-        brand_title = QLabel("USIMINAS")
-        brand_title.setObjectName("brandTitle")
+        self.brand_title = QLabel("USIMINAS")
+        self.brand_title.setObjectName("brandTitle")
         self.brand_subtitle = QLabel("Talent Development")
         self.brand_subtitle.setObjectName("brandSubtitle")
-        brand_name_col.addWidget(brand_title)
+        brand_name_col.addWidget(self.brand_title)
         brand_name_col.addWidget(self.brand_subtitle)
-        brand_row.addWidget(brand_mark)
-        brand_row.addLayout(brand_name_col, 1)
+        brand_row.addWidget(self.brand_mark)
+        brand_row.addWidget(self.brand_name_widget, 1)
         sidebar_layout.addLayout(brand_row)
 
         self.nav_labels: list[QLabel] = []
@@ -82,13 +85,13 @@ class AppWindow(QMainWindow):
         self.menu_group = QButtonGroup(self)
         self.menu_group.setExclusive(True)
         self.menu_buttons: dict[str, NavButton] = {}
-        for key, label, icon in (
-            ("home", "Inicio", "H"),
-            ("ficha", "Ficha", "F"),
-            ("carom", "Carometro", "C"),
-            ("progress", "Geracao", "G"),
+        for key, label, icon, compact_label in (
+            ("home", "Inicio", "H", "Inicio"),
+            ("ficha", "Ficha", "F", "Ficha"),
+            ("carom", "Carometro", "C", "Carom"),
+            ("progress", "Geracao", "G", "Gerar"),
         ):
-            button = NavButton(label, icon_text=icon)
+            button = NavButton(label, icon_text=icon, compact_label=compact_label)
             button.clicked.connect(
                 lambda _checked=False, target=key: self.navigate_to(target)
             )
@@ -98,7 +101,7 @@ class AppWindow(QMainWindow):
 
         sidebar_layout.addSpacing(10)
         sidebar_layout.addWidget(self._build_nav_label("Sistema"))
-        settings_button = NavButton("Configuracoes", icon_text="S")
+        settings_button = NavButton("Configuracoes", icon_text="S", compact_label="Config")
         settings_button.clicked.connect(lambda _checked=False: self.navigate_to("settings"))
         self.menu_group.addButton(settings_button)
         self.menu_buttons["settings"] = settings_button
@@ -139,10 +142,6 @@ class AppWindow(QMainWindow):
         title_col.addWidget(self.topbar_subtitle)
         topbar_layout.addLayout(title_col, 1)
 
-        self.topbar_badge = QLabel("")
-        self.topbar_badge.setObjectName("statusBadge")
-        self.topbar_badge.setVisible(False)
-        topbar_layout.addWidget(self.topbar_badge)
         topbar_layout.addStretch(1)
 
         self.theme_toggle_button = QPushButton("\u2600")
@@ -218,9 +217,6 @@ class AppWindow(QMainWindow):
         widget = self.screens[self._current_screen]
         self.topbar_title.setText(getattr(widget, "page_title", "USI Generator"))
         self.topbar_subtitle.setText(getattr(widget, "page_subtitle", ""))
-        badge = getattr(widget, "page_badge", "")
-        self.topbar_badge.setText(badge)
-        self.topbar_badge.setVisible(bool(badge))
 
     def _has_running_worker(self) -> bool:
         return self.current_worker is not None and self.current_worker.isRunning()
@@ -336,13 +332,21 @@ class AppWindow(QMainWindow):
         )
         self.sidebar.setProperty("collapsed", "true" if collapsed else "false")
         self.sidebar.setToolTip("Sidebar recolhida" if collapsed else "")
+        self.brand_title.setVisible(not collapsed)
         self.brand_subtitle.setVisible(not collapsed)
+        self.brand_name_widget.setVisible(not collapsed)
+        self.brand_row.setAlignment(
+            self.brand_mark,
+            Qt.AlignHCenter if collapsed else Qt.AlignLeft | Qt.AlignVCenter,
+        )
+        self.brand_mark.setProperty("compact", "true" if collapsed else "false")
         self.version_label.setVisible(not collapsed)
         for label in self.nav_labels:
             label.setVisible(not collapsed)
         for button in self.menu_buttons.values():
             button.set_compact(collapsed)
             button.setMinimumHeight(38)
+            button.setProperty("sidebarCollapsed", "true" if collapsed else "false")
         self.sidebar_toggle_button.setText("\u25b6" if collapsed else "\u25c0")
         self.sidebar_toggle_button.setToolTip(
             "Expandir menu lateral" if collapsed else "Recolher menu lateral"

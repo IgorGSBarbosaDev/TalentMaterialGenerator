@@ -36,3 +36,4 @@ def test_stylesheet_has_sidebar_compact_and_toggle_rules() -> None:
 
     assert 'QFrame#sidebar[collapsed="true"]' in stylesheet
     assert "QPushButton#sidebar_toggle" in stylesheet
+    assert 'QFrame#sidebar[collapsed="true"] QPushButton#navButton' in stylesheet

@@ -76,3 +76,33 @@ def test_app_window_sidebar_state_persists_across_navigation(qtbot) -> None:
 
     assert window.sidebar.width() == collapsed_width
     assert window.menu_buttons["settings"].isChecked() is True
+
+
+def test_app_window_minimized_sidebar_hides_brand_text_keeps_logo(qtbot) -> None:
+    window = AppWindow({"last_generations": [], "theme": "dark"})
+    qtbot.addWidget(window)
+
+    window.sidebar_toggle_button.click()
+
+    assert window.brand_title.isHidden() is True
+    assert window.brand_subtitle.isHidden() is True
+    assert window.brand_mark.isHidden() is False
+
+
+def test_app_window_minimized_sidebar_keeps_compact_centered_nav_content(qtbot) -> None:
+    window = AppWindow({"last_generations": [], "theme": "dark"})
+    qtbot.addWidget(window)
+
+    window.sidebar_toggle_button.click()
+    home_text = window.menu_buttons["home"].text()
+
+    assert "\n" in home_text
+    assert "H" in home_text
+    assert "Inicio" in home_text
+
+
+def test_app_window_topbar_has_no_right_badge_widget(qtbot) -> None:
+    window = AppWindow({"last_generations": [], "theme": "dark"})
+    qtbot.addWidget(window)
+
+    assert hasattr(window, "topbar_badge") is False

@@ -95,6 +95,9 @@ QLabel#brandMark {{
     font-weight: 800;
     qproperty-alignment: AlignCenter;
 }}
+QFrame#sidebar[collapsed="true"] QLabel#brandMark {{
+    qproperty-alignment: AlignCenter;
+}}
 QLabel#brandTitle {{
     font-size: 14px;
     font-weight: 800;
@@ -113,6 +116,7 @@ QPushButton#navButton {{
     border-radius: 10px;
     font-weight: 600;
     background-color: transparent;
+    line-height: 1.15;
 }}
 QPushButton#navButton:hover {{
     background-color: {palette["surface_alt"]};
@@ -126,6 +130,10 @@ QFrame#sidebar[collapsed="true"] QPushButton#navButton {{
     text-align: center;
     padding-left: 0px;
     padding-right: 0px;
+    padding-top: 6px;
+    padding-bottom: 6px;
+    font-size: 11px;
+    font-weight: 700;
 }}
 QWidget#contentRoot {{
     background-color: {palette["bg"]};
@@ -160,6 +168,7 @@ QLabel#sectionEyebrow {{
     text-transform: uppercase;
 }}
 QLabel#heroTitle {{
+    color: {palette["accent"]};
     font-size: 28px;
     font-weight: 800;
 }}
