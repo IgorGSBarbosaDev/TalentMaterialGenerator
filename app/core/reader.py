@@ -7,6 +7,7 @@ import unicodedata
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Final, TypedDict
 
 import requests
 from openpyxl import load_workbook
@@ -48,6 +49,19 @@ NORMALIZED_VARIATIONS: dict[str, set[str]] = {
     for field, variations in COLUMN_VARIATIONS.items()
 }
 
+FICHA_FIELDS: Final[tuple[str, ...]] = (
+    "matricula",
+    "nome",
+    "idade",
+    "cargo",
+    "antiguidade",
+    "formacao",
+    "resumo_perfil",
+    "trajetoria",
+)
+FICHA_REQUIRED_FIELDS: Final[tuple[str, ...]] = ("matricula", "nome", "cargo")
+MAX_FICHA_NAME_MATCHES: Final = 25
+
 
 @dataclass
 class SpreadsheetSourceResult:
@@ -58,6 +72,17 @@ class SpreadsheetSourceResult:
     cache_path: str | None = None
     message: str = ""
     downloaded_at: str = ""
+
+
+class FichaEmployee(TypedDict):
+    matricula: str
+    nome: str
+    idade: str
+    cargo: str
+    antiguidade: str
+    formacao: str
+    resumo_perfil: str
+    trajetoria: str
 
 
 def read_spreadsheet(path: str) -> list[dict[str, str]]:
@@ -131,6 +156,108 @@ def detect_columns(headers: list[str]) -> dict[str, str | None]:
 
 def validate_required_columns(mapping: dict[str, str | None]) -> list[str]:
     return [field for field in ("nome", "cargo") if not mapping.get(field)]
+
+
+def validate_ficha_required_columns(mapping: dict[str, str | None]) -> list[str]:
+    return [field for field in FICHA_REQUIRED_FIELDS if not mapping.get(field)]
+
+
+def resolve_ficha_schema(headers: list[str]) -> dict[str, str | None]:
+    detected = detect_columns(headers)
+    return {field: detected.get(field) for field in FICHA_FIELDS}
+
+
+def validate_standardized_ficha_schema(headers: list[str]) -> dict[str, str | None]:
+    schema = resolve_ficha_schema(headers)
+    missing_required = validate_ficha_required_columns(schema)
+    if missing_required:
+        joined = ", ".join(missing_required)
+        raise ValueError(
+            f"A planilha nao segue o schema padrao da ficha. Colunas ausentes: {joined}."
+        )
+    return schema
+
+
+def extract_headers(rows: list[dict[str, str]]) -> list[str]:
+    return list(rows[0].keys()) if rows else []
+
+
+def _normalize_lookup_value(value: str) -> str:
+    normalized = unicodedata.normalize("NFKD", value)
+    ascii_only = normalized.encode("ascii", "ignore").decode("ascii")
+    return " ".join(ascii_only.strip().lower().split())
+
+
+def remap_ficha_row(
+    row: dict[str, str], mapping: dict[str, str | None]
+) -> FichaEmployee:
+    normalized: FichaEmployee = {
+        field: row.get(source_field, "") if source_field else ""
+        for field, source_field in mapping.items()
+        if field in FICHA_FIELDS
+    }
+    for field in FICHA_FIELDS:
+        normalized.setdefault(field, "")
+    return normalized
+
+
+def remap_ficha_rows(
+    rows: list[dict[str, str]], mapping: dict[str, str | None]
+) -> list[FichaEmployee]:
+    return [remap_ficha_row(row, mapping) for row in rows]
+
+
+def load_standardized_ficha_rows(rows: list[dict[str, str]]) -> list[FichaEmployee]:
+    if not rows:
+        return []
+    schema = validate_standardized_ficha_schema(extract_headers(rows))
+    return remap_ficha_rows(rows, schema)
+
+
+def validate_ficha_employee(employee: FichaEmployee) -> list[str]:
+    return [field for field in FICHA_REQUIRED_FIELDS if employee.get(field, "").strip() == ""]
+
+
+def lookup_ficha_employees(
+    rows: list[dict[str, str]],
+    *,
+    name_query: str = "",
+    matricula_query: str = "",
+    max_name_matches: int = MAX_FICHA_NAME_MATCHES,
+) -> list[FichaEmployee]:
+    normalized_name_query = _normalize_lookup_value(name_query)
+    normalized_matricula_query = _normalize_lookup_value(matricula_query)
+    if normalized_name_query == "" and normalized_matricula_query == "":
+        raise ValueError("Informe nome ou matricula para buscar.")
+
+    employees = load_standardized_ficha_rows(rows)
+    matches = employees
+
+    if normalized_matricula_query:
+        matches = [
+            employee
+            for employee in matches
+            if _normalize_lookup_value(employee.get("matricula", ""))
+            == normalized_matricula_query
+        ]
+        if len(matches) > 1:
+            raise ValueError(
+                "A matricula informada corresponde a mais de um colaborador na planilha."
+            )
+
+    if normalized_name_query:
+        matches = [
+            employee
+            for employee in matches
+            if normalized_name_query in _normalize_lookup_value(employee.get("nome", ""))
+        ]
+
+    if normalized_name_query and not normalized_matricula_query and len(matches) > max_name_matches:
+        raise ValueError(
+            "Foram encontrados muitos resultados. Refine a busca pelo nome ou informe a matricula."
+        )
+
+    return matches
 
 
 def parse_multiline_field(value: str) -> list[str]:
@@ -316,5 +443,5 @@ def remap_rows(
 
 def detect_columns_from_source(path: str) -> dict[str, str | None]:
     rows = read_spreadsheet(path)
-    headers = list(rows[0].keys()) if rows else []
+    headers = extract_headers(rows)
     return detect_columns(headers)

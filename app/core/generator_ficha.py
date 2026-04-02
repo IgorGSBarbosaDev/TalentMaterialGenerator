@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from pathlib import Path
-from typing import Final, Literal
+from typing import Final
 
 from pptx import Presentation as PresentationFactory
 from pptx.dml.color import RGBColor
@@ -11,9 +11,7 @@ from pptx.presentation import Presentation
 from pptx.slide import Slide
 from pptx.util import Inches, Pt
 
-from app.core.reader import normalize_filename, parse_multiline_field
-
-SlideOutputMode = Literal["one_file_per_employee", "single_deck"]
+from app.core.reader import FichaEmployee, normalize_filename, parse_multiline_field
 
 SLIDE_WIDTH: Final = Inches(13.271)
 SLIDE_HEIGHT: Final = Inches(7.500)
@@ -142,7 +140,7 @@ def _clean(value: str | None) -> str:
     return "" if value is None else value.strip()
 
 
-def build_slide(prs: Presentation, employee: dict[str, str]) -> Slide:
+def build_slide(prs: Presentation, employee: FichaEmployee) -> Slide:
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     _add_rect(
         slide, left=0.149, top=2.427, width=11.214, height=4.921, color=CINZA_GRANDE
@@ -281,30 +279,6 @@ def build_slide(prs: Presentation, employee: dict[str, str]) -> Slide:
             size_pt=10,
         )
 
-    performance_items = parse_multiline_field(_clean(employee.get("performance")))
-    if performance_items:
-        _add_text(
-            slide,
-            text="PERFORMANCE",
-            left=5.775,
-            top=3.341,
-            width=1.860,
-            height=0.337,
-            color=VERDE_TITULO,
-            size_pt=12,
-            bold=True,
-        )
-        _add_text(
-            slide,
-            text="\n".join(performance_items),
-            left=5.867,
-            top=3.694,
-            width=1.835,
-            height=0.505,
-            color=PRETO,
-            size_pt=11,
-        )
-
     return slide
 
 
@@ -314,60 +288,36 @@ def _send_callback(callback: Callable[[dict], None] | None, payload: dict) -> No
 
 
 def generate_ficha_pptx(
-    employees: list[dict[str, str]],
+    employee: FichaEmployee,
     output_dir: str,
     *,
-    output_mode: SlideOutputMode = "one_file_per_employee",
     callback: Callable[[dict], None] | None = None,
-) -> list[str]:
+) -> str:
     output_root = Path(output_dir) / "fichas"
     output_root.mkdir(parents=True, exist_ok=True)
-    created_files: list[str] = []
-    total = len(employees)
-
-    if output_mode == "single_deck":
+    name = _clean(employee.get("nome")) or "Colaborador"
+    try:
+        _send_callback(
+            callback,
+            {"type": "log", "message": f"Gerando ficha: {name}", "level": "success"},
+        )
         prs = create_presentation()
-        for index, employee in enumerate(employees, start=1):
-            name = _clean(employee.get("nome")) or f"Colaborador_{index}"
-            _send_callback(
-                callback,
-                {"type": "log", "message": f"Gerando ficha: {name}", "level": "success"},
-            )
-            build_slide(prs, employee)
-            _send_callback(
-                callback,
-                {"type": "progress", "current": index, "total": total, "name": name},
-            )
-        output_path = output_root / "Fichas_Consolidadas.pptx"
+        build_slide(prs, employee)
+        file_stem = normalize_filename(name) or "Colaborador"
+        output_path = output_root / f"{file_stem}.pptx"
         prs.save(str(output_path))
-        created_files.append(str(output_path))
-        return created_files
-
-    for index, employee in enumerate(employees, start=1):
-        name = _clean(employee.get("nome")) or f"Colaborador_{index}"
-        try:
-            _send_callback(
-                callback,
-                {"type": "log", "message": f"Gerando ficha: {name}", "level": "success"},
-            )
-            prs = create_presentation()
-            build_slide(prs, employee)
-            file_stem = normalize_filename(name) or f"Colaborador_{index}"
-            output_path = output_root / f"{file_stem}.pptx"
-            prs.save(str(output_path))
-            created_files.append(str(output_path))
-            _send_callback(
-                callback,
-                {"type": "progress", "current": index, "total": total, "name": name},
-            )
-        except Exception as exc:
-            _send_callback(
-                callback,
-                {
-                    "type": "log",
-                    "message": f"Erro ao gerar ficha para {name}: {exc}",
-                    "level": "error",
-                },
-            )
-
-    return created_files
+        _send_callback(
+            callback,
+            {"type": "progress", "current": 1, "total": 1, "name": name},
+        )
+        return str(output_path)
+    except Exception as exc:
+        _send_callback(
+            callback,
+            {
+                "type": "log",
+                "message": f"Erro ao gerar ficha para {name}: {exc}",
+                "level": "error",
+            },
+        )
+        raise

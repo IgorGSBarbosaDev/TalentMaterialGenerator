@@ -22,18 +22,14 @@ def test_stylesheet_changes_between_modes() -> None:
     assert theme.build_stylesheet("dark") != theme.build_stylesheet("light")
 
 
-def test_stylesheet_has_contextual_input_background_rules() -> None:
+def test_stylesheet_uses_shared_input_surfaces_and_ficha_specific_display_rules() -> None:
     stylesheet = theme.build_stylesheet("dark")
 
-    assert "QFrame#panel QLineEdit" in stylesheet
-    assert "QFrame#panelAction QLineEdit" in stylesheet
-    assert "QFrame#card QLineEdit" in stylesheet
-    assert "QFrame#subpanel QLineEdit" in stylesheet
-    assert "QFrame#sectionCard QLineEdit" in stylesheet
-    assert "QFrame#heroCard QLineEdit" in stylesheet
-    assert "QFrame#statusPanel QLineEdit" in stylesheet
-    assert "QFrame#logPanel QLineEdit" in stylesheet
-    assert "QFrame#settingsPanel QLineEdit" in stylesheet
+    assert "QFrame#panel QLineEdit" not in stylesheet
+    assert "QLineEdit:read-only" in stylesheet
+    assert "QFrame#fichaSourceCard" in stylesheet
+    assert "QFrame#fichaActionBar" in stylesheet
+    assert "QLineEdit#fichaDisplayField" in stylesheet
     assert "QFrame#metricCard QLineEdit" in stylesheet
     assert "QFrame#logPanel QTextEdit#logBox" in stylesheet
 

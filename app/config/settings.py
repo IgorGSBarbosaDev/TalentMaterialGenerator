@@ -19,7 +19,6 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "default_spreadsheet_path": "",
     "default_onedrive_url": "",
     "default_output_dir": str(get_default_output_dir()),
-    "default_output_mode": "one_file_per_employee",
     "default_grouping": "area",
     "default_carom_columns": 5,
     "cache_enabled": True,
@@ -59,6 +58,7 @@ def load_config() -> dict[str, Any]:
 
         merged = deepcopy(DEFAULT_CONFIG)
         merged.update(payload)
+        merged.pop("default_output_mode", None)
         merged["default_output_dir"] = str(get_default_output_dir())
         return merged
     except Exception:
@@ -71,6 +71,7 @@ def save_config(data: dict[str, Any]) -> None:
     config_path = get_config_path()
     config_path.parent.mkdir(parents=True, exist_ok=True)
     payload = deepcopy(data)
+    payload.pop("default_output_mode", None)
     payload["default_output_dir"] = str(get_default_output_dir())
     config_path.write_text(
         json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"

@@ -49,6 +49,19 @@ def test_validate_required_columns_does_not_require_matricula() -> None:
     assert missing == []
 
 
+def test_validate_ficha_required_columns_uses_standardized_contract() -> None:
+    missing = reader.validate_ficha_required_columns(
+        {"matricula": None, "nome": "Nome", "cargo": None}
+    )
+
+    assert missing == ["matricula", "cargo"]
+
+
+def test_validate_standardized_ficha_schema_requires_matricula_nome_and_cargo() -> None:
+    with pytest.raises(ValueError, match="Colunas ausentes: matricula"):
+        reader.validate_standardized_ficha_schema(["Nome", "Cargo"])
+
+
 def test_parse_multiline_field_splits_semicolon_and_newline() -> None:
     assert reader.parse_multiline_field("A;B\nC") == ["A", "B", "C"]
 
@@ -131,6 +144,96 @@ def test_remap_rows_returns_normalized_field_names() -> None:
     result = reader.remap_rows(rows, mapping)
 
     assert result == [{"nome": "Ana", "cargo": "Analista", "idade": ""}]
+
+
+def test_remap_ficha_row_returns_ficha_only_fields() -> None:
+    row = {
+        "Matricula": "123",
+        "Nome": "Ana",
+        "Cargo": "Analista",
+        "Resumo": "Perfil",
+        "Performance": "Legado",
+    }
+    mapping = {
+        "matricula": "Matricula",
+        "nome": "Nome",
+        "cargo": "Cargo",
+        "resumo_perfil": "Resumo",
+        "performance": "Performance",
+    }
+
+    result = reader.remap_ficha_row(row, mapping)
+
+    assert result["matricula"] == "123"
+    assert result["nome"] == "Ana"
+    assert "performance" not in result
+
+
+def test_load_standardized_ficha_rows_uses_detected_headers() -> None:
+    rows = [
+        {
+            "Matricula": "123",
+            "Nome": "Ana",
+            "Cargo": "Analista",
+            "Resumo": "Perfil",
+        }
+    ]
+
+    result = reader.load_standardized_ficha_rows(rows)
+
+    assert result[0]["matricula"] == "123"
+    assert result[0]["nome"] == "Ana"
+
+
+def test_validate_ficha_employee_requires_nome_and_cargo() -> None:
+    employee = {
+        "matricula": "",
+        "nome": "",
+        "idade": "",
+        "cargo": "",
+        "antiguidade": "",
+        "formacao": "",
+        "resumo_perfil": "",
+        "trajetoria": "",
+    }
+
+    assert reader.validate_ficha_employee(employee) == ["matricula", "nome", "cargo"]
+
+
+def test_lookup_ficha_employees_matches_partial_name_case_and_accents() -> None:
+    rows = [
+        {"Nome": "Ana Maria", "Cargo": "Analista", "Matricula": "123"},
+        {"Nome": "Carlos", "Cargo": "Coordenador", "Matricula": "456"},
+    ]
+
+    result = reader.lookup_ficha_employees(rows, name_query="mari")
+
+    assert len(result) == 1
+    assert result[0]["nome"] == "Ana Maria"
+
+
+def test_lookup_ficha_employees_blocks_duplicate_matricula() -> None:
+    rows = [
+        {"Nome": "Ana", "Cargo": "Analista", "Matricula": "123"},
+        {"Nome": "Ana B", "Cargo": "Analista", "Matricula": "123"},
+    ]
+
+    with pytest.raises(ValueError, match="mais de um colaborador"):
+        reader.lookup_ficha_employees(rows, matricula_query="123")
+
+
+def test_lookup_ficha_employees_rejects_empty_search() -> None:
+    rows = [{"Matricula": "123", "Nome": "Ana", "Cargo": "Analista"}]
+
+    with pytest.raises(ValueError, match="Informe nome ou matricula"):
+        reader.lookup_ficha_employees(rows)
+
+
+def test_lookup_ficha_employees_blocks_when_schema_missing_matricula() -> None:
+    rows = [{"Nome": "Ana", "Cargo": "Analista"}]
+
+    with pytest.raises(ValueError, match="schema padrao da ficha"):
+        reader.lookup_ficha_employees(rows, name_query="ana")
 
 
 def test_remap_rows_builds_performance_from_annual_notes() -> None:

@@ -6,14 +6,14 @@ PALETTE: dict[str, dict[str, str]] = {
         "bg_alt": "#101010",
         "surface": "#1A1A1A",
         "surface_alt": "#202020",
-        "surface_2": "#202020",
-        "surface_soft": "#242424",
+        "surface_2": "#242424",
+        "surface_soft": "#2A2A2A",
         "sidebar": "#111111",
         "sidebar_alt": "#151515",
         "input": "#121212",
-        "border": "#2A2A2A",
-        "border_strong": "#363636",
-        "border_hover": "#4B4B4B",
+        "border": "#313131",
+        "border_strong": "#3E3E3E",
+        "border_hover": "#575757",
         "text": "#EEEEEE",
         "text_muted": "#A1A1AA",
         "text_dim": "#6B7280",
@@ -31,11 +31,11 @@ PALETTE: dict[str, dict[str, str]] = {
         "bg_alt": "#E7EBE2",
         "surface": "#FFFFFF",
         "surface_alt": "#F7F8F4",
-        "surface_2": "#F7F8F4",
+        "surface_2": "#F2F5EC",
         "surface_soft": "#F4F6EF",
         "sidebar": "#E6EADF",
         "sidebar_alt": "#DCE2D4",
-        "input": "#FFFFFF",
+        "input": "#FBFCF8",
         "border": "#D4D8CF",
         "border_strong": "#BFC6B3",
         "border_hover": "#95A08A",
@@ -145,16 +145,43 @@ QFrame#topbar {{
 QFrame#card, QFrame#panel {{
     background-color: {palette["surface"]};
     border: 1px solid {palette["border"]};
-    border-radius: 12px;
+    border-radius: 14px;
 }}
 QFrame#panelAction {{
     background-color: {palette["surface_2"]};
-    border: 1px solid {palette["border_hover"]};
-    border-radius: 12px;
+    border: 1px solid {palette["border"]};
+    border-radius: 14px;
 }}
 QFrame#subpanel {{
     background-color: {palette["surface_alt"]};
-    border-radius: 12px;
+    border: 1px solid {palette["border"]};
+    border-radius: 14px;
+}}
+QFrame#fichaSourceCard,
+QFrame#fichaWorkflowCard {{
+    background-color: {palette["surface"]};
+    border: 1px solid {palette["border"]};
+    border-radius: 18px;
+}}
+QFrame#fichaSchemaPanel,
+QFrame#fichaLookupPane,
+QFrame#fichaDossierPane,
+QFrame#fichaDataGroup,
+QFrame#fichaTableWrap,
+QFrame#fichaActionBar {{
+    background-color: {palette["surface_alt"]};
+    border: 1px solid {palette["border"]};
+    border-radius: 16px;
+}}
+QFrame#fichaSchemaPanel,
+QFrame#fichaActionBar {{
+    background-color: {palette["surface_2"]};
+}}
+QFrame#fichaTableWrap {{
+    background-color: {palette["input"]};
+}}
+QWidget#fichaPage {{
+    background-color: {palette["bg"]};
 }}
 QFrame#metricCard {{
     background-color: {palette["accent_surface"]};
@@ -240,7 +267,7 @@ QListWidget {{
     background-color: {palette["input"]};
     border: 1px solid {palette["border"]};
     border-radius: 10px;
-    padding: 8px 10px;
+    padding: 9px 11px;
     color: {palette["text"]};
     selection-background-color: {palette["accent"]};
     selection-color: #111111;
@@ -258,6 +285,11 @@ QSpinBox:focus,
 QTextEdit:focus,
 QListWidget:focus {{
     border: 1px solid {palette["accent"]};
+}}
+QLineEdit:read-only,
+QTextEdit:read-only {{
+    background-color: {palette["surface_2"]};
+    border-color: {palette["border_hover"]};
 }}
 QLineEdit[invalid="true"],
 QComboBox[invalid="true"] {{
@@ -336,61 +368,6 @@ QPushButton#sidebar_toggle:focus {{
     border-color: {VERDE_USIMINAS};
     color: {VERDE_USIMINAS};
 }}
-QFrame#panel QLineEdit,
-QFrame#panel QComboBox,
-QFrame#panel QTextEdit,
-QFrame#panel QListWidget,
-QFrame#panel QSpinBox {{
-    background-color: {palette["surface"]};
-}}
-QFrame#panelAction QLineEdit,
-QFrame#panelAction QComboBox,
-QFrame#panelAction QTextEdit,
-QFrame#panelAction QListWidget,
-QFrame#panelAction QSpinBox {{
-    background-color: {palette["surface_2"]};
-}}
-QFrame#card QLineEdit,
-QFrame#card QComboBox,
-QFrame#card QTextEdit,
-QFrame#card QListWidget,
-QFrame#card QSpinBox {{
-    background-color: {palette["surface"]};
-}}
-QFrame#subpanel QLineEdit,
-QFrame#subpanel QComboBox,
-QFrame#subpanel QTextEdit,
-QFrame#subpanel QListWidget,
-QFrame#subpanel QSpinBox {{
-    background-color: {palette["surface_2"]};
-}}
-QFrame#sectionCard QLineEdit,
-QFrame#sectionCard QComboBox,
-QFrame#sectionCard QTextEdit,
-QFrame#sectionCard QListWidget,
-QFrame#sectionCard QSpinBox,
-QFrame#heroCard QLineEdit,
-QFrame#heroCard QComboBox,
-QFrame#heroCard QTextEdit,
-QFrame#heroCard QListWidget,
-QFrame#heroCard QSpinBox,
-QFrame#statusPanel QLineEdit,
-QFrame#statusPanel QComboBox,
-QFrame#statusPanel QTextEdit,
-QFrame#statusPanel QListWidget,
-QFrame#statusPanel QSpinBox,
-QFrame#logPanel QLineEdit,
-QFrame#logPanel QComboBox,
-QFrame#logPanel QTextEdit,
-QFrame#logPanel QListWidget,
-QFrame#logPanel QSpinBox,
-QFrame#settingsPanel QLineEdit,
-QFrame#settingsPanel QComboBox,
-QFrame#settingsPanel QTextEdit,
-QFrame#settingsPanel QListWidget,
-QFrame#settingsPanel QSpinBox {{
-    background-color: {palette["surface"]};
-}}
 QFrame#metricCard QLineEdit,
 QFrame#metricCard QComboBox,
 QFrame#metricCard QTextEdit,
@@ -400,6 +377,67 @@ QFrame#metricCard QSpinBox {{
 }}
 QFrame#logPanel QTextEdit#logBox {{
     background-color: {palette["surface_alt"]};
+}}
+QLineEdit#fichaDisplayField,
+QTextEdit#fichaDisplayField {{
+    background-color: {palette["surface_2"]};
+    border: 1px solid {palette["border_hover"]};
+    border-radius: 12px;
+    padding: 10px 12px;
+    color: {palette["text"]};
+}}
+QTextEdit#fichaDisplayField {{
+    background-color: {palette["surface_2"]};
+}}
+QLabel#fichaFieldLabel {{
+    color: {palette["text_muted"]};
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+}}
+QLabel#fichaGroupTitle {{
+    font-size: 14px;
+    font-weight: 700;
+}}
+QLabel#fichaGroupHint,
+QLabel#fichaMetaText {{
+    color: {palette["text_dim"]};
+    font-size: 12px;
+}}
+QTableWidget {{
+    background-color: transparent;
+    alternate-background-color: rgba(255, 255, 255, 0.02);
+    border: none;
+    gridline-color: {palette["border"]};
+    outline: 0;
+    selection-background-color: {palette["accent_soft"]};
+    selection-color: {palette["text"]};
+}}
+QTableWidget::item {{
+    padding: 8px 10px;
+    border-bottom: 1px solid {palette["border"]};
+}}
+QTableWidget::item:selected {{
+    background-color: {palette["accent_soft"]};
+    color: {palette["text"]};
+}}
+QTableWidget#fichaResultsTable {{
+    background-color: transparent;
+    border: none;
+}}
+QHeaderView::section {{
+    background-color: {palette["surface"]};
+    color: {palette["text_muted"]};
+    padding: 10px 12px;
+    border: none;
+    border-bottom: 1px solid {palette["border"]};
+    font-size: 11px;
+    font-weight: 700;
+}}
+QTableCornerButton::section {{
+    background-color: {palette["surface"]};
+    border: none;
+    border-bottom: 1px solid {palette["border"]};
 }}
 QComboBox QAbstractItemView {{
     background-color: {palette["surface"]};
@@ -481,25 +519,29 @@ QLabel#panelHint {{
     font-size: 12px;
 }}
 QLabel#statusLabel {{
-    border-radius: 8px;
-    padding: 8px 10px;
+    border-radius: 10px;
+    padding: 10px 12px;
     border: 1px solid {palette["border"]};
-    background-color: {palette["surface"]};
+    background-color: {palette["surface_alt"]};
 }}
 QLabel#statusLabel[state="info"] {{
     border-color: {palette["border_hover"]};
     color: {palette["text_muted"]};
+    background-color: {palette["surface_2"]};
 }}
 QLabel#statusLabel[state="warning"] {{
     border-color: {COR_AVISO};
     color: {COR_AVISO};
+    background-color: rgba(245, 158, 11, 0.12);
 }}
 QLabel#statusLabel[state="error"] {{
     border-color: {COR_ERRO};
     color: {COR_ERRO};
+    background-color: rgba(239, 68, 68, 0.12);
 }}
 QLabel#statusLabel[state="success"] {{
     border-color: {VERDE_USIMINAS};
     color: {VERDE_USIMINAS};
+    background-color: {palette["accent_soft"]};
 }}
 """

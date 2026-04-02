@@ -3,9 +3,10 @@ from __future__ import annotations
 from pathlib import Path
 from uuid import uuid4
 
-from PySide6.QtWidgets import QLabel
+from PySide6.QtWidgets import QFrame, QLabel
 
 from app.config.settings import get_default_output_dir
+from app.core.reader import FichaEmployee
 from app.ui.screen_ficha import FichaScreen
 
 
@@ -17,42 +18,115 @@ def _make_local_spreadsheet_stub() -> Path:
     return file_path
 
 
-def test_ficha_screen_validates_local_file_and_mapping(qtbot) -> None:
+def _employee(**overrides: str) -> FichaEmployee:
+    base: FichaEmployee = {
+        "matricula": "123",
+        "nome": "Ana Martins",
+        "idade": "30",
+        "cargo": "Analista",
+        "antiguidade": "5 anos",
+        "formacao": "Engenharia",
+        "resumo_perfil": "Resumo profissional",
+        "trajetoria": "2024 - Coordenadora",
+    }
+    base.update(overrides)
+    return base
+
+
+def test_ficha_screen_validates_local_file_source(qtbot) -> None:
     file_path = _make_local_spreadsheet_stub()
     try:
         screen = FichaScreen({})
         qtbot.addWidget(screen)
         screen.source_type.setCurrentText("Arquivo local")
         screen.entry_source.setText(str(file_path))
-        screen._column_selectors["nome"].addItem("Nome")
-        screen._column_selectors["cargo"].addItem("Cargo")
-        screen._column_selectors["nome"].setCurrentText("Nome")
-        screen._column_selectors["cargo"].setCurrentText("Cargo")
 
-        assert screen._validate_inputs() is True
+        assert screen._validate_source() is True
     finally:
         file_path.unlink(missing_ok=True)
 
 
-def test_ficha_screen_get_config_returns_output_mode(qtbot) -> None:
+def test_ficha_screen_generate_payload_uses_confirmed_employee(qtbot) -> None:
     screen = FichaScreen({})
     qtbot.addWidget(screen)
     screen.entry_source.setText("https://example.com/file.xlsx")
+    screen._confirmed_employee = _employee()
 
-    config = screen._get_config()
+    payload = screen._get_generation_payload()
 
-    assert "output_mode" in config
-    assert config["output_dir"] == str(get_default_output_dir())
+    assert payload["output_dir"] == str(get_default_output_dir())
+    assert payload["selected_employee"]["nome"] == "Ana Martins"
+    assert "column_mapping" not in payload
 
 
-def test_ficha_screen_has_no_preview_placeholder_text(qtbot) -> None:
+def test_ficha_screen_search_requires_schema_validation(qtbot) -> None:
+    screen = FichaScreen({})
+    qtbot.addWidget(screen)
+    screen.entry_lookup_name.setText("Ana")
+    screen._refresh_action_state()
+
+    assert screen.btn_search.isEnabled() is False
+
+
+def test_ficha_screen_worker_success_marks_schema_valid(qtbot) -> None:
+    screen = FichaScreen({})
+    qtbot.addWidget(screen)
+    screen._worker_mode = "validate"
+
+    screen._handle_worker_success(
+        {
+            "schema": {"matricula": "Matricula", "nome": "Nome", "cargo": "Cargo"},
+            "row_count": 2,
+            "matches": [],
+            "source_result": None,
+        }
+    )
+
+    assert screen._schema_valid is True
+    assert "validada" in screen.schema_status_label.text().lower()
+
+
+def test_ficha_screen_confirms_selected_employee_and_populates_readonly_fields(qtbot) -> None:
+    screen = FichaScreen({})
+    qtbot.addWidget(screen)
+    screen._schema_valid = True
+    screen._handle_worker_success(
+        {
+            "schema": {"matricula": "Matricula", "nome": "Nome", "cargo": "Cargo"},
+            "row_count": 1,
+            "matches": [_employee()],
+            "source_result": None,
+        }
+    )
+    screen._confirm_selected_employee()
+
+    assert screen._confirmed_employee is not None
+    assert screen.detail_nome.text() == "Ana Martins"
+    assert screen.btn_generate.isEnabled() is True
+
+
+def test_ficha_screen_lookup_change_clears_confirmed_employee(qtbot) -> None:
+    screen = FichaScreen({})
+    qtbot.addWidget(screen)
+    screen._schema_valid = True
+    screen._confirmed_employee = _employee()
+    screen.detail_nome.setText("Ana Martins")
+    screen._lookup_matches = [_employee()]
+    screen.entry_lookup_name.setText("Carlos")
+
+    assert screen._confirmed_employee is None
+    assert screen.detail_nome.text() == ""
+    assert screen.btn_generate.isEnabled() is False
+
+
+def test_ficha_screen_has_no_mapping_or_auto_detect_text(qtbot) -> None:
     screen = FichaScreen({})
     qtbot.addWidget(screen)
 
     labels = [label.text().lower() for label in screen.findChildren(QLabel)]
-    assert all("preview" not in text.lower() for text in labels)
-    assert all("origem, saida e modo" not in text for text in labels)
-    assert all("mapeie campos obrigatorios" not in text for text in labels)
+    buttons = [button.text().lower() for button in screen.findChildren(type(screen.btn_search))]
+    assert all("mapeamento" not in text for text in labels)
+    assert all("auto-detectar" not in text for text in buttons)
 
 
 def test_ficha_screen_handles_sidebar_collapsed_state(qtbot) -> None:
@@ -60,15 +134,19 @@ def test_ficha_screen_handles_sidebar_collapsed_state(qtbot) -> None:
     qtbot.addWidget(screen)
 
     screen.set_sidebar_collapsed(True)
-    assert screen._root_layout.spacing() == 12
+    assert screen._root_layout.spacing() == 14
 
     screen.set_sidebar_collapsed(False)
-    assert screen._root_layout.spacing() == 16
+    assert screen._root_layout.spacing() == 18
 
 
-def test_ficha_screen_form_controls_live_inside_panel_container(qtbot) -> None:
+def test_ficha_screen_uses_dedicated_workflow_surfaces(qtbot) -> None:
     screen = FichaScreen({})
     qtbot.addWidget(screen)
 
-    assert screen.entry_source.parentWidget().objectName() == "panel"
-    assert screen.source_type.parentWidget().objectName() == "panel"
+    assert screen.findChild(QFrame, "fichaSourceCard") is not None
+    assert screen.findChild(QFrame, "fichaWorkflowCard") is not None
+    assert screen.findChild(QFrame, "fichaLookupPane") is not None
+    assert screen.findChild(QFrame, "fichaDossierPane") is not None
+    assert screen.findChild(QFrame, "fichaActionBar") is not None
+    assert screen.results_table.objectName() == "fichaResultsTable"

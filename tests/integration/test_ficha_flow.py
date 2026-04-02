@@ -2,61 +2,101 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from openpyxl import Workbook
 from pptx import Presentation
 from pptx.util import Inches
 
 from app.core.generator_ficha import generate_ficha_pptx
-from app.core.reader import normalize_filename, read_spreadsheet
-
-FIXTURES_DIR = Path(__file__).resolve().parents[1] / "fixtures"
-SPREADSHEET_FIXTURE = FIXTURES_DIR / "colaboradores_sample.xlsx"
+from app.core.reader import lookup_ficha_employees, normalize_filename, read_spreadsheet
 
 
-def _normalize_rows(rows: list[dict[str, str]]) -> list[dict[str, str]]:
-    return [
-        {
-            "nome": row.get("nome", ""),
-            "idade": row.get("idade", ""),
-            "cargo": row.get("cargo", ""),
-            "antiguidade": row.get("antiguidade", ""),
-            "formacao": row.get("formacao", ""),
-            "resumo_perfil": row.get("resumo_perfil", ""),
-            "trajetoria": row.get("trajetoria", ""),
-            "performance": row.get("performance", ""),
-        }
-        for row in rows
-    ]
+def _build_standardized_spreadsheet(path: Path) -> Path:
+    workbook = Workbook()
+    sheet = workbook.active
+    assert sheet is not None
+    sheet.append(
+        [
+            "matricula",
+            "nome",
+            "idade",
+            "cargo",
+            "antiguidade",
+            "formacao",
+            "resumo_perfil",
+            "trajetoria",
+            "area",
+            "nota",
+            "potencial",
+        ]
+    )
+    sheet.append(
+        [
+            "101",
+            "Ana Martins",
+            "31",
+            "Engenheira de Processos",
+            "5 anos",
+            "Engenharia Metalurgica",
+            "Profissional colaborativa e analitica",
+            "Analista Jr; Analista Pleno; Especialista",
+            "Siderurgia",
+            "4.5",
+            "alto",
+        ]
+    )
+    sheet.append(
+        [
+            "102",
+            "Carlos Souza",
+            "39",
+            "Coordenador de Manutencao",
+            "8 anos",
+            "Engenharia Mecanica",
+            "Lidera times multidisciplinares",
+            "Tecnico; Supervisor; Coordenador",
+            "Manutencao",
+            "3.7",
+            "medio",
+        ]
+    )
+    workbook.save(path)
+    return path
 
 
-def test_full_ficha_flow_generates_pptx_files(tmp_path: Path) -> None:
-    employees = _normalize_rows(read_spreadsheet(str(SPREADSHEET_FIXTURE)))
+def test_full_ficha_lookup_and_generation_creates_single_pptx(tmp_path: Path) -> None:
+    spreadsheet = _build_standardized_spreadsheet(tmp_path / "ficha.xlsx")
+    rows = read_spreadsheet(str(spreadsheet))
+    matches = lookup_ficha_employees(rows, name_query="ana")
 
-    generated_files = generate_ficha_pptx(employees, str(tmp_path))
+    generated_file = generate_ficha_pptx(matches[0], str(tmp_path))
 
-    assert len(generated_files) == len(employees)
-    assert all(Path(path).exists() for path in generated_files)
+    assert Path(generated_file).exists()
 
 
 def test_generated_slide_has_wide_dimensions(tmp_path: Path) -> None:
-    employees = _normalize_rows(read_spreadsheet(str(SPREADSHEET_FIXTURE)))
-    generated_files = generate_ficha_pptx([employees[0]], str(tmp_path))
+    spreadsheet = _build_standardized_spreadsheet(tmp_path / "ficha.xlsx")
+    rows = read_spreadsheet(str(spreadsheet))
+    matches = lookup_ficha_employees(rows, matricula_query="102")
 
-    presentation = Presentation(generated_files[0])
+    generated_file = generate_ficha_pptx(matches[0], str(tmp_path))
+    presentation = Presentation(generated_file)
+
     assert presentation.slide_width == Inches(13.271)
     assert presentation.slide_height == Inches(7.5)
 
 
-def test_output_filename_is_normalized(tmp_path: Path) -> None:
+def test_output_filename_is_normalized_from_selected_employee(tmp_path: Path) -> None:
     employee = {
-        "nome": "João Bárbara",
+        "matricula": "77",
+        "nome": "Joao Barbara",
         "idade": "",
         "cargo": "Analista",
         "antiguidade": "",
         "formacao": "",
         "resumo_perfil": "",
         "trajetoria": "",
-        "performance": "",
     }
-    generated_files = generate_ficha_pptx([employee], str(tmp_path))
 
-    assert Path(generated_files[0]).stem == normalize_filename(employee["nome"])
+    generated_file = generate_ficha_pptx(employee, str(tmp_path))
+
+    assert Path(generated_file).stem == normalize_filename(employee["nome"])

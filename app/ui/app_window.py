@@ -244,7 +244,7 @@ class AppWindow(QMainWindow):
         }
         self.progress_screen.reset()
         subtitle = (
-            "Gerando fichas a partir da base."
+            "Gerando ficha do colaborador selecionado."
             if job_type == "ficha"
             else "Gerando carometro com o layout definido."
         )
@@ -274,9 +274,11 @@ class AppWindow(QMainWindow):
         self.config = settings.update_config(
             {
                 "last_generations": self._history,
-                "last_cache_sync": result["source_result"].downloaded_at
-                if result.get("source_result")
-                else self.config.get("last_cache_sync", ""),
+                "last_cache_sync": (
+                    result["source_result"].downloaded_at
+                    if result.get("source_result")
+                    else self.config.get("last_cache_sync", "")
+                ),
             }
         )
         self._refresh_home()
