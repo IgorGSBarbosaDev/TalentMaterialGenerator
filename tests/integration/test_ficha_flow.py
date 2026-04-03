@@ -81,7 +81,7 @@ def test_generated_slide_has_wide_dimensions(tmp_path: Path) -> None:
     generated_file = generate_ficha_pptx(matches[0], str(tmp_path))
     presentation = Presentation(generated_file)
 
-    assert presentation.slide_width == Inches(13.271)
+    assert presentation.slide_width == Inches(13.333)
     assert presentation.slide_height == Inches(7.5)
 
 
