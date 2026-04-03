@@ -21,7 +21,14 @@ COLUMN_VARIATIONS: dict[str, tuple[str, ...]] = {
     "cargo": ("cargo", "funcao", "funcao_atual", "role", "posicao"),
     "antiguidade": ("antiguidade", "tempo_empresa", "anos_empresa", "admissao"),
     "formacao": ("formacao", "graduacao", "escolaridade", "education"),
-    "resumo_perfil": ("resumo", "perfil", "resumo_perfil", "descricao", "bio"),
+    "resumo_perfil": (
+        "resumo",
+        "perfil",
+        "resumo_perfil",
+        "resumo_do_perfil",
+        "descricao",
+        "bio",
+    ),
     "trajetoria": ("trajetoria", "historico", "carreira"),
     "nota_2025": ("nota_2025", "nota 2025", "avaliacao_2025", "avaliacao 2025"),
     "nota_2024": ("nota_2024", "nota 2024", "avaliacao_2024", "avaliacao 2024"),
@@ -58,9 +65,25 @@ FICHA_FIELDS: Final[tuple[str, ...]] = (
     "formacao",
     "resumo_perfil",
     "trajetoria",
+    "nota_2025",
+    "nota_2024",
+    "nota_2023",
 )
 FICHA_REQUIRED_FIELDS: Final[tuple[str, ...]] = ("matricula", "nome", "cargo")
 MAX_FICHA_NAME_MATCHES: Final = 25
+EXPECTED_FICHA_COLUMN_ORDER: Final[tuple[str, ...]] = (
+    "Matricula",
+    "Nome",
+    "Idade",
+    "Cargo",
+    "Antiguidade",
+    "Formacao",
+    "Resumo do perfil",
+    "Trajetoria",
+    "Nota 2025",
+    "Nota 2024",
+    "Nota 2023",
+)
 
 
 @dataclass
@@ -83,6 +106,9 @@ class FichaEmployee(TypedDict):
     formacao: str
     resumo_perfil: str
     trajetoria: str
+    nota_2025: str
+    nota_2024: str
+    nota_2023: str
 
 
 def read_spreadsheet(path: str) -> list[dict[str, str]]:
@@ -176,6 +202,12 @@ def validate_standardized_ficha_schema(headers: list[str]) -> dict[str, str | No
             f"A planilha nao segue o schema padrao da ficha. Colunas ausentes: {joined}."
         )
     return schema
+
+
+def has_expected_ficha_column_order(headers: list[str]) -> bool:
+    if len(headers) < len(EXPECTED_FICHA_COLUMN_ORDER):
+        return False
+    return tuple(headers[: len(EXPECTED_FICHA_COLUMN_ORDER)]) == EXPECTED_FICHA_COLUMN_ORDER
 
 
 def extract_headers(rows: list[dict[str, str]]) -> list[str]:

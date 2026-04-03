@@ -35,6 +35,12 @@ def test_detect_columns_maps_annual_note_headers() -> None:
     assert mapping["nota_2023"] == "Nota 2023"
 
 
+def test_detect_columns_maps_resumo_do_perfil_header() -> None:
+    mapping = reader.detect_columns(["Resumo do perfil"])
+
+    assert mapping["resumo_perfil"] == "Resumo do perfil"
+
+
 def test_validate_required_columns_returns_missing_fields() -> None:
     missing = reader.validate_required_columns({"nome": None, "cargo": "Cargo"})
 
@@ -60,6 +66,42 @@ def test_validate_ficha_required_columns_uses_standardized_contract() -> None:
 def test_validate_standardized_ficha_schema_requires_matricula_nome_and_cargo() -> None:
     with pytest.raises(ValueError, match="Colunas ausentes: matricula"):
         reader.validate_standardized_ficha_schema(["Nome", "Cargo"])
+
+
+def test_has_expected_ficha_column_order_accepts_planilha_teste_contract() -> None:
+    headers = [
+        "Matricula",
+        "Nome",
+        "Idade",
+        "Cargo",
+        "Antiguidade",
+        "Formacao",
+        "Resumo do perfil",
+        "Trajetoria",
+        "Nota 2025",
+        "Nota 2024",
+        "Nota 2023",
+    ]
+
+    assert reader.has_expected_ficha_column_order(headers) is True
+
+
+def test_has_expected_ficha_column_order_rejects_different_order() -> None:
+    headers = [
+        "Nome",
+        "Matricula",
+        "Idade",
+        "Cargo",
+        "Antiguidade",
+        "Formacao",
+        "Resumo do perfil",
+        "Trajetoria",
+        "Nota 2025",
+        "Nota 2024",
+        "Nota 2023",
+    ]
+
+    assert reader.has_expected_ficha_column_order(headers) is False
 
 
 def test_parse_multiline_field_splits_semicolon_and_newline() -> None:
@@ -183,6 +225,25 @@ def test_load_standardized_ficha_rows_uses_detected_headers() -> None:
 
     assert result[0]["matricula"] == "123"
     assert result[0]["nome"] == "Ana"
+
+
+def test_load_standardized_ficha_rows_preserves_annual_notes() -> None:
+    rows = [
+        {
+            "Matricula": "123",
+            "Nome": "Ana",
+            "Cargo": "Analista",
+            "Nota 2025": "2 / MN-",
+            "Nota 2024": "5 / AP",
+            "Nota 2023": "",
+        }
+    ]
+
+    result = reader.load_standardized_ficha_rows(rows)
+
+    assert result[0]["nota_2025"] == "2 / MN-"
+    assert result[0]["nota_2024"] == "5 / AP"
+    assert result[0]["nota_2023"] == ""
 
 
 def test_validate_ficha_employee_requires_nome_and_cargo() -> None:

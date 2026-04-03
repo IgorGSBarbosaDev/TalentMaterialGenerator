@@ -11,6 +11,7 @@ from app.core.reader import (
     FichaEmployee,
     SpreadsheetSourceResult,
     cleanup_source,
+    has_expected_ficha_column_order,
     lookup_ficha_employees,
     read_spreadsheet,
     remap_rows,
@@ -38,9 +39,8 @@ class FichaLookupWorker(QThread):
                 force_refresh=bool(self.config.get("force_refresh", False)),
             )
             raw_rows = read_spreadsheet(source_result.path)
-            schema = validate_standardized_ficha_schema(
-                list(raw_rows[0].keys()) if raw_rows else []
-            )
+            headers = list(raw_rows[0].keys()) if raw_rows else []
+            schema = validate_standardized_ficha_schema(headers)
             matches = (
                 []
                 if bool(self.config.get("validate_only", False))
@@ -57,6 +57,8 @@ class FichaLookupWorker(QThread):
                     "source_result": source_result,
                     "match_count": len(matches),
                     "row_count": len(raw_rows),
+                    "headers": headers,
+                    "schema_order_matches": has_expected_ficha_column_order(headers),
                     "validated": True,
                 }
             )

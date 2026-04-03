@@ -24,9 +24,9 @@ def _build_standardized_spreadsheet(path: Path) -> Path:
             "formacao",
             "resumo_perfil",
             "trajetoria",
-            "area",
-            "nota",
-            "potencial",
+            "nota_2025",
+            "nota_2024",
+            "nota_2023",
         ]
     )
     sheet.append(
@@ -39,9 +39,9 @@ def _build_standardized_spreadsheet(path: Path) -> Path:
             "Engenharia Metalurgica",
             "Profissional colaborativa e analitica",
             "Analista Jr; Analista Pleno; Especialista",
-            "Siderurgia",
-            "4.5",
-            "alto",
+            "4 / PROM",
+            "5 / AP",
+            "3 / MN+",
         ]
     )
     sheet.append(
@@ -54,9 +54,9 @@ def _build_standardized_spreadsheet(path: Path) -> Path:
             "Engenharia Mecanica",
             "Lidera times multidisciplinares",
             "Tecnico; Supervisor; Coordenador",
-            "Manutencao",
-            "3.7",
-            "medio",
+            "5 / AP",
+            "4 / PROM",
+            "3 / MN+",
         ]
     )
     workbook.save(path)

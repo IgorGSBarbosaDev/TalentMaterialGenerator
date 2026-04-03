@@ -251,6 +251,9 @@ class FichaScreen(QWidget):
         self.detail_formacao = self._build_readonly_text()
         self.detail_resumo = self._build_readonly_text()
         self.detail_trajetoria = self._build_readonly_text()
+        self.detail_nota_2025 = self._build_readonly_line()
+        self.detail_nota_2024 = self._build_readonly_line()
+        self.detail_nota_2023 = self._build_readonly_line()
         self._detail_widgets = {
             "matricula": self.detail_matricula,
             "nome": self.detail_nome,
@@ -260,6 +263,9 @@ class FichaScreen(QWidget):
             "formacao": self.detail_formacao,
             "resumo_perfil": self.detail_resumo,
             "trajetoria": self.detail_trajetoria,
+            "nota_2025": self.detail_nota_2025,
+            "nota_2024": self.detail_nota_2024,
+            "nota_2023": self.detail_nota_2023,
         }
 
         identity_group, identity_body = self._data_group(
@@ -300,6 +306,28 @@ class FichaScreen(QWidget):
         narrative_body.addWidget(self._field_stack("Resumo de perfil", self.detail_resumo))
         narrative_body.addWidget(self._field_stack("Trajetoria", self.detail_trajetoria))
         dossier_layout.addWidget(narrative_group, 1)
+
+        annual_notes_group, annual_notes_body = self._data_group(
+            "Notas anuais",
+            "Valores exibidos exatamente como foram lidos da linha selecionada na planilha.",
+        )
+        annual_notes_grid = QGridLayout()
+        annual_notes_grid.setHorizontalSpacing(12)
+        annual_notes_grid.setVerticalSpacing(12)
+        annual_notes_grid.addWidget(
+            self._field_stack("Nota 2025", self.detail_nota_2025), 0, 0
+        )
+        annual_notes_grid.addWidget(
+            self._field_stack("Nota 2024", self.detail_nota_2024), 0, 1
+        )
+        annual_notes_grid.addWidget(
+            self._field_stack("Nota 2023", self.detail_nota_2023), 0, 2
+        )
+        annual_notes_grid.setColumnStretch(0, 1)
+        annual_notes_grid.setColumnStretch(1, 1)
+        annual_notes_grid.setColumnStretch(2, 1)
+        annual_notes_body.addLayout(annual_notes_grid)
+        dossier_layout.addWidget(annual_notes_group)
         content_split.addWidget(dossier_panel, 5)
 
         workflow_layout.addLayout(content_split, 1)
@@ -589,8 +617,14 @@ class FichaScreen(QWidget):
         self._schema_valid = True
         self._schema_fields = dict(result.get("schema", {}))
         row_count = int(result.get("row_count", 0))
+        schema_order_matches = bool(result.get("schema_order_matches", False))
+        order_note = (
+            " Ordem esperada confirmada."
+            if schema_order_matches
+            else " Ordem diferente da planilha de referencia, mas colunas reconhecidas."
+        )
         self._set_schema_status(
-            f"Base padronizada validada. {row_count} linha(s) reconhecida(s).",
+            f"Base padronizada validada. {row_count} linha(s) reconhecida(s).{order_note}",
             "success",
         )
 

@@ -28,6 +28,9 @@ def _employee(**overrides: str) -> FichaEmployee:
         "formacao": "Engenharia",
         "resumo_perfil": "Resumo profissional",
         "trajetoria": "2024 - Coordenadora",
+        "nota_2025": "5 / AP",
+        "nota_2024": "4 / PROM",
+        "nota_2023": "3 / MN+",
     }
     base.update(overrides)
     return base
@@ -102,7 +105,28 @@ def test_ficha_screen_confirms_selected_employee_and_populates_readonly_fields(q
 
     assert screen._confirmed_employee is not None
     assert screen.detail_nome.text() == "Ana Martins"
+    assert screen.detail_nota_2025.text() == "5 / AP"
+    assert screen.detail_nota_2024.text() == "4 / PROM"
+    assert screen.detail_nota_2023.text() == "3 / MN+"
     assert screen.btn_generate.isEnabled() is True
+
+
+def test_ficha_screen_marks_exact_schema_order_in_status(qtbot) -> None:
+    screen = FichaScreen({})
+    qtbot.addWidget(screen)
+    screen._worker_mode = "validate"
+
+    screen._handle_worker_success(
+        {
+            "schema": {"matricula": "Matricula", "nome": "Nome", "cargo": "Cargo"},
+            "row_count": 2,
+            "matches": [],
+            "source_result": None,
+            "schema_order_matches": True,
+        }
+    )
+
+    assert "ordem esperada confirmada" in screen.schema_status_label.text().lower()
 
 
 def test_ficha_screen_lookup_change_clears_confirmed_employee(qtbot) -> None:
