@@ -202,11 +202,11 @@ def _add_section_header(slide: Slide, *, title: str, title_box: dict[str, float]
 def _add_photo_placeholder(slide: Slide) -> None:
     _add_shape(
         slide,
-        MSO_AUTO_SHAPE_TYPE.ROUNDED_RECTANGLE,
+        MSO_AUTO_SHAPE_TYPE.OVAL,
         left=PHOTO_BOX["left"],
         top=PHOTO_BOX["top"],
         width=PHOTO_BOX["width"],
-        height=PHOTO_BOX["height"],
+        height=PHOTO_BOX["width"],
         fill_color=VERDE_PLACEHOLDER_PREENCHIMENTO,
         line_color=VERDE_PLACEHOLDER,
         line_width_pt=2.0,
@@ -396,7 +396,7 @@ def build_slide(prs: Presentation, employee: FichaEmployee) -> Slide:
         width=1.300,
         height=0.260,
         color=BRANCO,
-        size_pt=18,
+        size_pt=21,
         bold=True,
         font_name=FONTE_TITULO,
         uppercase=True,

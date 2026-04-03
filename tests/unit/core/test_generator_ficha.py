@@ -94,22 +94,21 @@ def test_build_slide_uses_rounded_photo_placeholder_instead_of_oval() -> None:
     prs = generator_ficha.create_presentation()
     slide = generator_ficha.build_slide(prs, _employee())
 
+    oval_placeholder = _find_auto_shape(
+        slide,
+        MSO_AUTO_SHAPE_TYPE.OVAL,
+        left=0.567,
+        top=0.184,
+    )
     rounded_placeholder = _find_auto_shape(
         slide,
         MSO_AUTO_SHAPE_TYPE.ROUNDED_RECTANGLE,
         left=0.567,
         top=0.184,
     )
-    old_oval = _find_auto_shape(
-        slide,
-        MSO_AUTO_SHAPE_TYPE.OVAL,
-        left=0.385,
-        top=1.0,
-        tol=0.08,
-    )
 
-    assert rounded_placeholder is not None
-    assert old_oval is None
+    assert oval_placeholder is not None
+    assert rounded_placeholder is None
 
 
 def test_build_slide_includes_reference_section_titles() -> None:
@@ -133,7 +132,7 @@ def test_build_slide_contains_reference_geometry_landmarks() -> None:
     brand = _find_auto_shape(slide, MSO_AUTO_SHAPE_TYPE.RECTANGLE, left=11.486, top=6.665)
     placeholder = _find_auto_shape(
         slide,
-        MSO_AUTO_SHAPE_TYPE.ROUNDED_RECTANGLE,
+        MSO_AUTO_SHAPE_TYPE.OVAL,
         left=0.567,
         top=0.184,
     )
@@ -145,7 +144,21 @@ def test_build_slide_contains_reference_geometry_landmarks() -> None:
     assert brand is not None
     assert _shape_in_inches(brand) == (11.486, 6.665, 1.653, 0.614)
     assert placeholder is not None
-    assert _shape_in_inches(placeholder) == (0.567, 0.184, 1.885, 1.92)
+    assert _shape_in_inches(placeholder) == (0.567, 0.184, 1.885, 1.885)
+
+
+def test_build_slide_uses_21pt_usiminas_label() -> None:
+    prs = generator_ficha.create_presentation()
+    slide = generator_ficha.build_slide(prs, _employee())
+
+    usiminas_shape = next(
+        shape
+        for shape in slide.shapes
+        if getattr(shape, "has_text_frame", False) and shape.text.strip() == "USIMINAS"
+    )
+    run = usiminas_shape.text_frame.paragraphs[0].runs[0]
+
+    assert round(run.font.size.pt, 1) == 21.0
 
 
 def test_generate_ficha_pptx_creates_single_file(tmp_path: Path) -> None:
