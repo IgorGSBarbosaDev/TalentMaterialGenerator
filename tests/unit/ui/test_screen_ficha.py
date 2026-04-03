@@ -49,6 +49,18 @@ def test_ficha_screen_validates_local_file_source(qtbot) -> None:
         file_path.unlink(missing_ok=True)
 
 
+def test_ficha_screen_source_fields_use_shared_runtime_states(qtbot) -> None:
+    screen = FichaScreen({})
+    qtbot.addWidget(screen)
+
+    assert screen.entry_source.isReadOnly() is False
+    assert screen.entry_source.isEnabled() is True
+    assert screen.entry_source.styleSheet() == ""
+    assert screen.entry_output.isReadOnly() is True
+    assert screen.entry_output.isEnabled() is True
+    assert screen.entry_output.styleSheet() == ""
+
+
 def test_ficha_screen_generate_payload_uses_confirmed_employee(qtbot) -> None:
     screen = FichaScreen({})
     qtbot.addWidget(screen)

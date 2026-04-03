@@ -40,6 +40,18 @@ def test_stylesheet_has_no_global_transparent_input_override() -> None:
     assert "QLineEdit, QComboBox, QTextEdit, QListWidget, QSpinBox {{\n    background-color: transparent;" not in stylesheet
 
 
+def test_light_stylesheet_uses_dedicated_input_tokens() -> None:
+    stylesheet = theme.build_stylesheet("light")
+
+    assert "QLineEdit,\nQComboBox,\nQSpinBox,\nQTextEdit,\nQListWidget {" in stylesheet
+    assert "background-color: #FFFFFF;" in stylesheet
+    assert "border: 1px solid #BFC6B3;" in stylesheet
+    assert "border-color: #95A08A;" in stylesheet
+    assert "QLineEdit:read-only,\nQTextEdit:read-only {" in stylesheet
+    assert "background-color: #F2F5EC;" in stylesheet
+    assert "border-color: #AAB49E;" in stylesheet
+
+
 def test_stylesheet_has_sidebar_compact_and_toggle_rules() -> None:
     stylesheet = theme.build_stylesheet("dark")
 

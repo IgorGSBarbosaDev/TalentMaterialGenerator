@@ -11,6 +11,10 @@ PALETTE: dict[str, dict[str, str]] = {
         "sidebar": "#111111",
         "sidebar_alt": "#151515",
         "input": "#121212",
+        "input_border": "#3E3E3E",
+        "input_border_hover": "#575757",
+        "input_readonly": "#242424",
+        "input_readonly_border": "#575757",
         "border": "#313131",
         "border_strong": "#3E3E3E",
         "border_hover": "#575757",
@@ -35,7 +39,11 @@ PALETTE: dict[str, dict[str, str]] = {
         "surface_soft": "#F4F6EF",
         "sidebar": "#E6EADF",
         "sidebar_alt": "#DCE2D4",
-        "input": "#FBFCF8",
+        "input": "#FFFFFF",
+        "input_border": "#BFC6B3",
+        "input_border_hover": "#95A08A",
+        "input_readonly": "#F2F5EC",
+        "input_readonly_border": "#AAB49E",
         "border": "#D4D8CF",
         "border_strong": "#BFC6B3",
         "border_hover": "#95A08A",
@@ -265,7 +273,7 @@ QSpinBox,
 QTextEdit,
 QListWidget {{
     background-color: {palette["input"]};
-    border: 1px solid {palette["border"]};
+    border: 1px solid {palette["input_border"]};
     border-radius: 10px;
     padding: 9px 11px;
     color: {palette["text"]};
@@ -277,7 +285,7 @@ QComboBox:hover,
 QSpinBox:hover,
 QTextEdit:hover,
 QListWidget:hover {{
-    border-color: {palette["border_hover"]};
+    border-color: {palette["input_border_hover"]};
 }}
 QLineEdit:focus,
 QComboBox:focus,
@@ -288,8 +296,8 @@ QListWidget:focus {{
 }}
 QLineEdit:read-only,
 QTextEdit:read-only {{
-    background-color: {palette["surface_2"]};
-    border-color: {palette["border_hover"]};
+    background-color: {palette["input_readonly"]};
+    border-color: {palette["input_readonly_border"]};
 }}
 QLineEdit[invalid="true"],
 QComboBox[invalid="true"] {{

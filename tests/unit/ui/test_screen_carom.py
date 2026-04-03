@@ -34,6 +34,18 @@ def test_carom_screen_validates_local_file_and_mapping(qtbot) -> None:
         file_path.unlink(missing_ok=True)
 
 
+def test_carom_screen_source_fields_use_shared_runtime_states(qtbot) -> None:
+    screen = CaromScreen({})
+    qtbot.addWidget(screen)
+
+    assert screen.entry_source.isReadOnly() is False
+    assert screen.entry_source.isEnabled() is True
+    assert screen.entry_source.styleSheet() == ""
+    assert screen.entry_output.isReadOnly() is True
+    assert screen.entry_output.isEnabled() is True
+    assert screen.entry_output.styleSheet() == ""
+
+
 def test_carom_screen_get_config_uses_default_output_dir(qtbot) -> None:
     screen = CaromScreen({})
     qtbot.addWidget(screen)
