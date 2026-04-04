@@ -174,6 +174,7 @@ QFrame#fichaWorkflowCard {{
 QFrame#fichaSchemaPanel,
 QFrame#fichaLookupPane,
 QFrame#fichaDossierPane,
+QFrame#fichaResultsPane,
 QFrame#fichaDataGroup,
 QFrame#fichaTableWrap,
 QFrame#fichaActionBar {{

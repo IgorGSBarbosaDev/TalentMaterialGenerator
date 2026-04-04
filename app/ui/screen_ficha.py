@@ -17,7 +17,6 @@ from PySide6.QtWidgets import (
     QPushButton,
     QTableWidget,
     QTableWidgetItem,
-    QTextEdit,
     QVBoxLayout,
     QWidget,
 )
@@ -33,7 +32,7 @@ class FichaScreen(QWidget):
     generate_requested = Signal(dict)
 
     page_title = "Ficha de Curriculo"
-    page_subtitle = "Base padronizada e busca individual"
+    page_subtitle = ""
     page_badge = "Template"
 
     def __init__(self, config: dict[str, Any]) -> None:
@@ -55,13 +54,7 @@ class FichaScreen(QWidget):
 
         title = QLabel("Ficha de Curriculo")
         title.setObjectName("title")
-        subtitle = QLabel(
-            "Valide a base padronizada, encontre um colaborador e revise os dados antes de gerar a ficha."
-        )
-        subtitle.setObjectName("muted")
-        subtitle.setWordWrap(True)
         layout.addWidget(title)
-        layout.addWidget(subtitle)
 
         source_card = QFrame()
         source_card.setObjectName("fichaSourceCard")
@@ -71,11 +64,7 @@ class FichaScreen(QWidget):
 
         source_title = self._panel_title("Fonte de dados")
         source_title.setObjectName("panelTitleStrong")
-        self.source_hint = self._panel_hint(
-            "A ficha usa a mesma base padronizada do Carometro e valida o schema automaticamente."
-        )
         source_layout.addWidget(source_title)
-        source_layout.addWidget(self.source_hint)
 
         source_body = QHBoxLayout()
         source_body.setSpacing(18)
@@ -121,34 +110,16 @@ class FichaScreen(QWidget):
         schema_layout.setContentsMargins(16, 16, 16, 16)
         schema_layout.setSpacing(10)
         schema_title = self._panel_title("Status do schema")
-        schema_note = self._meta_label(
-            "A busca individual so fica disponivel quando a estrutura obrigatoria da ficha e reconhecida."
-        )
         self.schema_status_label = QLabel("")
         self.schema_status_label.setObjectName("statusLabel")
         self.schema_status_label.setWordWrap(True)
         schema_layout.addWidget(schema_title)
-        schema_layout.addWidget(schema_note)
         schema_layout.addWidget(self.schema_status_label)
         schema_layout.addStretch(1)
         source_body.addWidget(schema_panel, 5)
 
         source_layout.addLayout(source_body)
         layout.addWidget(source_card)
-
-        workflow_card = QFrame()
-        workflow_card.setObjectName("fichaWorkflowCard")
-        workflow_layout = QVBoxLayout(workflow_card)
-        workflow_layout.setContentsMargins(22, 22, 22, 22)
-        workflow_layout.setSpacing(18)
-
-        workflow_title = self._panel_title("Dados recuperados")
-        workflow_title.setObjectName("panelTitleStrong")
-        self.workflow_hint = self._panel_hint(
-            "Busque por nome ou matricula, confirme um colaborador e revise o dossie antes de gerar."
-        )
-        workflow_layout.addWidget(workflow_title)
-        workflow_layout.addWidget(self.workflow_hint)
 
         content_split = QHBoxLayout()
         self._content_split = content_split
@@ -157,181 +128,71 @@ class FichaScreen(QWidget):
         lookup_panel = QFrame()
         lookup_panel.setObjectName("fichaLookupPane")
         lookup_layout = QVBoxLayout(lookup_panel)
-        lookup_layout.setContentsMargins(18, 18, 18, 18)
-        lookup_layout.setSpacing(14)
-        lookup_layout.addWidget(self._group_title("Busca e selecao"))
-        lookup_layout.addWidget(
-            self._meta_label(
-                "Use nome ou matricula para localizar um unico colaborador dentro da base validada."
-            )
-        )
+        lookup_layout.setContentsMargins(20, 20, 20, 20)
+        lookup_layout.setSpacing(16)
 
-        lookup_inputs = QHBoxLayout()
-        lookup_inputs.setSpacing(12)
+        self.lookup_mode = QComboBox()
+        self.lookup_mode.addItem("Selecione o tipo de busca", "")
+        self.lookup_mode.addItem("Nome", "nome")
+        self.lookup_mode.addItem("Matricula", "matricula")
+        self.lookup_mode.currentIndexChanged.connect(self._on_lookup_mode_changed)
+
         self.entry_lookup_name = QLineEdit()
-        self.entry_lookup_name.setPlaceholderText("Buscar por nome")
+        self.entry_lookup_name.setPlaceholderText("Digite o nome do colaborador")
         self.entry_lookup_name.textChanged.connect(self._on_lookup_input_changed)
         self.entry_lookup_matricula = QLineEdit()
-        self.entry_lookup_matricula.setPlaceholderText("Buscar por matricula")
+        self.entry_lookup_matricula.setPlaceholderText("Digite a matricula")
         self.entry_lookup_matricula.textChanged.connect(self._on_lookup_input_changed)
-        lookup_inputs.addWidget(
-            self._field_stack("Nome", self.entry_lookup_name),
-            1,
+
+        self.lookup_name_container = self._field_stack("Nome", self.entry_lookup_name)
+        self.lookup_matricula_container = self._field_stack(
+            "Matricula", self.entry_lookup_matricula
         )
-        lookup_inputs.addWidget(
-            self._field_stack("Matricula", self.entry_lookup_matricula),
-            1,
-        )
-        lookup_layout.addLayout(lookup_inputs)
+
+        lookup_layout.addWidget(self._field_stack("Tipo de busca", self.lookup_mode))
+        lookup_layout.addWidget(self.lookup_name_container)
+        lookup_layout.addWidget(self.lookup_matricula_container)
 
         lookup_actions = QHBoxLayout()
         lookup_actions.setSpacing(10)
-        self.btn_search = QPushButton("Buscar colaborador")
+        self.btn_search = QPushButton("Pesquisar")
         self.btn_search.clicked.connect(self._start_lookup)
-        self.btn_confirm = QPushButton("Confirmar colaborador")
+        self.btn_confirm = QPushButton("Validar colaborador")
         self.btn_confirm.clicked.connect(self._confirm_selected_employee)
         lookup_actions.addWidget(self.btn_search)
         lookup_actions.addWidget(self.btn_confirm)
-        lookup_actions.addStretch(1)
         lookup_layout.addLayout(lookup_actions)
+        lookup_layout.addStretch(1)
+        content_split.addWidget(lookup_panel, 3)
 
-        lookup_layout.addWidget(self._group_title("Resultados da busca"))
-        lookup_layout.addWidget(
-            self._meta_label(
-                "Selecione uma linha e confirme o colaborador que sera usado na geracao individual."
-            )
-        )
-
-        results_wrap = QFrame()
-        results_wrap.setObjectName("fichaTableWrap")
-        results_layout = QVBoxLayout(results_wrap)
-        results_layout.setContentsMargins(10, 10, 10, 10)
+        results_panel = QFrame()
+        results_panel.setObjectName("fichaResultsPane")
+        results_layout = QVBoxLayout(results_panel)
+        results_layout.setContentsMargins(20, 20, 20, 20)
         results_layout.setSpacing(0)
+
+        table_wrap = QFrame()
+        table_wrap.setObjectName("fichaTableWrap")
+        table_layout = QVBoxLayout(table_wrap)
+        table_layout.setContentsMargins(10, 10, 10, 10)
+        table_layout.setSpacing(0)
 
         self.results_table = QTableWidget(0, 3)
         self.results_table.setObjectName("fichaResultsTable")
-        self.results_table.setHorizontalHeaderLabels(["Nome", "Matricula", "Cargo"])
+        self.results_table.setHorizontalHeaderLabels(["Matricula", "Nome", "Cargo"])
         self.results_table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.results_table.setSelectionMode(QAbstractItemView.SingleSelection)
         self.results_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.results_table.setAlternatingRowColors(True)
-        self.results_table.setMinimumHeight(300)
+        self.results_table.setMinimumHeight(420)
         self.results_table.verticalHeader().setVisible(False)
         self.results_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        self.results_table.itemSelectionChanged.connect(self._refresh_action_state)
-        self.results_table.itemDoubleClicked.connect(
-            lambda _item: self._confirm_selected_employee()
-        )
-        results_layout.addWidget(self.results_table)
-        lookup_layout.addWidget(results_wrap, 1)
-        content_split.addWidget(lookup_panel, 4)
+        self.results_table.itemSelectionChanged.connect(self._on_results_selection_changed)
+        table_layout.addWidget(self.results_table)
 
-        dossier_panel = QFrame()
-        dossier_panel.setObjectName("fichaDossierPane")
-        dossier_layout = QVBoxLayout(dossier_panel)
-        dossier_layout.setContentsMargins(18, 18, 18, 18)
-        dossier_layout.setSpacing(14)
-        dossier_layout.addWidget(self._group_title("Colaborador confirmado"))
-        dossier_layout.addWidget(
-            self._meta_label(
-                "Os campos abaixo sao apenas leitura e refletem exatamente os dados recuperados da planilha."
-            )
-        )
-
-        self.confirmed_status_label = QLabel("")
-        self.confirmed_status_label.setObjectName("statusLabel")
-        self.confirmed_status_label.setWordWrap(True)
-        dossier_layout.addWidget(self.confirmed_status_label)
-
-        self.detail_matricula = self._build_readonly_line()
-        self.detail_nome = self._build_readonly_line()
-        self.detail_idade = self._build_readonly_line()
-        self.detail_cargo = self._build_readonly_line()
-        self.detail_antiguidade = self._build_readonly_line()
-        self.detail_formacao = self._build_readonly_text()
-        self.detail_resumo = self._build_readonly_text()
-        self.detail_trajetoria = self._build_readonly_text()
-        self.detail_nota_2025 = self._build_readonly_line()
-        self.detail_nota_2024 = self._build_readonly_line()
-        self.detail_nota_2023 = self._build_readonly_line()
-        self._detail_widgets = {
-            "matricula": self.detail_matricula,
-            "nome": self.detail_nome,
-            "idade": self.detail_idade,
-            "cargo": self.detail_cargo,
-            "antiguidade": self.detail_antiguidade,
-            "formacao": self.detail_formacao,
-            "resumo_perfil": self.detail_resumo,
-            "trajetoria": self.detail_trajetoria,
-            "nota_2025": self.detail_nota_2025,
-            "nota_2024": self.detail_nota_2024,
-            "nota_2023": self.detail_nota_2023,
-        }
-
-        identity_group, identity_body = self._data_group(
-            "Identificacao",
-            "Campos principais reconhecidos para o colaborador confirmado.",
-        )
-        identity_grid = QGridLayout()
-        identity_grid.setHorizontalSpacing(12)
-        identity_grid.setVerticalSpacing(12)
-        identity_grid.addWidget(self._field_stack("Matricula", self.detail_matricula), 0, 0)
-        identity_grid.addWidget(self._field_stack("Nome", self.detail_nome), 0, 1)
-        identity_grid.addWidget(self._field_stack("Idade", self.detail_idade), 0, 2)
-        identity_grid.setColumnStretch(0, 1)
-        identity_grid.setColumnStretch(1, 2)
-        identity_grid.setColumnStretch(2, 1)
-        identity_body.addLayout(identity_grid)
-        dossier_layout.addWidget(identity_group)
-
-        role_group, role_body = self._data_group(
-            "Resumo profissional",
-            "Visao rapida da posicao atual e do tempo de casa.",
-        )
-        role_grid = QGridLayout()
-        role_grid.setHorizontalSpacing(12)
-        role_grid.setVerticalSpacing(12)
-        role_grid.addWidget(self._field_stack("Cargo", self.detail_cargo), 0, 0)
-        role_grid.addWidget(self._field_stack("Antiguidade", self.detail_antiguidade), 0, 1)
-        role_grid.setColumnStretch(0, 2)
-        role_grid.setColumnStretch(1, 1)
-        role_body.addLayout(role_grid)
-        dossier_layout.addWidget(role_group)
-
-        narrative_group, narrative_body = self._data_group(
-            "Narrativa recuperada",
-            "Conteudo recuperado automaticamente da base padronizada para a ficha.",
-        )
-        narrative_body.addWidget(self._field_stack("Formacao", self.detail_formacao))
-        narrative_body.addWidget(self._field_stack("Resumo de perfil", self.detail_resumo))
-        narrative_body.addWidget(self._field_stack("Trajetoria", self.detail_trajetoria))
-        dossier_layout.addWidget(narrative_group, 1)
-
-        annual_notes_group, annual_notes_body = self._data_group(
-            "Notas anuais",
-            "Valores exibidos exatamente como foram lidos da linha selecionada na planilha.",
-        )
-        annual_notes_grid = QGridLayout()
-        annual_notes_grid.setHorizontalSpacing(12)
-        annual_notes_grid.setVerticalSpacing(12)
-        annual_notes_grid.addWidget(
-            self._field_stack("Nota 2025", self.detail_nota_2025), 0, 0
-        )
-        annual_notes_grid.addWidget(
-            self._field_stack("Nota 2024", self.detail_nota_2024), 0, 1
-        )
-        annual_notes_grid.addWidget(
-            self._field_stack("Nota 2023", self.detail_nota_2023), 0, 2
-        )
-        annual_notes_grid.setColumnStretch(0, 1)
-        annual_notes_grid.setColumnStretch(1, 1)
-        annual_notes_grid.setColumnStretch(2, 1)
-        annual_notes_body.addLayout(annual_notes_grid)
-        dossier_layout.addWidget(annual_notes_group)
-        content_split.addWidget(dossier_panel, 5)
-
-        workflow_layout.addLayout(content_split, 1)
-        layout.addWidget(workflow_card, 1)
+        results_layout.addWidget(table_wrap, 1)
+        content_split.addWidget(results_panel, 5)
+        layout.addLayout(content_split, 1)
 
         action_bar = QFrame()
         action_bar.setObjectName("fichaActionBar")
@@ -357,10 +218,11 @@ class FichaScreen(QWidget):
         action_layout.addWidget(self.btn_generate)
         layout.addWidget(action_bar)
 
-        self._compact_labels = [subtitle, self.source_hint, self.workflow_hint]
+        self._compact_labels: list[QLabel] = []
         self._sync_source_mode()
+        self._sync_lookup_mode()
         self._clear_schema_state()
-        self._clear_lookup_state(clear_queries=True)
+        self._clear_lookup_state(clear_queries=True, reset_mode=True)
         self._set_status(
             "Informe a fonte de dados. A validacao da base padronizada sera executada automaticamente.",
             "info",
@@ -370,23 +232,6 @@ class FichaScreen(QWidget):
     def _panel_title(self, text: str) -> QLabel:
         label = QLabel(text)
         label.setObjectName("panelTitle")
-        return label
-
-    def _panel_hint(self, text: str) -> QLabel:
-        label = QLabel(text)
-        label.setObjectName("panelHint")
-        label.setWordWrap(True)
-        return label
-
-    def _group_title(self, text: str) -> QLabel:
-        label = QLabel(text)
-        label.setObjectName("fichaGroupTitle")
-        return label
-
-    def _meta_label(self, text: str) -> QLabel:
-        label = QLabel(text)
-        label.setObjectName("fichaMetaText")
-        label.setWordWrap(True)
         return label
 
     def _field_label(self, text: str) -> QLabel:
@@ -403,32 +248,6 @@ class FichaScreen(QWidget):
         layout.addWidget(widget)
         return container
 
-    def _data_group(self, title: str, hint: str) -> tuple[QFrame, QVBoxLayout]:
-        frame = QFrame()
-        frame.setObjectName("fichaDataGroup")
-        layout = QVBoxLayout(frame)
-        layout.setContentsMargins(16, 16, 16, 16)
-        layout.setSpacing(12)
-        layout.addWidget(self._group_title(title))
-        layout.addWidget(self._meta_label(hint))
-        body = QVBoxLayout()
-        body.setSpacing(12)
-        layout.addLayout(body)
-        return frame, body
-
-    def _build_readonly_line(self) -> QLineEdit:
-        field = QLineEdit()
-        field.setObjectName("fichaDisplayField")
-        field.setReadOnly(True)
-        return field
-
-    def _build_readonly_text(self) -> QTextEdit:
-        field = QTextEdit()
-        field.setObjectName("fichaDisplayField")
-        field.setReadOnly(True)
-        field.setMinimumHeight(92)
-        return field
-
     def _set_status(self, message: str, state: str) -> None:
         self.status_label.setText(message)
         self.status_label.setProperty("state", state)
@@ -439,10 +258,24 @@ class FichaScreen(QWidget):
         self.schema_status_label.setProperty("state", state)
         repolish(self.schema_status_label)
 
-    def _set_confirmed_status(self, message: str, state: str) -> None:
-        self.confirmed_status_label.setText(message)
-        self.confirmed_status_label.setProperty("state", state)
-        repolish(self.confirmed_status_label)
+    def _selected_lookup_mode(self) -> str:
+        return str(self.lookup_mode.currentData() or "").strip().lower()
+
+    def _active_lookup_value(self) -> str:
+        mode = self._selected_lookup_mode()
+        if mode == "nome":
+            return self.entry_lookup_name.text().strip()
+        if mode == "matricula":
+            return self.entry_lookup_matricula.text().strip()
+        return ""
+
+    def _clear_confirmed_employee(self) -> None:
+        self._confirmed_employee = None
+
+    def _sync_lookup_mode(self) -> None:
+        mode = self._selected_lookup_mode()
+        self.lookup_name_container.setVisible(mode == "nome")
+        self.lookup_matricula_container.setVisible(mode == "matricula")
 
     def load_config(self, config: dict[str, Any]) -> None:
         self._config = dict(config)
@@ -457,7 +290,7 @@ class FichaScreen(QWidget):
         )
         self.entry_output.setText(str(get_default_output_dir()))
         self._clear_schema_state()
-        self._clear_lookup_state(clear_queries=True)
+        self._clear_lookup_state(clear_queries=True, reset_mode=True)
         self._refresh_action_state()
         if self.entry_source.text().strip():
             self._start_schema_validation()
@@ -526,17 +359,31 @@ class FichaScreen(QWidget):
             )
         self._refresh_action_state()
 
+    def _on_lookup_mode_changed(self, *_args: object) -> None:
+        self.entry_lookup_name.clear()
+        self.entry_lookup_matricula.clear()
+        self._clear_lookup_state()
+        self._sync_lookup_mode()
+        if not self._schema_valid:
+            self._refresh_action_state()
+            return
+
+        mode = self._selected_lookup_mode()
+        if mode:
+            self._set_status("Informe o valor da busca e clique em Pesquisar.", "info")
+        else:
+            self._set_status("Escolha o tipo de busca para continuar.", "info")
+        self._refresh_action_state()
+
     def _on_lookup_input_changed(self, *_args: object) -> None:
         if self._lookup_matches or self._confirmed_employee is not None:
             self._lookup_matches = []
             self._lookup_source_result = None
+            self._clear_confirmed_employee()
             self._populate_results_table([])
-            self._clear_display_fields()
-            self._confirmed_employee = None
-            self._set_confirmed_status("Nenhum colaborador confirmado.", "info")
-            if self._schema_valid:
+            if self._schema_valid and self._selected_lookup_mode():
                 self._set_status(
-                    "Busca alterada. Execute uma nova busca para confirmar o colaborador.",
+                    "Filtro alterado. Pesquise novamente para atualizar os resultados.",
                     "info",
                 )
         self._refresh_action_state()
@@ -546,16 +393,24 @@ class FichaScreen(QWidget):
         self._schema_fields = {}
         self._set_schema_status("Base nao validada.", "warning")
 
-    def _clear_lookup_state(self, *, clear_queries: bool = False) -> None:
+    def _clear_lookup_state(
+        self,
+        *,
+        clear_queries: bool = False,
+        reset_mode: bool = False,
+    ) -> None:
         self._lookup_matches = []
-        self._confirmed_employee = None
         self._lookup_source_result = None
+        self._clear_confirmed_employee()
         self._populate_results_table([])
-        self._clear_display_fields()
-        self._set_confirmed_status("Nenhum colaborador confirmado.", "info")
         if clear_queries:
             self.entry_lookup_name.clear()
             self.entry_lookup_matricula.clear()
+        if reset_mode:
+            self.lookup_mode.blockSignals(True)
+            self.lookup_mode.setCurrentIndex(0)
+            self.lookup_mode.blockSignals(False)
+            self._sync_lookup_mode()
         self._refresh_action_state()
 
     def _start_schema_validation(self) -> None:
@@ -582,10 +437,19 @@ class FichaScreen(QWidget):
         if self._worker is not None and self._worker.isRunning():
             return
 
-        name_query = self.entry_lookup_name.text().strip()
-        matricula_query = self.entry_lookup_matricula.text().strip()
-        if name_query == "" and matricula_query == "":
-            self._set_status("Informe nome ou matricula para buscar.", "warning")
+        mode = self._selected_lookup_mode()
+        if mode == "":
+            self._set_status("Escolha o tipo de busca antes de pesquisar.", "warning")
+            return
+
+        query = self._active_lookup_value()
+        if query == "":
+            message = (
+                "Informe um nome para pesquisar."
+                if mode == "nome"
+                else "Informe uma matricula para pesquisar."
+            )
+            self._set_status(message, "warning")
             return
 
         self._clear_lookup_state()
@@ -594,7 +458,7 @@ class FichaScreen(QWidget):
         self._worker.succeeded.connect(self._handle_worker_success)
         self._worker.error.connect(self._handle_worker_error)
         self._worker.finished.connect(self._on_worker_finished)
-        self._set_status("Buscando colaborador na planilha...", "info")
+        self._set_status("Pesquisando colaboradores na planilha...", "info")
         self._refresh_action_state()
         self._worker.start()
 
@@ -602,11 +466,14 @@ class FichaScreen(QWidget):
         source_kind = (
             "local" if self.source_type.currentText() == "Arquivo local" else "onedrive"
         )
+        mode = self._selected_lookup_mode()
         return {
             "spreadsheet_source": self.entry_source.text().strip(),
             "source_kind": source_kind,
-            "lookup_name": self.entry_lookup_name.text().strip(),
-            "lookup_matricula": self.entry_lookup_matricula.text().strip(),
+            "lookup_name": self.entry_lookup_name.text().strip() if mode == "nome" else "",
+            "lookup_matricula": (
+                self.entry_lookup_matricula.text().strip() if mode == "matricula" else ""
+            ),
             "cache_enabled": self._config.get("cache_enabled", True),
             "cache_ttl_hours": self._config.get("cache_ttl_hours", 24),
             "force_refresh": False,
@@ -629,24 +496,22 @@ class FichaScreen(QWidget):
         )
 
         if self._worker_mode == "validate":
-            self._set_status("Base validada. Busque um colaborador para recuperar os dados.", "success")
+            self._set_status("Base validada. Escolha o tipo de busca e pesquise um colaborador.", "success")
             self._refresh_action_state()
             return
 
         self._lookup_matches = list(result.get("matches", []))
         self._lookup_source_result = result.get("source_result")
+        self._clear_confirmed_employee()
         self._populate_results_table(self._lookup_matches)
-        self._clear_display_fields()
-        self._confirmed_employee = None
-        self._set_confirmed_status("Nenhum colaborador confirmado.", "info")
 
         if not self._lookup_matches:
-            self._set_status("Nenhum colaborador encontrado para os filtros informados.", "warning")
+            self._set_status("Nenhum colaborador encontrado para o filtro informado.", "warning")
         elif len(self._lookup_matches) == 1:
-            self._set_status("1 colaborador encontrado. Confirme a selecao para gerar a ficha.", "success")
+            self._set_status("1 colaborador encontrado. Valide o colaborador selecionado para gerar a ficha.", "success")
         else:
             self._set_status(
-                f"{len(self._lookup_matches)} colaboradores encontrados. Selecione um e confirme.",
+                f"{len(self._lookup_matches)} colaboradores encontrados. Selecione uma linha e valide o colaborador.",
                 "info",
             )
         self._refresh_action_state()
@@ -660,10 +525,8 @@ class FichaScreen(QWidget):
         else:
             self._lookup_matches = []
             self._lookup_source_result = None
-            self._confirmed_employee = None
+            self._clear_confirmed_employee()
             self._populate_results_table([])
-            self._clear_display_fields()
-            self._set_confirmed_status("Nenhum colaborador confirmado.", "info")
             self._set_status(message, "error")
         self._refresh_action_state()
 
@@ -676,8 +539,8 @@ class FichaScreen(QWidget):
         self.results_table.setRowCount(len(employees))
         for row, employee in enumerate(employees):
             values = [
-                employee.get("nome", ""),
                 employee.get("matricula", "") or "-",
+                employee.get("nome", ""),
                 employee.get("cargo", ""),
             ]
             for column, value in enumerate(values):
@@ -690,15 +553,35 @@ class FichaScreen(QWidget):
             self.results_table.clearSelection()
 
     def _selected_match(self) -> FichaEmployee | None:
-        row = self.results_table.currentRow()
+        selection_model = self.results_table.selectionModel()
+        if selection_model is None:
+            return None
+        selected_rows = selection_model.selectedRows()
+        if not selected_rows:
+            return None
+        row = selected_rows[0].row()
         if row < 0 or row >= len(self._lookup_matches):
             return None
         return self._lookup_matches[row]
 
+    def _on_results_selection_changed(self) -> None:
+        employee = self._selected_match()
+        if (
+            self._confirmed_employee is not None
+            and employee is not None
+            and employee != self._confirmed_employee
+        ):
+            self._clear_confirmed_employee()
+            self._set_status(
+                "Selecao alterada. Valide o colaborador selecionado para liberar a geracao.",
+                "info",
+            )
+        self._refresh_action_state()
+
     def _confirm_selected_employee(self) -> None:
         employee = self._selected_match()
         if employee is None:
-            self._set_status("Selecione um colaborador na lista para confirmar.", "warning")
+            self._set_status("Selecione um colaborador na tabela para validar.", "warning")
             return
 
         missing_required = reader.validate_ficha_employee(employee)
@@ -710,26 +593,9 @@ class FichaScreen(QWidget):
             return
 
         self._confirmed_employee = employee
-        self._fill_display_fields(employee)
         label = employee.get("nome", "").strip() or "colaborador selecionado"
-        self._set_confirmed_status(f"Colaborador confirmado: {label}.", "success")
-        self._set_status(f"Colaborador confirmado: {label}. Pronto para gerar a ficha.", "success")
+        self._set_status(f"Colaborador validado: {label}. Pronto para gerar a ficha.", "success")
         self._refresh_action_state()
-
-    def _fill_display_fields(self, employee: FichaEmployee) -> None:
-        for field, widget in self._detail_widgets.items():
-            value = employee.get(field, "")
-            if isinstance(widget, QTextEdit):
-                widget.setPlainText(value)
-            else:
-                widget.setText(value)
-
-    def _clear_display_fields(self) -> None:
-        for widget in self._detail_widgets.values():
-            if isinstance(widget, QTextEdit):
-                widget.clear()
-            else:
-                widget.setText("")
 
     def _get_generation_payload(self) -> dict[str, Any]:
         source_kind = (
@@ -745,20 +611,22 @@ class FichaScreen(QWidget):
 
     def _refresh_action_state(self) -> None:
         worker_running = self._worker is not None and self._worker.isRunning()
-        has_query = (
-            self.entry_lookup_name.text().strip() != ""
-            or self.entry_lookup_matricula.text().strip() != ""
-        )
+        has_mode = self._selected_lookup_mode() != ""
+        has_query = self._active_lookup_value() != ""
         has_selection = self._selected_match() is not None
-        self.btn_search.setEnabled(self._schema_valid and has_query and not worker_running)
-        self.btn_confirm.setEnabled(self._schema_valid and has_selection and not worker_running)
+        self.btn_search.setEnabled(
+            self._schema_valid and has_mode and has_query and not worker_running
+        )
+        self.btn_confirm.setEnabled(
+            self._schema_valid and has_selection and not worker_running
+        )
         self.btn_generate.setEnabled(
             self._schema_valid and self._confirmed_employee is not None and not worker_running
         )
 
     def _start_generation(self) -> None:
         if self._confirmed_employee is None:
-            self._set_status("Confirme um colaborador antes de gerar a ficha.", "warning")
+            self._set_status("Valide um colaborador antes de gerar a ficha.", "warning")
             return
         self.generate_requested.emit(self._get_generation_payload())
 
