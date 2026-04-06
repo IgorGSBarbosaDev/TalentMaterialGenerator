@@ -7,61 +7,73 @@ from pptx import Presentation
 from app.core import generator_carom
 
 
-def _employee(**overrides: object) -> dict[str, object]:
-    base = {
-        "nome": "Ana Martins",
+def _employee(index: int) -> dict[str, str]:
+    return {
+        "matricula": str(100 + index),
+        "nome": f"Colab {index}",
         "cargo": "Analista",
-        "nota": 4.2,
-        "potencial": "Alto",
+        "foto": "",
         "area": "Operacao",
+        "localizacao": "",
+        "unidade_gestao": "",
     }
-    base.update(overrides)
-    return base
 
 
-BASE_CONFIG: generator_carom.CaromConfig = {
-    "colunas": 5,
-    "agrupamento": "area",
-    "titulo": "Carometro",
-    "show_nota": True,
-    "show_potencial": True,
-    "show_cargo": True,
-    "cores_automaticas": True,
-}
+def test_get_carom_preset_returns_fixed_regular_template() -> None:
+    preset = generator_carom.get_carom_preset("regular")
+
+    assert preset["columns"] == 2
+    assert preset["rows"] == 5
+    assert preset["capacity"] == 10
 
 
-def test_get_score_color_by_threshold() -> None:
-    assert generator_carom.get_score_color(4.5) == "#84BD00"
-    assert generator_carom.get_score_color(3.5) == "#F59E0B"
-    assert generator_carom.get_score_color(2.5) == "#EF4444"
+def test_compute_projected_slide_count_uses_capacity() -> None:
+    assert generator_carom.compute_projected_slide_count(0, 10) == 0
+    assert generator_carom.compute_projected_slide_count(10, 10) == 1
+    assert generator_carom.compute_projected_slide_count(23, 10) == 3
 
 
-def test_group_employees_sorts_descending_by_score() -> None:
-    groups = generator_carom.group_employees(
-        [
-            _employee(nome="A", area="X", nota=3.2),
-            _employee(nome="B", area="X", nota=4.9),
-        ],
-        "area",
+def test_compute_current_slide_status_reports_remaining_people() -> None:
+    assert (
+        generator_carom.compute_current_slide_status(3, 10)
+        == "7 people left to complete the current slide"
+    )
+    assert generator_carom.compute_current_slide_status(10, 10) == "Current slide complete"
+    assert (
+        generator_carom.compute_current_slide_status(11, 10)
+        == "9 people left to complete the current slide"
     )
 
-    assert [item["nome"] for item in groups["X"]] == ["B", "A"]
 
-
-def test_generate_carom_pptx_creates_one_file_per_group(tmp_path: Path) -> None:
+def test_generate_carom_pptx_creates_single_file(tmp_path: Path) -> None:
     files = generator_carom.generate_carom_pptx(
-        [_employee(nome="A", area="X"), _employee(nome="B", area="Y")],
+        [_employee(1), _employee(2)],
         str(tmp_path),
-        BASE_CONFIG,
+        {"preset_id": "regular", "titulo": "Leadership Board", "file_basename": "Leadership_Board"},
     )
 
-    assert len(files) == 2
-    assert all(Path(path).exists() for path in files)
+    assert len(files) == 1
+    assert Path(files[0]).exists()
 
 
-def test_generate_carom_pptx_breaks_large_group_into_multiple_slides(tmp_path: Path) -> None:
-    employees = [_employee(nome=f"Colab {index}", area="X") for index in range(20)]
-    files = generator_carom.generate_carom_pptx(employees, str(tmp_path), BASE_CONFIG)
+def test_generate_carom_pptx_breaks_selection_into_multiple_slides(tmp_path: Path) -> None:
+    files = generator_carom.generate_carom_pptx(
+        [_employee(index) for index in range(1, 24)],
+        str(tmp_path),
+        {"preset_id": "regular", "titulo": "Leadership Board", "file_basename": "Leadership_Board"},
+    )
 
     prs = Presentation(files[0])
-    assert len(prs.slides) >= 2
+    assert len(prs.slides) == 3
+
+
+def test_generate_carom_pptx_uses_title_on_every_slide(tmp_path: Path) -> None:
+    files = generator_carom.generate_carom_pptx(
+        [_employee(index) for index in range(1, 12)],
+        str(tmp_path),
+        {"preset_id": "regular", "titulo": "Leadership Board", "file_basename": "Leadership_Board"},
+    )
+
+    prs = Presentation(files[0])
+    slide_titles = [slide.shapes[1].text for slide in prs.slides]
+    assert slide_titles == ["Leadership Board", "Leadership Board"]

@@ -42,6 +42,9 @@ COLUMN_VARIATIONS: dict[str, tuple[str, ...]] = {
     "area": ("area", "departamento", "setor", "gerencia"),
     "potencial": ("potencial", "potential"),
     "nota": ("nota", "score", "avaliacao_atual", "resultado_atual"),
+    "foto": ("foto", "photo", "photo_ref", "photo_reference", "imagem", "avatar"),
+    "localizacao": ("localizacao", "location", "cidade", "site"),
+    "unidade_gestao": ("unidade_gestao", "management_unit", "gerencia_unidade"),
 }
 
 
@@ -84,6 +87,16 @@ EXPECTED_FICHA_COLUMN_ORDER: Final[tuple[str, ...]] = (
     "Nota 2024",
     "Nota 2023",
 )
+CAROM_FIELDS: Final[tuple[str, ...]] = (
+    "matricula",
+    "nome",
+    "cargo",
+    "foto",
+    "area",
+    "localizacao",
+    "unidade_gestao",
+)
+CAROM_REQUIRED_FIELDS: Final[tuple[str, ...]] = ("matricula", "nome", "cargo")
 
 
 @dataclass
@@ -109,6 +122,16 @@ class FichaEmployee(TypedDict):
     nota_2025: str
     nota_2024: str
     nota_2023: str
+
+
+class CaromEmployee(TypedDict):
+    matricula: str
+    nome: str
+    cargo: str
+    foto: str
+    area: str
+    localizacao: str
+    unidade_gestao: str
 
 
 def read_spreadsheet(path: str) -> list[dict[str, str]]:
@@ -168,6 +191,9 @@ def detect_columns(headers: list[str]) -> dict[str, str | None]:
         "area": None,
         "potencial": None,
         "nota": None,
+        "foto": None,
+        "localizacao": None,
+        "unidade_gestao": None,
     }
 
     for header in headers:
@@ -188,9 +214,18 @@ def validate_ficha_required_columns(mapping: dict[str, str | None]) -> list[str]
     return [field for field in FICHA_REQUIRED_FIELDS if not mapping.get(field)]
 
 
+def validate_carom_required_columns(mapping: dict[str, str | None]) -> list[str]:
+    return [field for field in CAROM_REQUIRED_FIELDS if not mapping.get(field)]
+
+
 def resolve_ficha_schema(headers: list[str]) -> dict[str, str | None]:
     detected = detect_columns(headers)
     return {field: detected.get(field) for field in FICHA_FIELDS}
+
+
+def resolve_carom_schema(headers: list[str]) -> dict[str, str | None]:
+    detected = detect_columns(headers)
+    return {field: detected.get(field) for field in CAROM_FIELDS}
 
 
 def validate_standardized_ficha_schema(headers: list[str]) -> dict[str, str | None]:
@@ -200,6 +235,17 @@ def validate_standardized_ficha_schema(headers: list[str]) -> dict[str, str | No
         joined = ", ".join(missing_required)
         raise ValueError(
             f"A planilha nao segue o schema padrao da ficha. Colunas ausentes: {joined}."
+        )
+    return schema
+
+
+def validate_standardized_carom_schema(headers: list[str]) -> dict[str, str | None]:
+    schema = resolve_carom_schema(headers)
+    missing_required = validate_carom_required_columns(schema)
+    if missing_required:
+        joined = ", ".join(missing_required)
+        raise ValueError(
+            f"A planilha nao segue o schema padrao do carometro. Colunas ausentes: {joined}."
         )
     return schema
 
@@ -244,6 +290,76 @@ def load_standardized_ficha_rows(rows: list[dict[str, str]]) -> list[FichaEmploy
         return []
     schema = validate_standardized_ficha_schema(extract_headers(rows))
     return remap_ficha_rows(rows, schema)
+
+
+def remap_carom_row(
+    row: dict[str, str], mapping: dict[str, str | None]
+) -> CaromEmployee:
+    normalized: CaromEmployee = {
+        field: row.get(source_field, "") if source_field else ""
+        for field, source_field in mapping.items()
+        if field in CAROM_FIELDS
+    }
+    for field in CAROM_FIELDS:
+        normalized.setdefault(field, "")
+    return normalized
+
+
+def remap_carom_rows(
+    rows: list[dict[str, str]], mapping: dict[str, str | None]
+) -> list[CaromEmployee]:
+    return [remap_carom_row(row, mapping) for row in rows]
+
+
+def load_standardized_carom_rows(rows: list[dict[str, str]]) -> list[CaromEmployee]:
+    if not rows:
+        return []
+    schema = validate_standardized_carom_schema(extract_headers(rows))
+    return remap_carom_rows(rows, schema)
+
+
+def validate_carom_employee(employee: CaromEmployee) -> list[str]:
+    return [field for field in CAROM_REQUIRED_FIELDS if employee.get(field, "").strip() == ""]
+
+
+def carom_employee_key(employee: CaromEmployee) -> str:
+    matricula = employee.get("matricula", "").strip()
+    if matricula:
+        return f"matricula:{_normalize_lookup_value(matricula)}"
+    name = _normalize_lookup_value(employee.get("nome", ""))
+    cargo = _normalize_lookup_value(employee.get("cargo", ""))
+    return f"fallback:{name}|{cargo}"
+
+
+def filter_carom_employees(
+    employees: list[CaromEmployee],
+    *,
+    query: str,
+    mode: str,
+) -> list[CaromEmployee]:
+    normalized_query = _normalize_lookup_value(query)
+    if normalized_query == "":
+        return employees
+
+    if mode == "matricula":
+        exact_matches = [
+            employee
+            for employee in employees
+            if _normalize_lookup_value(employee.get("matricula", "")) == normalized_query
+        ]
+        if exact_matches:
+            return exact_matches
+        return [
+            employee
+            for employee in employees
+            if normalized_query in _normalize_lookup_value(employee.get("matricula", ""))
+        ]
+
+    return [
+        employee
+        for employee in employees
+        if normalized_query in _normalize_lookup_value(employee.get("nome", ""))
+    ]
 
 
 def validate_ficha_employee(employee: FichaEmployee) -> list[str]:

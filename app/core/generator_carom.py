@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import math
-import unicodedata
 from collections.abc import Callable
 from pathlib import Path
 from typing import Final, TypedDict
@@ -13,7 +12,7 @@ from pptx.presentation import Presentation
 from pptx.slide import Slide
 from pptx.util import Inches, Pt
 
-from app.core.reader import normalize_filename
+from app.core.reader import CaromEmployee, normalize_filename
 
 SLIDE_WIDTH: Final = Inches(13.271)
 SLIDE_HEIGHT: Final = Inches(7.500)
@@ -21,24 +20,51 @@ HEADER_COLOR: Final = "#2D4200"
 HEADER_TEXT_COLOR: Final = "#FFFFFF"
 CARD_BG_COLOR: Final = "#F5F5F5"
 TEXT_COLOR: Final = "#111827"
-UNKNOWN_POTENTIAL_COLOR: Final = "#9CA3AF"
+META_COLOR: Final = "#4B5563"
 PLACEHOLDER_BORDER: Final = "#84BD00"
 
-CORES_POTENCIAL: Final[dict[str, str]] = {
-    "alto": "#84BD00",
-    "medio": "#F59E0B",
-    "baixo": "#EF4444",
-}
+
+class CaromPreset(TypedDict):
+    id: str
+    label: str
+    columns: int
+    rows: int
+    capacity: int
+    rendered_fields: tuple[str, ...]
 
 
 class CaromConfig(TypedDict):
-    colunas: int
-    agrupamento: str | None
+    preset_id: str
     titulo: str
-    show_nota: bool
-    show_potencial: bool
-    show_cargo: bool
-    cores_automaticas: bool
+    file_basename: str
+
+
+CAROM_PRESETS: Final[dict[str, CaromPreset]] = {
+    "mini": {
+        "id": "mini",
+        "label": "Mini",
+        "columns": 3,
+        "rows": 6,
+        "capacity": 18,
+        "rendered_fields": ("nome", "cargo", "matricula"),
+    },
+    "regular": {
+        "id": "regular",
+        "label": "Regular",
+        "columns": 2,
+        "rows": 5,
+        "capacity": 10,
+        "rendered_fields": ("nome", "cargo", "matricula"),
+    },
+    "large": {
+        "id": "large",
+        "label": "Large",
+        "columns": 2,
+        "rows": 4,
+        "capacity": 8,
+        "rendered_fields": ("nome", "cargo", "matricula"),
+    },
+}
 
 
 def create_presentation() -> Presentation:
@@ -46,6 +72,31 @@ def create_presentation() -> Presentation:
     prs.slide_width = SLIDE_WIDTH
     prs.slide_height = SLIDE_HEIGHT
     return prs
+
+
+def get_carom_preset(preset_id: str) -> CaromPreset:
+    normalized = preset_id.strip().lower()
+    if normalized not in CAROM_PRESETS:
+        raise ValueError(f"Preset de carometro desconhecido: {preset_id}")
+    return CAROM_PRESETS[normalized]
+
+
+def compute_projected_slide_count(selected_count: int, capacity: int) -> int:
+    if selected_count <= 0:
+        return 0
+    return math.ceil(selected_count / max(capacity, 1))
+
+
+def compute_current_slide_status(selected_count: int, capacity: int) -> str:
+    safe_capacity = max(capacity, 1)
+    if selected_count <= 0:
+        return f"{safe_capacity} people left to complete the current slide"
+    position_in_current_slide = selected_count % safe_capacity
+    if position_in_current_slide == 0:
+        return "Current slide complete"
+    return (
+        f"{safe_capacity - position_in_current_slide} people left to complete the current slide"
+    )
 
 
 def _rgb_from_hex(hex_color: str) -> RGBColor:
@@ -57,21 +108,8 @@ def _clean_str(value: object) -> str:
     return "" if value is None else str(value).strip()
 
 
-def _safe_float(value: object, default: float = 0.0) -> float:
-    try:
-        return float(str(value).replace(",", "."))
-    except (TypeError, ValueError):
-        return default
-
-
-def _normalize_token(value: object) -> str:
-    text = _clean_str(value).lower()
-    normalized = unicodedata.normalize("NFD", text)
-    return "".join(ch for ch in normalized if unicodedata.category(ch) != "Mn")
-
-
 def _add_rect(
-    slide, *, left: float, top: float, width: float, height: float, color: str
+    slide: Slide, *, left: float, top: float, width: float, height: float, color: str
 ) -> None:
     shape = slide.shapes.add_shape(
         MSO_SHAPE.ROUNDED_RECTANGLE,
@@ -86,7 +124,7 @@ def _add_rect(
 
 
 def _add_text(
-    slide,
+    slide: Slide,
     *,
     text: str,
     left: float,
@@ -121,47 +159,14 @@ def _add_placeholder(slide: Slide, left: float, top: float, size: float) -> None
     oval.line.width = Pt(2)
 
 
-def get_score_color(score: float) -> str:
-    if score >= 4.0:
-        return "#84BD00"
-    if score >= 3.0:
-        return "#F59E0B"
-    return "#EF4444"
-
-
-def get_potential_color(potential: str) -> str:
-    normalized = _normalize_token(potential)
-    return CORES_POTENCIAL.get(normalized, UNKNOWN_POTENTIAL_COLOR)
-
-
-def group_employees(
-    employees: list[dict[str, object]], grouping_field: str | None
-) -> dict[str, list[dict[str, object]]]:
-    if not employees:
-        return {}
-
-    groups: dict[str, list[dict[str, object]]] = {}
-    if not grouping_field:
-        groups["Todos"] = list(employees)
-    else:
-        for employee in employees:
-            group_name = _clean_str(employee.get(grouping_field)) or "Sem Grupo"
-            groups.setdefault(group_name, []).append(employee)
-
-    for items in groups.values():
-        items.sort(key=lambda item: _safe_float(item.get("nota"), 0.0), reverse=True)
-    return groups
-
-
-def build_card(
+def _build_card(
     slide: Slide,
-    employee: dict[str, object],
+    employee: CaromEmployee,
     *,
     card_x: float,
     card_y: float,
     card_width: float,
     card_height: float,
-    config: CaromConfig,
 ) -> None:
     _add_rect(
         slide,
@@ -172,90 +177,70 @@ def build_card(
         color=CARD_BG_COLOR,
     )
 
-    placeholder_size = min(card_width * 0.36, 0.62)
-    placeholder_x = card_x + (card_width - placeholder_size) / 2
-    _add_placeholder(slide, placeholder_x, card_y + 0.10, placeholder_size)
+    placeholder_size = min(card_width * 0.30, card_height * 0.44)
+    placeholder_x = card_x + 0.12
+    placeholder_y = card_y + 0.12
+    _add_placeholder(slide, placeholder_x, placeholder_y, placeholder_size)
+
+    text_left = placeholder_x + placeholder_size + 0.14
+    text_width = max(card_width - (text_left - card_x) - 0.12, 0.5)
 
     name = _clean_str(employee.get("nome")) or "Sem Nome"
-    cargo = _clean_str(employee.get("cargo"))
-    potential = _clean_str(employee.get("potencial"))
-    score_value = _safe_float(employee.get("nota"), 0.0)
-    score_text = f"{score_value:.1f}"
+    cargo = _clean_str(employee.get("cargo")) or "Cargo nao informado"
+    matricula = _clean_str(employee.get("matricula")) or "-"
 
     _add_text(
         slide,
         text=name,
-        left=card_x + 0.08,
-        top=card_y + 0.78,
-        width=card_width - 0.16,
-        height=0.25,
+        left=text_left,
+        top=card_y + 0.18,
+        width=text_width,
+        height=0.28,
         color=TEXT_COLOR,
-        size_pt=10,
+        size_pt=11,
         bold=True,
     )
-
-    if config["show_cargo"] and cargo:
-        _add_text(
-            slide,
-            text=cargo,
-            left=card_x + 0.08,
-            top=card_y + 1.02,
-            width=card_width - 0.16,
-            height=0.24,
-            color=TEXT_COLOR,
-            size_pt=9,
-        )
-
-    if config["show_nota"]:
-        score_color = get_score_color(score_value) if config["cores_automaticas"] else TEXT_COLOR
-        _add_text(
-            slide,
-            text=score_text,
-            left=card_x + 0.08,
-            top=card_y + card_height - 0.36,
-            width=0.50,
-            height=0.20,
-            color=score_color,
-            size_pt=11,
-            bold=True,
-        )
-
-    if config["show_potencial"] and potential:
-        potential_color = (
-            get_potential_color(potential) if config["cores_automaticas"] else TEXT_COLOR
-        )
-        _add_text(
-            slide,
-            text=potential,
-            left=card_x + card_width - 0.95,
-            top=card_y + card_height - 0.36,
-            width=0.87,
-            height=0.20,
-            color=potential_color,
-            size_pt=9,
-            bold=True,
-        )
+    _add_text(
+        slide,
+        text=cargo,
+        left=text_left,
+        top=card_y + 0.48,
+        width=text_width,
+        height=0.28,
+        color=META_COLOR,
+        size_pt=9,
+    )
+    _add_text(
+        slide,
+        text=f"Matricula {matricula}",
+        left=text_left,
+        top=card_y + 0.78,
+        width=text_width,
+        height=0.24,
+        color=META_COLOR,
+        size_pt=8,
+    )
 
 
-def _send_callback(callback: Callable[[dict], None] | None, payload: dict) -> None:
-    if callback is not None:
-        callback(payload)
-
-
-def _build_group_slide(
+def _build_slide(
     prs: Presentation,
-    group_name: str,
-    employees: list[dict[str, object]],
-    config: CaromConfig,
+    title: str,
+    employees: list[CaromEmployee],
+    preset: CaromPreset,
 ) -> None:
     slide = prs.slides.add_slide(prs.slide_layouts[6])
-    margin = 0.30
-    header_height = 0.80
-    card_height = 1.75
-    n_columns = max(1, config["colunas"])
-
     slide_width = prs.slide_width / Inches(1)
-    card_width = (slide_width - (2 * margin) - (0.12 * (n_columns - 1))) / n_columns
+    slide_height = prs.slide_height / Inches(1)
+    margin_x = 0.38
+    margin_bottom = 0.34
+    header_height = 0.82
+    gutter_x = 0.16
+    gutter_y = 0.14
+    columns = preset["columns"]
+    rows = preset["rows"]
+    available_height = slide_height - header_height - margin_x - margin_bottom
+    card_width = (slide_width - (2 * margin_x) - (gutter_x * (columns - 1))) / columns
+    card_height = (available_height - (gutter_y * (rows - 1))) / rows
 
     _add_rect(
         slide,
@@ -265,83 +250,79 @@ def _build_group_slide(
         height=header_height,
         color=HEADER_COLOR,
     )
-    title = f"{config['titulo']} - {group_name}" if config["titulo"] else group_name
     _add_text(
         slide,
         text=title,
-        left=margin,
-        top=0.20,
-        width=slide_width - (2 * margin),
-        height=0.35,
+        left=margin_x,
+        top=0.22,
+        width=slide_width - (2 * margin_x),
+        height=0.32,
         color=HEADER_TEXT_COLOR,
         size_pt=16,
         bold=True,
     )
 
     for index, employee in enumerate(employees):
-        row_index = index // n_columns
-        col_index = index % n_columns
-        card_x = margin + col_index * (card_width + 0.12)
-        card_y = header_height + margin + row_index * (card_height + 0.10)
-        build_card(
+        row_index = index // columns
+        col_index = index % columns
+        card_x = margin_x + col_index * (card_width + gutter_x)
+        card_y = header_height + margin_x + row_index * (card_height + gutter_y)
+        _build_card(
             slide,
             employee,
             card_x=card_x,
             card_y=card_y,
             card_width=card_width,
             card_height=card_height,
-            config=config,
         )
 
 
+def _send_callback(callback: Callable[[dict], None] | None, payload: dict) -> None:
+    if callback is not None:
+        callback(payload)
+
+
 def generate_carom_pptx(
-    employees: list[dict[str, object]],
+    employees: list[CaromEmployee],
     output_dir: str,
     config: CaromConfig,
     callback: Callable[[dict], None] | None = None,
 ) -> list[str]:
+    if not employees:
+        return []
+
+    preset = get_carom_preset(config["preset_id"])
+    title = _clean_str(config.get("titulo", "")) or "Carometro"
+    safe_name = normalize_filename(_clean_str(config.get("file_basename", "")) or title) or "Carometro"
     output_root = Path(output_dir) / "carometros"
     output_root.mkdir(parents=True, exist_ok=True)
 
-    groups = group_employees(employees, config["agrupamento"])
-    if not groups:
-        return []
+    prs = create_presentation()
+    capacity = preset["capacity"]
+    total_slides = compute_projected_slide_count(len(employees), capacity)
 
-    created_files: list[str] = []
-    total = len(groups)
-    rows_per_slide = 3
-    cards_per_slide = max(1, config["colunas"]) * rows_per_slide
-
-    for current, (group_name, group_members) in enumerate(groups.items(), start=1):
-        prs = create_presentation()
-        group_pages = math.ceil(len(group_members) / cards_per_slide)
-
-        for page_index in range(group_pages):
-            start = page_index * cards_per_slide
-            end = start + cards_per_slide
-            _build_group_slide(prs, group_name, group_members[start:end], config)
-
-        safe_group = normalize_filename(group_name) or f"grupo_{current}"
-        output_path = output_root / f"{safe_group}.pptx"
-        prs.save(str(output_path))
-        created_files.append(str(output_path))
-
+    for slide_index in range(total_slides):
+        start = slide_index * capacity
+        end = start + capacity
+        _build_slide(prs, title, employees[start:end], preset)
         _send_callback(
             callback,
             {
                 "type": "log",
-                "message": f"Gerando carometro: {group_name}",
-                "level": "success",
+                "message": f"Montando slide {slide_index + 1} de {total_slides}",
+                "level": "info",
             },
         )
         _send_callback(
             callback,
             {
                 "type": "progress",
-                "current": current,
-                "total": total,
-                "name": group_name,
+                "current": slide_index + 1,
+                "total": total_slides,
+                "name": title,
             },
         )
 
-    return created_files
+    output_path = output_root / f"{safe_name}.pptx"
+    prs.save(str(output_path))
+    return [str(output_path)]

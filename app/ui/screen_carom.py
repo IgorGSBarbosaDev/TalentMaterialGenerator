@@ -3,217 +3,335 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from PySide6.QtCore import Signal
+from PySide6.QtCore import QSize, Qt, Signal
 from PySide6.QtWidgets import (
-    QCheckBox,
     QComboBox,
     QFileDialog,
-    QFormLayout,
     QFrame,
     QGridLayout,
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QListWidget,
+    QListWidgetItem,
     QPushButton,
     QVBoxLayout,
     QWidget,
 )
 
 from app.config.settings import get_default_output_dir
-from app.core import reader
-from app.ui.components import repolish
+from app.core.generator_carom import (
+    compute_current_slide_status,
+    compute_projected_slide_count,
+    get_carom_preset,
+)
+from app.core.reader import (
+    CaromEmployee,
+    carom_employee_key,
+    filter_carom_employees,
+    normalize_filename,
+)
+from app.core.worker import CaromLookupWorker
+from app.ui.components import PreviewListItem, repolish
+
+
+class _SelectableEmployeeCard(QFrame):
+    add_requested = Signal(str)
+
+    def __init__(self, employee_key: str, employee: CaromEmployee) -> None:
+        super().__init__()
+        self.employee_key = employee_key
+        self.setObjectName("previewListItem")
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(10, 8, 10, 8)
+        layout.setSpacing(10)
+
+        meta = f"{employee.get('cargo', '')} | Matricula {employee.get('matricula', '-') or '-'}"
+        self.preview = PreviewListItem(employee.get("nome", "") or "Sem Nome", meta)
+        layout.addWidget(self.preview, 1)
+
+        self.add_button = QPushButton("Add")
+        self.add_button.clicked.connect(lambda: self.add_requested.emit(self.employee_key))
+        layout.addWidget(self.add_button)
+
+
+class _SelectedEmployeeCard(QFrame):
+    remove_requested = Signal(str)
+
+    def __init__(self, employee_key: str, employee: CaromEmployee, index: int) -> None:
+        super().__init__()
+        self.employee_key = employee_key
+        self.setObjectName("previewListItem")
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(10, 8, 10, 8)
+        layout.setSpacing(10)
+
+        order = QLabel(str(index))
+        order.setObjectName("statusBadge")
+        order.setAlignment(Qt.AlignCenter)
+        order.setFixedSize(30, 30)
+        layout.addWidget(order)
+
+        meta = f"{employee.get('cargo', '')} | Matricula {employee.get('matricula', '-') or '-'}"
+        self.preview = PreviewListItem(employee.get("nome", "") or "Sem Nome", meta)
+        layout.addWidget(self.preview, 1)
+
+        self.remove_button = QPushButton("Remove")
+        self.remove_button.clicked.connect(lambda: self.remove_requested.emit(self.employee_key))
+        layout.addWidget(self.remove_button)
 
 
 class CaromScreen(QWidget):
     generate_requested = Signal(dict)
 
     page_title = "Carometro"
-    page_subtitle = "Fonte, mapeamento e layout"
+    page_subtitle = "Search, select and export slide face boards"
     page_badge = "Grid"
+
+    PRESET_OPTIONS: tuple[tuple[str, str], ...] = (
+        ("Mini", "mini"),
+        ("Regular", "regular"),
+        ("Large", "large"),
+    )
+    SEARCH_OPTIONS: tuple[tuple[str, str], ...] = (
+        ("Name", "nome"),
+        ("Matricula", "matricula"),
+    )
 
     def __init__(self, config: dict[str, Any]) -> None:
         super().__init__()
-        self.column_fields = [
-            "matricula",
-            "nome",
-            "cargo",
-            "area",
-            "nota",
-            "potencial",
-            "nota_2025",
-            "nota_2024",
-            "nota_2023",
-        ]
-        self._column_selectors: dict[str, QComboBox] = {}
-        self._preview_rows: list[dict[str, str]] = []
+        self.setObjectName("caromPage")
+        self._config = dict(config)
+        self._worker: CaromLookupWorker | None = None
+        self._schema_valid = False
+        self._loaded_employees: list[CaromEmployee] = []
+        self._filtered_employees: list[CaromEmployee] = []
+        self._selected_employees: list[CaromEmployee] = []
+        self._selected_keys: set[str] = set()
+        self._source_result = None
+        self._schema_fields: dict[str, str | None] = {}
 
         layout = QVBoxLayout(self)
         self._root_layout = layout
         layout.setContentsMargins(26, 26, 26, 26)
         layout.setSpacing(16)
 
-        title = QLabel("Carometro")
+        title = QLabel("Carometro Generator")
         title.setObjectName("title")
         subtitle = QLabel(
-            "Defina origem, colunas e exibicao do card."
+            "Load a standardized spreadsheet, search people in real time, and export a multi-slide deck."
         )
         subtitle.setObjectName("muted")
         subtitle.setWordWrap(True)
         layout.addWidget(title)
         layout.addWidget(subtitle)
 
-        top_split = QHBoxLayout()
-        self._top_split = top_split
-        top_split.setSpacing(16)
-        layout.addLayout(top_split, 1)
-
         source_panel = QFrame()
         source_panel.setObjectName("panel")
-        source_layout = QVBoxLayout(source_panel)
+        source_layout = QGridLayout(source_panel)
         source_layout.setContentsMargins(18, 18, 18, 18)
-        source_layout.setSpacing(14)
-        source_layout.addWidget(self._panel_title("Fonte e layout"))
-        self.source_hint = self._panel_hint("Origem da base, agrupamento e grade.")
-        source_layout.addWidget(self.source_hint)
+        source_layout.setHorizontalSpacing(14)
+        source_layout.setVerticalSpacing(12)
+        source_layout.setColumnStretch(1, 1)
+        source_layout.setColumnStretch(3, 1)
 
         self.source_type = QComboBox()
         self.source_type.addItems(["OneDrive", "Arquivo local"])
-        self.source_type.currentTextChanged.connect(self._sync_source_mode)
-        self.source_type.currentTextChanged.connect(self._refresh_preview)
+        self.source_type.currentTextChanged.connect(self._on_source_mode_changed)
 
         self.entry_source = QLineEdit(config.get("default_onedrive_url", ""))
-        self.entry_source.setMinimumWidth(350)
         self.entry_source.textChanged.connect(self._on_source_changed)
+        self.entry_source.editingFinished.connect(self._start_schema_validation)
+
+        self.btn_browse_file = QPushButton("Browse")
+        self.btn_browse_file.clicked.connect(self._choose_source_file)
+
+        self.model_selector = QComboBox()
+        for label, value in self.PRESET_OPTIONS:
+            self.model_selector.addItem(label, value)
+        self.model_selector.setCurrentIndex(1)
+        self.model_selector.currentIndexChanged.connect(self._refresh_selection_summary)
+
+        self.title_field = QLineEdit("Carometro")
+        self.title_field.textChanged.connect(self._on_title_changed)
+        self.filename_field = QLineEdit()
+        self.filename_field.setReadOnly(True)
+
         self.entry_output = QLineEdit(str(get_default_output_dir()))
         self.entry_output.setReadOnly(True)
-        self.grouping = QComboBox()
-        self.grouping.addItems(["area", "cargo", "potencial", "sem agrupamento"])
-        self.grouping.currentTextChanged.connect(self._refresh_preview)
-        self.title_field = QLineEdit("Carometro")
-        self.title_field.textChanged.connect(self._refresh_preview)
-        self.columns = QComboBox()
-        self.columns.addItems(["3", "4", "5"])
-        self.columns.setCurrentText(str(config.get("default_carom_columns", 5)))
-        self.columns.currentTextChanged.connect(self._refresh_preview)
 
-        source_form = QFormLayout()
-        source_form.setHorizontalSpacing(16)
-        source_form.setVerticalSpacing(12)
-        source_form.addRow("Fonte", self.source_type)
-        source_form.addRow("Planilha/Link", self.entry_source)
-        source_form.addRow("Saida", self.entry_output)
-        source_form.addRow("Agrupamento", self.grouping)
-        source_form.addRow("Colunas", self.columns)
-        source_form.addRow("Titulo", self.title_field)
-        source_layout.addLayout(source_form)
+        self.schema_status_label = QLabel("")
+        self.schema_status_label.setObjectName("statusLabel")
+        self.schema_status_label.setWordWrap(True)
 
-        source_actions = QHBoxLayout()
-        self.btn_browse_file = QPushButton("Procurar arquivo")
-        self.btn_browse_file.clicked.connect(self._choose_source_file)
-        btn_detect = QPushButton("Auto-detectar")
-        btn_detect.clicked.connect(self._auto_detect_columns)
-        source_actions.addWidget(self.btn_browse_file)
-        source_actions.addWidget(btn_detect)
-        source_actions.addStretch(1)
-        source_layout.addLayout(source_actions)
-        top_split.addWidget(source_panel, 5)
+        source_layout.addWidget(self._field_label("Source"), 0, 0)
+        source_layout.addWidget(self.source_type, 0, 1)
+        source_layout.addWidget(self._field_label("Model"), 0, 2)
+        source_layout.addWidget(self.model_selector, 0, 3)
+        source_layout.addWidget(self._field_label("Spreadsheet / Link"), 1, 0)
+        source_input_row = QWidget()
+        source_input_layout = QHBoxLayout(source_input_row)
+        source_input_layout.setContentsMargins(0, 0, 0, 0)
+        source_input_layout.setSpacing(10)
+        source_input_layout.addWidget(self.entry_source, 1)
+        source_input_layout.addWidget(self.btn_browse_file)
+        source_layout.addWidget(source_input_row, 1, 1, 1, 3)
+        source_layout.addWidget(self._field_label("Title"), 2, 0)
+        source_layout.addWidget(self.title_field, 2, 1)
+        source_layout.addWidget(self._field_label("Filename"), 2, 2)
+        source_layout.addWidget(self.filename_field, 2, 3)
+        source_layout.addWidget(self._field_label("Output"), 3, 0)
+        source_layout.addWidget(self.entry_output, 3, 1, 1, 3)
+        source_layout.addWidget(self._field_label("Dataset status"), 4, 0)
+        source_layout.addWidget(self.schema_status_label, 4, 1, 1, 3)
+        layout.addWidget(source_panel)
 
-        mapping_panel = QFrame()
-        mapping_panel.setObjectName("panel")
-        mapping_layout = QVBoxLayout(mapping_panel)
-        mapping_layout.setContentsMargins(18, 18, 18, 18)
-        mapping_layout.setSpacing(14)
-        mapping_layout.addWidget(self._panel_title("Mapeamento"))
-        self.mapping_hint = self._panel_hint("Nome e cargo sao obrigatorios.")
-        mapping_layout.addWidget(self.mapping_hint)
+        split = QHBoxLayout()
+        self._content_split = split
+        split.setSpacing(16)
 
-        mapping_form = QFormLayout()
-        mapping_form.setHorizontalSpacing(16)
-        mapping_form.setVerticalSpacing(10)
-        for field in self.column_fields:
-            combo = QComboBox()
-            combo.addItem("")
-            combo.setMinimumWidth(300)
-            self._column_selectors[field] = combo
-            mapping_form.addRow(field.capitalize(), combo)
-        mapping_layout.addLayout(mapping_form)
-        top_split.addWidget(mapping_panel, 5)
+        search_panel = QFrame()
+        search_panel.setObjectName("panel")
+        search_layout = QVBoxLayout(search_panel)
+        search_layout.setContentsMargins(18, 18, 18, 18)
+        search_layout.setSpacing(12)
 
-        action_split = QHBoxLayout()
-        self._action_split = action_split
-        action_split.setSpacing(16)
-        layout.addLayout(action_split)
+        search_header = QLabel("Search and results")
+        search_header.setObjectName("panelTitle")
+        search_layout.addWidget(search_header)
 
-        options_panel = QFrame()
-        options_panel.setObjectName("panel")
-        options_layout = QVBoxLayout(options_panel)
-        options_layout.setContentsMargins(18, 18, 18, 18)
-        options_layout.setSpacing(14)
-        options_layout.addWidget(self._panel_title("Exibicao do card"))
-        self.options_hint = self._panel_hint("Escolha os dados exibidos no card.")
-        options_layout.addWidget(self.options_hint)
+        search_controls = QGridLayout()
+        search_controls.setHorizontalSpacing(12)
+        search_controls.setVerticalSpacing(10)
+        search_controls.setColumnStretch(1, 1)
 
-        self.chk_show_nota = QCheckBox("Mostrar nota")
-        self.chk_show_nota.setChecked(True)
-        self.chk_show_potencial = QCheckBox("Mostrar potencial")
-        self.chk_show_potencial.setChecked(True)
-        self.chk_show_cargo = QCheckBox("Mostrar cargo")
-        self.chk_show_cargo.setChecked(True)
-        self.chk_cores = QCheckBox("Cores automaticas")
-        self.chk_cores.setChecked(True)
+        self.search_mode = QComboBox()
+        for label, value in self.SEARCH_OPTIONS:
+            self.search_mode.addItem(label, value)
+        self.search_mode.currentIndexChanged.connect(self._on_search_changed)
 
-        toggles_grid = QGridLayout()
-        toggles_grid.setHorizontalSpacing(18)
-        toggles_grid.setVerticalSpacing(8)
-        toggles_grid.addWidget(self.chk_show_nota, 0, 0)
-        toggles_grid.addWidget(self.chk_show_potencial, 0, 1)
-        toggles_grid.addWidget(self.chk_show_cargo, 1, 0)
-        toggles_grid.addWidget(self.chk_cores, 1, 1)
-        options_layout.addLayout(toggles_grid)
-        action_split.addWidget(options_panel, 7)
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText("Type to search people")
+        self.search_input.textChanged.connect(self._on_search_changed)
+
+        self.results_hint = QLabel("Validate the spreadsheet to enable live search.")
+        self.results_hint.setObjectName("muted")
+        self.results_hint.setWordWrap(True)
+
+        search_controls.addWidget(self._field_label("Search by"), 0, 0)
+        search_controls.addWidget(self.search_mode, 0, 1)
+        search_controls.addWidget(self._field_label("Query"), 1, 0)
+        search_controls.addWidget(self.search_input, 1, 1)
+        search_layout.addLayout(search_controls)
+        search_layout.addWidget(self.results_hint)
+
+        self.results_list = QListWidget()
+        self.results_list.setObjectName("caromResultsList")
+        self.results_list.setSpacing(8)
+        search_layout.addWidget(self.results_list, 1)
+        split.addWidget(search_panel, 5)
+
+        selection_panel = QFrame()
+        selection_panel.setObjectName("panel")
+        selection_layout = QVBoxLayout(selection_panel)
+        selection_layout.setContentsMargins(18, 18, 18, 18)
+        selection_layout.setSpacing(12)
+
+        selection_header = QLabel("Selected people")
+        selection_header.setObjectName("panelTitle")
+        selection_layout.addWidget(selection_header)
+
+        summary_grid = QGridLayout()
+        summary_grid.setHorizontalSpacing(12)
+        summary_grid.setVerticalSpacing(8)
+
+        self.total_selected_label = QLabel("0")
+        self.capacity_label = QLabel(str(self.current_capacity))
+        self.slide_count_label = QLabel("0")
+        self.current_slide_label = QLabel("")
+        self.current_slide_label.setObjectName("statusLabel")
+        self.current_slide_label.setWordWrap(True)
+
+        summary_grid.addWidget(self._field_label("Total selected"), 0, 0)
+        summary_grid.addWidget(self.total_selected_label, 0, 1)
+        summary_grid.addWidget(self._field_label("Per-slide capacity"), 1, 0)
+        summary_grid.addWidget(self.capacity_label, 1, 1)
+        summary_grid.addWidget(self._field_label("Projected slides"), 2, 0)
+        summary_grid.addWidget(self.slide_count_label, 2, 1)
+        summary_grid.addWidget(self._field_label("Current slide"), 3, 0)
+        summary_grid.addWidget(self.current_slide_label, 3, 1)
+        selection_layout.addLayout(summary_grid)
+
+        self.selected_list = QListWidget()
+        self.selected_list.setObjectName("caromSelectedList")
+        self.selected_list.setSpacing(8)
+        selection_layout.addWidget(self.selected_list, 1)
+        split.addWidget(selection_panel, 4)
+        layout.addLayout(split, 1)
 
         action_panel = QFrame()
         action_panel.setObjectName("panelAction")
-        action_layout = QVBoxLayout(action_panel)
+        action_layout = QHBoxLayout(action_panel)
         action_layout.setContentsMargins(18, 16, 18, 16)
-        action_layout.setSpacing(10)
-        action_layout.addWidget(self._panel_title("Acao final"))
+        action_layout.setSpacing(14)
+
+        status_col = QVBoxLayout()
+        status_col.setSpacing(6)
+        footer_label = QLabel("Generation status")
+        footer_label.setObjectName("panelTitle")
         self.status_label = QLabel("")
         self.status_label.setObjectName("statusLabel")
         self.status_label.setWordWrap(True)
-        action_layout.addWidget(self.status_label)
-        self.btn_generate = QPushButton("GERAR CAROMETRO")
+        status_col.addWidget(footer_label)
+        status_col.addWidget(self.status_label)
+        action_layout.addLayout(status_col, 1)
+
+        self.btn_generate = QPushButton("GENERATE CAROMETRO")
         self.btn_generate.setObjectName("primary")
         self.btn_generate.clicked.connect(self._start_generation)
+        self.btn_generate.setMinimumWidth(260)
         action_layout.addWidget(self.btn_generate)
-        action_layout.addStretch(1)
-        action_split.addWidget(action_panel, 3)
+        layout.addWidget(action_panel)
 
+        self._compact_labels = [subtitle, self.results_hint]
         self._sync_source_mode()
-        self._set_status("Informe a fonte de dados para iniciar.", "info")
-        self._compact_labels = [subtitle, self.source_hint, self.mapping_hint, self.options_hint]
+        self._sync_filename()
+        self._set_schema_status("Dataset not validated.", "warning")
+        self._set_status("Load a valid spreadsheet to start selecting people.", "info")
+        self._refresh_selection_summary()
+        self._refresh_action_state()
 
-    def _panel_title(self, text: str) -> QLabel:
-        label = QLabel(text)
-        label.setObjectName("panelTitle")
-        return label
+    @property
+    def current_preset_id(self) -> str:
+        return str(self.model_selector.currentData() or "regular")
 
-    def _panel_hint(self, text: str) -> QLabel:
+    @property
+    def current_capacity(self) -> int:
+        return get_carom_preset(self.current_preset_id)["capacity"]
+
+    def _field_label(self, text: str) -> QLabel:
         label = QLabel(text)
-        label.setObjectName("panelHint")
-        label.setWordWrap(True)
+        label.setObjectName("fichaFieldLabel")
         return label
 
     def _set_status(self, message: str, state: str) -> None:
         self.status_label.setText(message)
         self.status_label.setProperty("state", state)
-        style = self.status_label.style()
-        if style is not None:
-            style.unpolish(self.status_label)
-            style.polish(self.status_label)
-        self.status_label.update()
+        repolish(self.status_label)
+
+    def _set_schema_status(self, message: str, state: str) -> None:
+        self.schema_status_label.setText(message)
+        self.schema_status_label.setProperty("state", state)
+        repolish(self.schema_status_label)
+
+    def _set_invalid(self, widget: QWidget, is_invalid: bool) -> None:
+        widget.setProperty("invalid", is_invalid)
+        repolish(widget)
 
     def load_config(self, config: dict[str, Any]) -> None:
+        self._config = dict(config)
         source_kind = str(config.get("spreadsheet_source", "onedrive")).lower()
         self.source_type.setCurrentText(
             "Arquivo local" if source_kind == "local" else "OneDrive"
@@ -224,11 +342,15 @@ class CaromScreen(QWidget):
             else config.get("default_onedrive_url", "")
         )
         self.entry_output.setText(str(get_default_output_dir()))
-        self.grouping.setCurrentText(str(config.get("default_grouping", "area")))
-        self.columns.setCurrentText(str(config.get("default_carom_columns", 5)))
         self.title_field.setText("Carometro")
-        self._refresh_required_states()
-        self._refresh_preview()
+        self.model_selector.setCurrentIndex(1)
+        self._clear_loaded_data()
+        self._sync_source_mode()
+        self._sync_filename()
+        self._set_schema_status("Dataset not validated.", "warning")
+        self._set_status("Load a valid spreadsheet to start selecting people.", "info")
+        self._refresh_selection_summary()
+        self._refresh_action_state()
 
     def _choose_source_file(self) -> None:
         file_path, _filter = QFileDialog.getOpenFileName(
@@ -237,6 +359,11 @@ class CaromScreen(QWidget):
         if file_path:
             self.source_type.setCurrentText("Arquivo local")
             self.entry_source.setText(file_path)
+            self._start_schema_validation()
+
+    def _on_source_mode_changed(self, *_args: object) -> None:
+        self._sync_source_mode()
+        self._on_source_changed()
 
     def _sync_source_mode(self) -> None:
         local_mode = self.source_type.currentText() == "Arquivo local"
@@ -247,127 +374,271 @@ class CaromScreen(QWidget):
             else "https://... link compartilhado do OneDrive"
         )
 
-    def _on_source_changed(self) -> None:
+    def _sync_filename(self) -> None:
+        title = self.title_field.text().strip()
+        self.filename_field.setText(normalize_filename(title))
+
+    def _on_title_changed(self) -> None:
+        self._set_invalid(self.title_field, False)
+        self._sync_filename()
+        self._refresh_action_state()
+
+    def _on_source_changed(self, *_args: object) -> None:
         self._set_invalid(self.entry_source, False)
-        self._refresh_preview()
-
-    def _populate_column_selectors(self, headers: list[str]) -> None:
-        for combo in self._column_selectors.values():
-            current = combo.currentText()
-            combo.clear()
-            combo.addItem("")
-            combo.addItems(headers)
-            if current:
-                index = combo.findText(current)
-                if index >= 0:
-                    combo.setCurrentIndex(index)
-
-    def _set_invalid(self, widget: QWidget, is_invalid: bool) -> None:
-        widget.setProperty("invalid", is_invalid)
-        repolish(widget)
-
-    def _refresh_required_states(self) -> None:
-        for field in ("nome", "cargo"):
-            combo = self._column_selectors[field]
-            self._set_invalid(combo, combo.currentText().strip() == "")
-
-    def _refresh_preview(self) -> None:
-        if self._preview_rows:
-            self._set_status(f"Amostra carregada: {len(self._preview_rows)} linha(s).", "info")
-            return
-
+        self._schema_valid = False
+        self._schema_fields = {}
+        self._source_result = None
+        self._clear_loaded_data()
         source = self.entry_source.text().strip()
         if source:
-            self._set_status("Fonte definida. Use Auto-detectar.", "info")
+            self._set_schema_status("Dataset validation pending.", "info")
+            self._set_status("Source changed. Validate the dataset to enable search.", "info")
+        else:
+            self._set_schema_status("Dataset not validated.", "warning")
+            self._set_status("Load a valid spreadsheet to start selecting people.", "info")
+        self._refresh_action_state()
 
-    def _get_column_mapping(self) -> dict[str, str | None]:
-        return {
-            field: combo.currentText() or None
-            for field, combo in self._column_selectors.items()
-        }
-
-    def _validate_inputs(self) -> bool:
+    def _validate_source(self) -> bool:
         source = self.entry_source.text().strip()
         self._set_invalid(self.entry_source, source == "")
         if source == "":
-            self._set_status("Informe a fonte de dados.", "warning")
+            self._set_status("Enter the spreadsheet source.", "warning")
+            self._set_schema_status("Dataset not validated.", "warning")
             return False
 
         if self.source_type.currentText() == "Arquivo local" and not Path(source).is_file():
-            self._set_status("A planilha local nao foi encontrada.", "error")
+            self._set_status("The local spreadsheet was not found.", "error")
+            self._set_schema_status("Invalid dataset: local file not found.", "error")
             return False
 
         if self.source_type.currentText() == "OneDrive" and not source.startswith("https://"):
-            self._set_status("Informe um link valido do OneDrive.", "error")
+            self._set_status("Enter a valid OneDrive link.", "error")
+            self._set_schema_status("Invalid dataset: OneDrive link not recognized.", "error")
             return False
-
-        missing_required = reader.validate_required_columns(self._get_column_mapping())
-        self._refresh_required_states()
-        if missing_required:
-            self._set_status(
-                f"Mapeie os campos obrigatorios: {', '.join(missing_required)}.",
-                "warning",
-            )
-            return False
-
-        self._set_status("Configuracao valida. Pronto para gerar.", "success")
         return True
 
-    def _auto_detect_columns(self) -> None:
-        source = self.entry_source.text().strip()
-        if source == "":
-            self._set_status("Informe a fonte antes da auto-deteccao.", "warning")
+    def _start_schema_validation(self) -> None:
+        if not self._validate_source():
+            self._refresh_action_state()
+            return
+        if self._worker is not None and self._worker.isRunning():
             return
 
-        try:
-            if self.source_type.currentText() == "Arquivo local":
-                detected = reader.detect_columns_from_source(source)
-                rows = reader.read_spreadsheet(source)
-            else:
-                result = reader.resolve_spreadsheet_source(source)
-                detected = reader.detect_columns_from_source(result.path)
-                rows = reader.read_spreadsheet(result.path)
-
-            headers = list(rows[0].keys()) if rows else []
-            self._preview_rows = rows
-            self._populate_column_selectors(headers)
-            for field, value in detected.items():
-                combo = self._column_selectors.get(field)
-                if combo is not None and value:
-                    idx = combo.findText(value)
-                    if idx >= 0:
-                        combo.setCurrentIndex(idx)
-            self._set_status("Colunas detectadas com sucesso.", "success")
-        except Exception as exc:
-            self._set_status(str(exc), "error")
-
-    def _start_generation(self) -> None:
-        if not self._validate_inputs():
-            return
-
-        grouping = self.grouping.currentText()
-        self.generate_requested.emit(
+        self._worker = CaromLookupWorker(
             {
                 "spreadsheet_source": self.entry_source.text().strip(),
-                "source_kind": "local"
-                if self.source_type.currentText() == "Arquivo local"
-                else "onedrive",
+                "cache_enabled": self._config.get("cache_enabled", True),
+                "cache_ttl_hours": self._config.get("cache_ttl_hours", 24),
+                "force_refresh": False,
+            }
+        )
+        self._worker.succeeded.connect(self._handle_worker_success)
+        self._worker.error.connect(self._handle_worker_error)
+        self._worker.finished.connect(self._on_worker_finished)
+        self._set_schema_status("Validating standardized dataset...", "info")
+        self._set_status("Loading people from the spreadsheet...", "info")
+        self._refresh_action_state()
+        self._worker.start()
+
+    def _handle_worker_success(self, result: dict[str, Any]) -> None:
+        self._schema_valid = True
+        self._schema_fields = dict(result.get("schema", {}))
+        self._source_result = result.get("source_result")
+        self._loaded_employees = list(result.get("employees", []))
+        self._selected_employees = []
+        self._selected_keys = set()
+        self.search_input.clear()
+        self._filtered_employees = list(self._loaded_employees)
+        employee_count = int(result.get("employee_count", 0))
+        self._set_schema_status(
+            f"Standardized dataset validated. {employee_count} employee(s) loaded.",
+            "success",
+        )
+        self._set_status("Dataset loaded. Use live search to build the carometro.", "success")
+        self._refresh_results()
+        self._refresh_selected_list()
+        self._refresh_selection_summary()
+        self._refresh_action_state()
+
+    def _handle_worker_error(self, message: str) -> None:
+        self._schema_valid = False
+        self._schema_fields = {}
+        self._source_result = None
+        self._clear_loaded_data()
+        self._set_schema_status(message, "error")
+        self._set_status(message, "error")
+        self._refresh_action_state()
+
+    def _on_worker_finished(self) -> None:
+        self._worker = None
+        self._refresh_action_state()
+
+    def _clear_loaded_data(self) -> None:
+        self._loaded_employees = []
+        self._filtered_employees = []
+        self._selected_employees = []
+        self._selected_keys = set()
+        self.results_list.clear()
+        self.selected_list.clear()
+        self.results_hint.setText("Validate the spreadsheet to enable live search.")
+        self._refresh_selection_summary()
+
+    def _on_search_changed(self, *_args: object) -> None:
+        self._refresh_results()
+        self._refresh_action_state()
+
+    def _refresh_results(self) -> None:
+        self.results_list.clear()
+        if not self._schema_valid:
+            self.results_hint.setText("Validate the spreadsheet to enable live search.")
+            return
+
+        query = self.search_input.text().strip()
+        mode = str(self.search_mode.currentData() or "nome")
+        filtered = filter_carom_employees(self._loaded_employees, query=query, mode=mode)
+        self._filtered_employees = [
+            employee
+            for employee in filtered
+            if carom_employee_key(employee) not in self._selected_keys
+        ]
+
+        if not self._filtered_employees:
+            self.results_hint.setText(
+                "No available results for the current search."
+                if query
+                else "All loaded people are already selected."
+            )
+            return
+
+        self.results_hint.setText(f"{len(self._filtered_employees)} result(s) available.")
+        for employee in self._filtered_employees:
+            key = carom_employee_key(employee)
+            item = QListWidgetItem()
+            item.setSizeHint(QSize(0, 56))
+            card = _SelectableEmployeeCard(key, employee)
+            card.add_requested.connect(self._add_employee)
+            self.results_list.addItem(item)
+            self.results_list.setItemWidget(item, card)
+
+    def _refresh_selected_list(self) -> None:
+        self.selected_list.clear()
+        for index, employee in enumerate(self._selected_employees, start=1):
+            key = carom_employee_key(employee)
+            item = QListWidgetItem()
+            item.setSizeHint(QSize(0, 56))
+            card = _SelectedEmployeeCard(key, employee, index)
+            card.remove_requested.connect(self._remove_employee)
+            self.selected_list.addItem(item)
+            self.selected_list.setItemWidget(item, card)
+
+    def _add_employee(self, employee_key: str) -> None:
+        if employee_key in self._selected_keys:
+            self._set_status("This person is already selected.", "warning")
+            return
+        employee = next(
+            (
+                row
+                for row in self._filtered_employees
+                if carom_employee_key(row) == employee_key
+            ),
+            None,
+        )
+        if employee is None:
+            return
+        self._selected_employees.append(employee)
+        self._selected_keys.add(employee_key)
+        self._refresh_results()
+        self._refresh_selected_list()
+        self._refresh_selection_summary()
+        self._set_status(
+            f"Added {employee.get('nome', 'employee')} to the carometro selection.",
+            "success",
+        )
+        self._refresh_action_state()
+
+    def _remove_employee(self, employee_key: str) -> None:
+        self._selected_employees = [
+            employee
+            for employee in self._selected_employees
+            if carom_employee_key(employee) != employee_key
+        ]
+        self._selected_keys.discard(employee_key)
+        self._refresh_results()
+        self._refresh_selected_list()
+        self._refresh_selection_summary()
+        self._set_status("Person removed from the current selection.", "info")
+        self._refresh_action_state()
+
+    def _refresh_selection_summary(self) -> None:
+        capacity = self.current_capacity
+        selected_count = len(self._selected_employees)
+        self.total_selected_label.setText(str(selected_count))
+        self.capacity_label.setText(str(capacity))
+        self.slide_count_label.setText(
+            str(compute_projected_slide_count(selected_count, capacity))
+        )
+        self.current_slide_label.setText(
+            compute_current_slide_status(selected_count, capacity)
+        )
+        self.current_slide_label.setProperty(
+            "state", "success" if selected_count and selected_count % capacity == 0 else "info"
+        )
+        repolish(self.current_slide_label)
+
+    def _refresh_action_state(self) -> None:
+        worker_running = self._worker is not None and self._worker.isRunning()
+        title = self.title_field.text().strip()
+        filename = self.filename_field.text().strip()
+        ready_to_generate = (
+            self._schema_valid
+            and bool(self._selected_employees)
+            and bool(title)
+            and bool(filename)
+            and not worker_running
+        )
+        self.search_mode.setEnabled(self._schema_valid and not worker_running)
+        self.search_input.setEnabled(self._schema_valid and not worker_running)
+        self.model_selector.setEnabled(not worker_running)
+        self.source_type.setEnabled(not worker_running)
+        self.entry_source.setEnabled(not worker_running)
+        self.btn_browse_file.setEnabled(
+            self.source_type.currentText() == "Arquivo local" and not worker_running
+        )
+        self.title_field.setEnabled(not worker_running)
+        self.btn_generate.setEnabled(ready_to_generate)
+
+    def _start_generation(self) -> None:
+        title = self.title_field.text().strip()
+        filename = self.filename_field.text().strip()
+        self._set_invalid(self.title_field, title == "")
+        if title == "":
+            self._set_status("Enter a title before exporting.", "warning")
+            return
+        if filename == "":
+            self._set_status("The derived filename is invalid. Adjust the title.", "warning")
+            return
+        if not self._schema_valid:
+            self._set_status("Validate the dataset before exporting.", "warning")
+            return
+        if not self._selected_employees:
+            self._set_status("Select at least one person before exporting.", "warning")
+            return
+
+        self.generate_requested.emit(
+            {
                 "output_dir": str(get_default_output_dir()),
-                "column_mapping": self._get_column_mapping(),
-                "agrupamento": None if grouping == "sem agrupamento" else grouping,
-                "colunas": int(self.columns.currentText()),
-                "titulo": self.title_field.text().strip() or "Carometro",
-                "show_nota": self.chk_show_nota.isChecked(),
-                "show_potencial": self.chk_show_potencial.isChecked(),
-                "show_cargo": self.chk_show_cargo.isChecked(),
-                "cores_automaticas": self.chk_cores.isChecked(),
+                "selected_employees": list(self._selected_employees),
+                "source_result": self._source_result,
+                "preset_id": self.current_preset_id,
+                "titulo": title,
+                "file_basename": filename,
             }
         )
 
     def set_sidebar_collapsed(self, collapsed: bool) -> None:
-        self._root_layout.setContentsMargins(20, 20, 20, 20)
+        margin = 20 if collapsed else 26
+        self._root_layout.setContentsMargins(margin, margin, margin, margin)
         self._root_layout.setSpacing(12 if collapsed else 16)
-        self._top_split.setSpacing(12 if collapsed else 16)
-        self._action_split.setSpacing(12 if collapsed else 16)
+        self._content_split.setSpacing(12 if collapsed else 16)
         for label in self._compact_labels:
             label.setVisible(not collapsed)

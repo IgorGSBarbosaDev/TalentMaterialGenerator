@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from app.core.reader import SpreadsheetSourceResult
-from app.core.worker import FichaLookupWorker, GenerationWorker
+from app.core.worker import CaromLookupWorker, FichaLookupWorker, GenerationWorker
 
 
 def test_ficha_lookup_worker_validates_standardized_schema(monkeypatch) -> None:
@@ -143,3 +143,97 @@ def test_generation_worker_ficha_uses_selected_employee_only(monkeypatch, tmp_pa
     assert finished[0]["count"] == 1
     assert finished[0]["source_result"] is source_result
     assert progress == [(1, 1, "Ana Martins")]
+
+
+def test_carom_lookup_worker_loads_standardized_rows(monkeypatch) -> None:
+    source_result = SpreadsheetSourceResult(
+        path="base.xlsx",
+        source_kind="local",
+        is_temporary=False,
+        used_cache=False,
+        message="Usando planilha local.",
+    )
+
+    monkeypatch.setattr(
+        "app.core.worker.resolve_spreadsheet_source",
+        lambda *args, **kwargs: source_result,
+    )
+    monkeypatch.setattr(
+        "app.core.worker.read_spreadsheet",
+        lambda _path: [{"Matricula": "123", "Nome": "Ana Martins", "Cargo": "Analista"}],
+    )
+
+    worker = CaromLookupWorker({"spreadsheet_source": "base.xlsx"})
+    results: list[dict] = []
+    worker.succeeded.connect(results.append)
+
+    worker.run()
+
+    assert results
+    assert results[0]["validated"] is True
+    assert results[0]["employee_count"] == 1
+    assert results[0]["employees"][0]["nome"] == "Ana Martins"
+
+
+def test_generation_worker_carom_uses_selected_employees_only(monkeypatch, tmp_path: Path) -> None:
+    selected = [
+        {
+            "matricula": "123",
+            "nome": "Ana Martins",
+            "cargo": "Analista",
+            "foto": "",
+            "area": "",
+            "localizacao": "",
+            "unidade_gestao": "",
+        }
+    ]
+    source_result = SpreadsheetSourceResult(
+        path="cache.xlsx",
+        source_kind="onedrive",
+        is_temporary=False,
+        used_cache=True,
+        message="Usando cache local recente.",
+        downloaded_at="2026-04-02T10:00:00+00:00",
+    )
+
+    def _raise(*_args, **_kwargs):
+        raise AssertionError("Carom generation should not resolve the spreadsheet again")
+
+    def _generate(employees, output_dir, config, callback=None):
+        assert employees == selected
+        assert config["preset_id"] == "regular"
+        output_path = Path(output_dir) / "carometros" / "leadership_board.pptx"
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_bytes(b"x")
+        if callback is not None:
+            callback({"type": "progress", "current": 1, "total": 1, "name": "Leadership Board"})
+        return [str(output_path)]
+
+    monkeypatch.setattr("app.core.worker.resolve_spreadsheet_source", _raise)
+    monkeypatch.setattr("app.core.worker.read_spreadsheet", _raise)
+    monkeypatch.setattr("app.core.worker.generate_carom_pptx", _generate)
+
+    worker = GenerationWorker(
+        "carom",
+        {
+            "output_dir": str(tmp_path),
+            "selected_employees": selected,
+            "source_result": source_result,
+            "preset_id": "regular",
+            "titulo": "Leadership Board",
+            "file_basename": "leadership_board",
+        },
+    )
+    finished: list[dict] = []
+    progress: list[tuple[int, int, str]] = []
+    worker.finished.connect(finished.append)
+    worker.progress.connect(
+        lambda current, total, name: progress.append((current, total, name))
+    )
+
+    worker.run()
+
+    assert finished
+    assert finished[0]["count"] == 1
+    assert finished[0]["source_result"] is source_result
+    assert progress == [(1, 1, "Leadership Board")]

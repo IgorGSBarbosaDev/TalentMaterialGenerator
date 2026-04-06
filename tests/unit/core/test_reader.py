@@ -63,9 +63,22 @@ def test_validate_ficha_required_columns_uses_standardized_contract() -> None:
     assert missing == ["matricula", "cargo"]
 
 
+def test_validate_carom_required_columns_uses_standardized_contract() -> None:
+    missing = reader.validate_carom_required_columns(
+        {"matricula": None, "nome": "Nome", "cargo": None}
+    )
+
+    assert missing == ["matricula", "cargo"]
+
+
 def test_validate_standardized_ficha_schema_requires_matricula_nome_and_cargo() -> None:
     with pytest.raises(ValueError, match="Colunas ausentes: matricula"):
         reader.validate_standardized_ficha_schema(["Nome", "Cargo"])
+
+
+def test_validate_standardized_carom_schema_requires_matricula_nome_and_cargo() -> None:
+    with pytest.raises(ValueError, match="Colunas ausentes: matricula"):
+        reader.validate_standardized_carom_schema(["Nome", "Cargo"])
 
 
 def test_has_expected_ficha_column_order_accepts_planilha_teste_contract() -> None:
@@ -246,6 +259,23 @@ def test_load_standardized_ficha_rows_preserves_annual_notes() -> None:
     assert result[0]["nota_2023"] == ""
 
 
+def test_load_standardized_carom_rows_uses_detected_headers() -> None:
+    rows = [
+        {
+            "Matricula": "123",
+            "Nome": "Ana",
+            "Cargo": "Analista",
+            "Area": "Operacao",
+        }
+    ]
+
+    result = reader.load_standardized_carom_rows(rows)
+
+    assert result[0]["matricula"] == "123"
+    assert result[0]["nome"] == "Ana"
+    assert result[0]["area"] == "Operacao"
+
+
 def test_validate_ficha_employee_requires_nome_and_cargo() -> None:
     employee = {
         "matricula": "",
@@ -271,6 +301,76 @@ def test_lookup_ficha_employees_matches_partial_name_case_and_accents() -> None:
 
     assert len(result) == 1
     assert result[0]["nome"] == "Ana Maria"
+
+
+def test_carom_employee_key_prefers_matricula() -> None:
+    employee = {
+        "matricula": "123",
+        "nome": "Ana Maria",
+        "cargo": "Analista",
+        "foto": "",
+        "area": "",
+        "localizacao": "",
+        "unidade_gestao": "",
+    }
+
+    assert reader.carom_employee_key(employee) == "matricula:123"
+
+
+def test_filter_carom_employees_matches_partial_name() -> None:
+    employees = [
+        {
+            "matricula": "123",
+            "nome": "Ana Maria",
+            "cargo": "Analista",
+            "foto": "",
+            "area": "",
+            "localizacao": "",
+            "unidade_gestao": "",
+        },
+        {
+            "matricula": "456",
+            "nome": "Carlos Souza",
+            "cargo": "Coordenador",
+            "foto": "",
+            "area": "",
+            "localizacao": "",
+            "unidade_gestao": "",
+        },
+    ]
+
+    result = reader.filter_carom_employees(employees, query="mari", mode="nome")
+
+    assert len(result) == 1
+    assert result[0]["nome"] == "Ana Maria"
+
+
+def test_filter_carom_employees_prefers_exact_matricula_match() -> None:
+    employees = [
+        {
+            "matricula": "123",
+            "nome": "Ana Maria",
+            "cargo": "Analista",
+            "foto": "",
+            "area": "",
+            "localizacao": "",
+            "unidade_gestao": "",
+        },
+        {
+            "matricula": "1234",
+            "nome": "Ana Souza",
+            "cargo": "Analista",
+            "foto": "",
+            "area": "",
+            "localizacao": "",
+            "unidade_gestao": "",
+        },
+    ]
+
+    result = reader.filter_carom_employees(employees, query="123", mode="matricula")
+
+    assert len(result) == 1
+    assert result[0]["matricula"] == "123"
 
 
 def test_lookup_ficha_employees_blocks_duplicate_matricula() -> None:

@@ -8,14 +8,17 @@ from PySide6.QtCore import QThread, Signal
 from app.core.generator_carom import CaromConfig, generate_carom_pptx
 from app.core.generator_ficha import generate_ficha_pptx
 from app.core.reader import (
+    CaromEmployee,
     FichaEmployee,
     SpreadsheetSourceResult,
     cleanup_source,
     has_expected_ficha_column_order,
+    load_standardized_carom_rows,
     lookup_ficha_employees,
     read_spreadsheet,
-    remap_rows,
     resolve_spreadsheet_source,
+    validate_carom_employee,
+    validate_standardized_carom_schema,
     validate_standardized_ficha_schema,
     validate_ficha_employee,
 )
@@ -59,6 +62,45 @@ class FichaLookupWorker(QThread):
                     "row_count": len(raw_rows),
                     "headers": headers,
                     "schema_order_matches": has_expected_ficha_column_order(headers),
+                    "validated": True,
+                }
+            )
+        except Exception as exc:
+            self.error.emit(str(exc))
+        finally:
+            if source_result is not None:
+                cleanup_source(source_result)
+
+
+class CaromLookupWorker(QThread):
+    succeeded = Signal(dict)
+    error = Signal(str)
+
+    def __init__(self, config: dict[str, Any]) -> None:
+        super().__init__()
+        self.config = config
+
+    def run(self) -> None:
+        source_result: SpreadsheetSourceResult | None = None
+        try:
+            source_result = resolve_spreadsheet_source(
+                self.config["spreadsheet_source"],
+                cache_enabled=bool(self.config.get("cache_enabled", True)),
+                cache_ttl_hours=int(self.config.get("cache_ttl_hours", 24)),
+                force_refresh=bool(self.config.get("force_refresh", False)),
+            )
+            raw_rows = read_spreadsheet(source_result.path)
+            headers = list(raw_rows[0].keys()) if raw_rows else []
+            schema = validate_standardized_carom_schema(headers)
+            employees = load_standardized_carom_rows(raw_rows)
+            self.succeeded.emit(
+                {
+                    "schema": schema,
+                    "employees": employees,
+                    "source_result": source_result,
+                    "row_count": len(raw_rows),
+                    "employee_count": len(employees),
+                    "headers": headers,
                     "validated": True,
                 }
             )
@@ -115,36 +157,29 @@ class GenerationWorker(QThread):
                 files = [output_path]
                 source_result = self.config.get("source_result")
             else:
-                self.log.emit("Preparando fonte de dados...", "info")
-                source_result = resolve_spreadsheet_source(
-                    self.config["spreadsheet_source"],
-                    cache_enabled=bool(self.config.get("cache_enabled", True)),
-                    cache_ttl_hours=int(self.config.get("cache_ttl_hours", 24)),
-                    force_refresh=bool(self.config.get("force_refresh", False)),
-                )
-                cleanup_target = source_result
-                self.log.emit(source_result.message, "info")
-
-                raw_rows = read_spreadsheet(source_result.path)
-                rows = remap_rows(raw_rows, self.config["column_mapping"])
-                self.log.emit(f"{len(rows)} colaboradores encontrados", "success")
+                employees: list[CaromEmployee] = list(self.config.get("selected_employees", []))
+                if not employees:
+                    raise ValueError("Selecione ao menos um colaborador para gerar o carometro.")
+                for employee in employees:
+                    missing_required = validate_carom_employee(employee)
+                    if missing_required:
+                        joined = ", ".join(missing_required)
+                        raise ValueError(
+                            f"Um colaborador selecionado nao possui os campos obrigatorios: {joined}."
+                        )
+                self.log.emit(f"{len(employees)} colaboradores selecionados", "success")
                 carom_config: CaromConfig = {
-                    "colunas": int(self.config.get("colunas", 5)),
-                    "agrupamento": self.config.get("agrupamento"),
+                    "preset_id": str(self.config.get("preset_id", "regular")),
+                    "file_basename": str(self.config.get("file_basename", "")),
                     "titulo": str(self.config.get("titulo", "Carometro")),
-                    "show_nota": bool(self.config.get("show_nota", True)),
-                    "show_potencial": bool(self.config.get("show_potencial", True)),
-                    "show_cargo": bool(self.config.get("show_cargo", True)),
-                    "cores_automaticas": bool(
-                        self.config.get("cores_automaticas", True)
-                    ),
                 }
                 files = generate_carom_pptx(
-                    rows,
+                    employees,
                     self.config["output_dir"],
                     carom_config,
                     callback=_callback,
                 )
+                source_result = self.config.get("source_result")
 
             elapsed = max(monotonic() - started_at, 0.0)
             self.finished.emit(
