@@ -87,7 +87,7 @@ class CaromScreen(QWidget):
     generate_requested = Signal(dict)
 
     page_title = "Carometro"
-    page_subtitle = "Search, select and export slide face boards"
+    page_subtitle = ""
     page_badge = "Grid"
 
     PRESET_OPTIONS: tuple[tuple[str, str], ...] = (
