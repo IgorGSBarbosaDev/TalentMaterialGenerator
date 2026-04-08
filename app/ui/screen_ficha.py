@@ -52,10 +52,6 @@ class FichaScreen(QWidget):
         layout.setContentsMargins(30, 30, 30, 30)
         layout.setSpacing(18)
 
-        title = QLabel("Ficha de Curriculo")
-        title.setObjectName("title")
-        layout.addWidget(title)
-
         source_card = QFrame()
         source_card.setObjectName("fichaSourceCard")
         source_layout = QVBoxLayout(source_card)

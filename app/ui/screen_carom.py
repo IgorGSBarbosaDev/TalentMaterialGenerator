@@ -118,16 +118,6 @@ class CaromScreen(QWidget):
         layout.setContentsMargins(26, 26, 26, 26)
         layout.setSpacing(16)
 
-        title = QLabel("Carometro Generator")
-        title.setObjectName("title")
-        subtitle = QLabel(
-            "Load a standardized spreadsheet, search people in real time, and export a multi-slide deck."
-        )
-        subtitle.setObjectName("muted")
-        subtitle.setWordWrap(True)
-        layout.addWidget(title)
-        layout.addWidget(subtitle)
-
         source_panel = QFrame()
         source_panel.setObjectName("panel")
         source_layout = QGridLayout(source_panel)
@@ -295,7 +285,7 @@ class CaromScreen(QWidget):
         action_layout.addWidget(self.btn_generate)
         layout.addWidget(action_panel)
 
-        self._compact_labels = [subtitle, self.results_hint]
+        self._compact_labels = [self.results_hint]
         self._sync_source_mode()
         self._sync_filename()
         self._set_schema_status("Dataset not validated.", "warning")
