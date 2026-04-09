@@ -40,6 +40,17 @@ def test_stylesheet_has_no_global_transparent_input_override() -> None:
     assert "QLineEdit, QComboBox, QTextEdit, QListWidget, QSpinBox {{\n    background-color: transparent;" not in stylesheet
 
 
+def test_stylesheet_keeps_labels_transparent_and_section_cards_themable() -> None:
+    stylesheet = theme.build_stylesheet("light")
+
+    assert "QLabel {\n    background-color: transparent;\n}" in stylesheet
+    assert "QFrame#sectionCard" in stylesheet
+    assert "QFrame#heroCard" in stylesheet
+    assert "QFrame#statusPanel" in stylesheet
+    assert "QFrame#logPanel" in stylesheet
+    assert "QFrame#settingsPanel" in stylesheet
+
+
 def test_light_stylesheet_uses_dedicated_input_tokens() -> None:
     stylesheet = theme.build_stylesheet("light")
 
