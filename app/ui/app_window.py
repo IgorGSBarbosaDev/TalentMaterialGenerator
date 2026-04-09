@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from typing import Any
 
-from PySide6.QtCore import Qt, QUrl
+from PySide6.QtCore import QAbstractAnimation, QEasingCurve, QPropertyAnimation, Qt, QUrl
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
     QApplication,
@@ -41,6 +41,7 @@ class AppWindow(QMainWindow):
         self._sidebar_collapsed = False
         self._sidebar_expanded_width = 248
         self._sidebar_collapsed_width = 88
+        self._sidebar_animation_duration_ms = 180
 
         self.setWindowTitle("USI Generator")
         self.resize(1320, 820)
@@ -55,7 +56,8 @@ class AppWindow(QMainWindow):
 
         self.sidebar = QFrame()
         self.sidebar.setObjectName("sidebar")
-        self.sidebar.setFixedWidth(self._sidebar_expanded_width)
+        self.sidebar.setMinimumWidth(self._sidebar_expanded_width)
+        self.sidebar.setMaximumWidth(self._sidebar_expanded_width)
         sidebar_layout = QVBoxLayout(self.sidebar)
         sidebar_layout.setContentsMargins(16, 16, 16, 16)
         sidebar_layout.setSpacing(12)
@@ -130,6 +132,14 @@ class AppWindow(QMainWindow):
         self.sidebar_toggle_button.setFixedSize(40, 36)
         self.sidebar_toggle_button.clicked.connect(self._toggle_sidebar)
         topbar_layout.addWidget(self.sidebar_toggle_button)
+
+        self._sidebar_animation = QPropertyAnimation(self.sidebar, b"minimumWidth", self)
+        self._sidebar_animation.setDuration(self._sidebar_animation_duration_ms)
+        self._sidebar_animation.setEasingCurve(QEasingCurve.Type.OutCubic)
+        self._sidebar_animation.valueChanged.connect(
+            self._on_sidebar_animation_value_changed
+        )
+        self._sidebar_animation.finished.connect(self._on_sidebar_animation_finished)
 
         title_col = QVBoxLayout()
         title_col.setSpacing(2)
@@ -324,12 +334,34 @@ class AppWindow(QMainWindow):
         self._update_theme_toggle_button()
 
     def _toggle_sidebar(self) -> None:
+        if self._sidebar_animation.state() == QAbstractAnimation.State.Running:
+            return
         self._sidebar_collapsed = not self._sidebar_collapsed
-        self._apply_sidebar_state()
+        self._apply_sidebar_state(animate=True)
 
-    def _apply_sidebar_state(self) -> None:
+    def _on_sidebar_animation_value_changed(self, value: Any) -> None:
+        self.sidebar.setMaximumWidth(int(value))
+
+    def _on_sidebar_animation_finished(self) -> None:
+        target_width = (
+            self._sidebar_collapsed_width
+            if self._sidebar_collapsed
+            else self._sidebar_expanded_width
+        )
+        self.sidebar.setMinimumWidth(target_width)
+        self.sidebar.setMaximumWidth(target_width)
+        self.sidebar_toggle_button.setEnabled(True)
+
+    def _animate_sidebar_width(self, target_width: int) -> None:
+        self.sidebar_toggle_button.setEnabled(False)
+        self._sidebar_animation.stop()
+        self._sidebar_animation.setStartValue(self.sidebar.width())
+        self._sidebar_animation.setEndValue(target_width)
+        self._sidebar_animation.start()
+
+    def _apply_sidebar_state(self, *, animate: bool = False) -> None:
         collapsed = self._sidebar_collapsed
-        self.sidebar.setFixedWidth(
+        target_width = (
             self._sidebar_collapsed_width if collapsed else self._sidebar_expanded_width
         )
         self.sidebar.setProperty("collapsed", "true" if collapsed else "false")
@@ -353,6 +385,14 @@ class AppWindow(QMainWindow):
         self.sidebar_toggle_button.setToolTip(
             "Expandir menu lateral" if collapsed else "Recolher menu lateral"
         )
+
+        if animate:
+            self._animate_sidebar_width(target_width)
+        else:
+            self._sidebar_animation.stop()
+            self.sidebar.setMinimumWidth(target_width)
+            self.sidebar.setMaximumWidth(target_width)
+            self.sidebar_toggle_button.setEnabled(True)
 
         widget = self.screens.get(self._current_screen)
         if widget is not None and hasattr(widget, "set_sidebar_collapsed"):
