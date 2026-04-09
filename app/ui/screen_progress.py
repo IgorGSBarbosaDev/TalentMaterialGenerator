@@ -32,8 +32,8 @@ class ProgressScreen(QWidget):
 
         layout = QVBoxLayout(self)
         self._root_layout = layout
-        layout.setContentsMargins(28, 24, 28, 24)
-        layout.setSpacing(18)
+        layout.setContentsMargins(24, 20, 24, 20)
+        layout.setSpacing(14)
 
         summary = SectionCard(
             "Processamento",
@@ -51,7 +51,7 @@ class ProgressScreen(QWidget):
         summary.add_layout(title_row)
 
         metrics = QHBoxLayout()
-        metrics.setSpacing(12)
+        metrics.setSpacing(10)
         self.percent_metric = MetricCard("Percentual", "0%", "Execucao atual")
         self.count_metric = MetricCard("Processados", "0 de 0", "Fila atual")
         self.elapsed_metric = MetricCard("Status", "Preparando", "Aguardando callbacks")
@@ -190,7 +190,8 @@ class ProgressScreen(QWidget):
             self.open_output_requested.emit(self._output_dir)
 
     def set_sidebar_collapsed(self, collapsed: bool) -> None:
-        self._root_layout.setContentsMargins(20, 20, 20, 20)
-        self._root_layout.setSpacing(14 if collapsed else 18)
+        margin = 18 if collapsed else 24
+        self._root_layout.setContentsMargins(margin, margin, margin, margin)
+        self._root_layout.setSpacing(10 if collapsed else 14)
         self.summary_card.subtitle_label.setVisible(not collapsed)
         self.log_panel.subtitle_label.setVisible(not collapsed)

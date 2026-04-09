@@ -57,8 +57,8 @@ class AppWindow(QMainWindow):
         self.sidebar.setObjectName("sidebar")
         self.sidebar.setFixedWidth(self._sidebar_expanded_width)
         sidebar_layout = QVBoxLayout(self.sidebar)
-        sidebar_layout.setContentsMargins(18, 18, 18, 18)
-        sidebar_layout.setSpacing(14)
+        sidebar_layout.setContentsMargins(16, 16, 16, 16)
+        sidebar_layout.setSpacing(12)
         self.sidebar_layout = sidebar_layout
 
         brand_row = QHBoxLayout()
@@ -121,8 +121,8 @@ class AppWindow(QMainWindow):
         self.topbar = QFrame()
         self.topbar.setObjectName("topbar")
         topbar_layout = QHBoxLayout(self.topbar)
-        topbar_layout.setContentsMargins(20, 14, 20, 14)
-        topbar_layout.setSpacing(12)
+        topbar_layout.setContentsMargins(16, 12, 16, 12)
+        topbar_layout.setSpacing(10)
 
         self.sidebar_toggle_button = QPushButton("\u2630")
         self.sidebar_toggle_button.setObjectName("sidebar_toggle")

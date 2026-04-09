@@ -243,10 +243,10 @@ def test_ficha_screen_handles_sidebar_collapsed_state(qtbot) -> None:
     qtbot.addWidget(screen)
 
     screen.set_sidebar_collapsed(True)
-    assert screen._root_layout.spacing() == 14
+    assert screen._root_layout.spacing() == 12
 
     screen.set_sidebar_collapsed(False)
-    assert screen._root_layout.spacing() == 18
+    assert screen._root_layout.spacing() == 14
 
 
 def test_ficha_screen_uses_two_card_workflow_surfaces(qtbot) -> None:

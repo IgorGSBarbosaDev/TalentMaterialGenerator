@@ -29,8 +29,8 @@ class HomeScreen(QWidget):
         layout = QVBoxLayout(self)
         self._root_layout = layout
         self._compact_labels: list[QLabel] = []
-        layout.setContentsMargins(28, 24, 28, 24)
-        layout.setSpacing(18)
+        layout.setContentsMargins(24, 20, 24, 20)
+        layout.setSpacing(14)
 
         hero_card = SectionCard(
             "TALENT DEVELOPMENT",
@@ -45,8 +45,8 @@ class HomeScreen(QWidget):
 
         actions_grid = QGridLayout()
         self.actions_grid = actions_grid
-        actions_grid.setHorizontalSpacing(14)
-        actions_grid.setVerticalSpacing(14)
+        actions_grid.setHorizontalSpacing(12)
+        actions_grid.setVerticalSpacing(12)
 
         ficha_card = self._build_action_card(
             "Ficha de Curriculo",
@@ -69,7 +69,7 @@ class HomeScreen(QWidget):
         self.history_label.setObjectName("bodyMuted")
         self.history_label.setWordWrap(True)
         self.history_list = QListWidget()
-        self.history_list.setMinimumHeight(180)
+        self.history_list.setMinimumHeight(160)
         history_panel.add_widget(self.history_label)
         history_panel.add_widget(self.history_list, 1)
 
@@ -82,7 +82,7 @@ class HomeScreen(QWidget):
 
         metrics_row = QHBoxLayout()
         self.metrics_row = metrics_row
-        metrics_row.setSpacing(14)
+        metrics_row.setSpacing(12)
         self.ficha_metric = MetricCard("Fichas geradas", "0", "Base atual")
         self.carom_metric = MetricCard("Carometros gerados", "0", "Ciclos visuais")
         self.total_metric = MetricCard("Operacoes registradas", "0", "Ultimas execucoes")
@@ -118,11 +118,12 @@ class HomeScreen(QWidget):
         return card
 
     def set_sidebar_collapsed(self, collapsed: bool) -> None:
-        self._root_layout.setContentsMargins(20, 20, 20, 20)
-        self._root_layout.setSpacing(12 if collapsed else 16)
-        self.actions_grid.setHorizontalSpacing(12 if collapsed else 16)
-        self.actions_grid.setVerticalSpacing(12 if collapsed else 16)
-        self.metrics_row.setSpacing(10 if collapsed else 14)
+        margin = 18 if collapsed else 24
+        self._root_layout.setContentsMargins(margin, margin, margin, margin)
+        self._root_layout.setSpacing(10 if collapsed else 14)
+        self.actions_grid.setHorizontalSpacing(10 if collapsed else 12)
+        self.actions_grid.setVerticalSpacing(10 if collapsed else 12)
+        self.metrics_row.setSpacing(8 if collapsed else 12)
         for label in self._compact_labels:
             label.setVisible(not collapsed)
 

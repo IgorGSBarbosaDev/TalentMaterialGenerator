@@ -36,8 +36,8 @@ class SectionCard(QFrame):
         self.setObjectName(object_name)
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(18, 18, 18, 18)
-        layout.setSpacing(12 if compact else 14)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(10 if compact else 12)
 
         header = QVBoxLayout()
         header.setSpacing(4)
@@ -55,7 +55,7 @@ class SectionCard(QFrame):
         layout.addLayout(header)
 
         self.body_layout = QVBoxLayout()
-        self.body_layout.setSpacing(12)
+        self.body_layout.setSpacing(10)
         layout.addLayout(self.body_layout)
 
     def add_widget(self, widget: QWidget, stretch: int = 0) -> None:
@@ -71,7 +71,7 @@ class MetricCard(QFrame):
         self.setObjectName("metricCard")
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setContentsMargins(14, 14, 14, 14)
         layout.setSpacing(4)
 
         self.value_label = QLabel(value)
@@ -152,8 +152,8 @@ class PreviewListItem(QFrame):
         self.setObjectName("previewListItem")
 
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(10, 8, 10, 8)
-        layout.setSpacing(10)
+        layout.setContentsMargins(8, 6, 8, 6)
+        layout.setSpacing(8)
 
         initials = "".join(part[:1] for part in title.split()[:2]).upper() or "?"
         self.avatar = QLabel(initials)

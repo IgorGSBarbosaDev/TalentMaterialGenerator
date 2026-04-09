@@ -291,7 +291,7 @@ QListWidget {{
     background-color: {palette["input"]};
     border: 1px solid {palette["input_border"]};
     border-radius: 10px;
-    padding: 9px 11px;
+    padding: 8px 10px;
     color: {palette["text"]};
     selection-background-color: {palette["accent"]};
     selection-color: #111111;
@@ -335,7 +335,7 @@ QPushButton {{
     color: {palette["text"]};
     border: 1px solid {palette["border"]};
     border-radius: 8px;
-    padding: 9px 14px;
+    padding: 8px 12px;
 }}
 QPushButton:hover {{
     border-color: {palette["border_hover"]};
@@ -407,7 +407,7 @@ QTextEdit#fichaDisplayField {{
     background-color: {palette["surface_2"]};
     border: 1px solid {palette["border_hover"]};
     border-radius: 12px;
-    padding: 10px 12px;
+    padding: 9px 11px;
     color: {palette["text"]};
 }}
 QTextEdit#fichaDisplayField {{
@@ -438,7 +438,7 @@ QTableWidget {{
     selection-color: {palette["text"]};
 }}
 QTableWidget::item {{
-    padding: 8px 10px;
+    padding: 7px 9px;
     border-bottom: 1px solid {palette["border"]};
 }}
 QTableWidget::item:selected {{
@@ -452,7 +452,7 @@ QTableWidget#fichaResultsTable {{
 QHeaderView::section {{
     background-color: {palette["surface"]};
     color: {palette["text_muted"]};
-    padding: 10px 12px;
+    padding: 8px 10px;
     border: none;
     border-bottom: 1px solid {palette["border"]};
     font-size: 11px;
@@ -544,7 +544,7 @@ QLabel#panelHint {{
 }}
 QLabel#statusLabel {{
     border-radius: 10px;
-    padding: 10px 12px;
+    padding: 8px 10px;
     border: 1px solid {palette["border"]};
     background-color: {palette["surface_alt"]};
 }}

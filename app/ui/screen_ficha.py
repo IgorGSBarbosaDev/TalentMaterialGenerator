@@ -49,25 +49,25 @@ class FichaScreen(QWidget):
 
         layout = QVBoxLayout(self)
         self._root_layout = layout
-        layout.setContentsMargins(30, 30, 30, 30)
-        layout.setSpacing(18)
+        layout.setContentsMargins(24, 24, 24, 24)
+        layout.setSpacing(14)
 
         source_card = QFrame()
         source_card.setObjectName("fichaSourceCard")
         source_layout = QVBoxLayout(source_card)
-        source_layout.setContentsMargins(22, 22, 22, 22)
-        source_layout.setSpacing(18)
+        source_layout.setContentsMargins(18, 18, 18, 18)
+        source_layout.setSpacing(14)
 
         source_title = self._panel_title("Fonte de dados")
         source_title.setObjectName("panelTitleStrong")
         source_layout.addWidget(source_title)
 
         source_body = QHBoxLayout()
-        source_body.setSpacing(18)
+        source_body.setSpacing(14)
 
         source_form = QGridLayout()
-        source_form.setHorizontalSpacing(14)
-        source_form.setVerticalSpacing(14)
+        source_form.setHorizontalSpacing(12)
+        source_form.setVerticalSpacing(12)
         source_form.setColumnStretch(1, 1)
 
         self.source_type = QComboBox()
@@ -75,7 +75,7 @@ class FichaScreen(QWidget):
         self.source_type.currentTextChanged.connect(self._on_source_mode_changed)
 
         self.entry_source = QLineEdit(config.get("default_onedrive_url", ""))
-        self.entry_source.setMinimumWidth(360)
+        self.entry_source.setMinimumWidth(320)
         self.entry_source.textChanged.connect(self._on_source_text_changed)
         self.entry_source.editingFinished.connect(self._start_schema_validation)
 
@@ -119,13 +119,13 @@ class FichaScreen(QWidget):
 
         content_split = QHBoxLayout()
         self._content_split = content_split
-        content_split.setSpacing(18)
+        content_split.setSpacing(14)
 
         lookup_panel = QFrame()
         lookup_panel.setObjectName("fichaLookupPane")
         lookup_layout = QVBoxLayout(lookup_panel)
-        lookup_layout.setContentsMargins(20, 20, 20, 20)
-        lookup_layout.setSpacing(16)
+        lookup_layout.setContentsMargins(16, 16, 16, 16)
+        lookup_layout.setSpacing(12)
 
         self.lookup_mode = QComboBox()
         self.lookup_mode.addItem("Selecione o tipo de busca", "")
@@ -164,13 +164,13 @@ class FichaScreen(QWidget):
         results_panel = QFrame()
         results_panel.setObjectName("fichaResultsPane")
         results_layout = QVBoxLayout(results_panel)
-        results_layout.setContentsMargins(20, 20, 20, 20)
+        results_layout.setContentsMargins(16, 16, 16, 16)
         results_layout.setSpacing(0)
 
         table_wrap = QFrame()
         table_wrap.setObjectName("fichaTableWrap")
         table_layout = QVBoxLayout(table_wrap)
-        table_layout.setContentsMargins(10, 10, 10, 10)
+        table_layout.setContentsMargins(8, 8, 8, 8)
         table_layout.setSpacing(0)
 
         self.results_table = QTableWidget(0, 3)
@@ -180,7 +180,7 @@ class FichaScreen(QWidget):
         self.results_table.setSelectionMode(QAbstractItemView.SingleSelection)
         self.results_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.results_table.setAlternatingRowColors(True)
-        self.results_table.setMinimumHeight(420)
+        self.results_table.setMinimumHeight(360)
         self.results_table.verticalHeader().setVisible(False)
         self.results_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.results_table.itemSelectionChanged.connect(self._on_results_selection_changed)
@@ -193,8 +193,8 @@ class FichaScreen(QWidget):
         action_bar = QFrame()
         action_bar.setObjectName("fichaActionBar")
         action_layout = QHBoxLayout(action_bar)
-        action_layout.setContentsMargins(18, 16, 18, 16)
-        action_layout.setSpacing(14)
+        action_layout.setContentsMargins(16, 12, 16, 12)
+        action_layout.setSpacing(12)
 
         status_col = QVBoxLayout()
         status_col.setSpacing(6)
@@ -210,7 +210,7 @@ class FichaScreen(QWidget):
         self.btn_generate = QPushButton("Gerar ficha")
         self.btn_generate.setObjectName("primary")
         self.btn_generate.clicked.connect(self._start_generation)
-        self.btn_generate.setMinimumWidth(220)
+        self.btn_generate.setMinimumWidth(200)
         action_layout.addWidget(self.btn_generate)
         layout.addWidget(action_bar)
 
@@ -627,9 +627,9 @@ class FichaScreen(QWidget):
         self.generate_requested.emit(self._get_generation_payload())
 
     def set_sidebar_collapsed(self, collapsed: bool) -> None:
-        margin = 22 if collapsed else 30
+        margin = 18 if collapsed else 24
         self._root_layout.setContentsMargins(margin, margin, margin, margin)
-        self._root_layout.setSpacing(14 if collapsed else 18)
-        self._content_split.setSpacing(14 if collapsed else 18)
+        self._root_layout.setSpacing(12 if collapsed else 14)
+        self._content_split.setSpacing(12 if collapsed else 14)
         for label in self._compact_labels:
             label.setVisible(not collapsed)

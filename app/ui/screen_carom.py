@@ -44,8 +44,8 @@ class _SelectableEmployeeCard(QFrame):
         self.setObjectName("previewListItem")
 
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(10, 8, 10, 8)
-        layout.setSpacing(10)
+        layout.setContentsMargins(8, 6, 8, 6)
+        layout.setSpacing(8)
 
         meta = f"{employee.get('cargo', '')} | Matricula {employee.get('matricula', '-') or '-'}"
         self.preview = PreviewListItem(employee.get("nome", "") or "Sem Nome", meta)
@@ -65,8 +65,8 @@ class _SelectedEmployeeCard(QFrame):
         self.setObjectName("previewListItem")
 
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(10, 8, 10, 8)
-        layout.setSpacing(10)
+        layout.setContentsMargins(8, 6, 8, 6)
+        layout.setSpacing(8)
 
         order = QLabel(str(index))
         order.setObjectName("statusBadge")
@@ -115,15 +115,15 @@ class CaromScreen(QWidget):
 
         layout = QVBoxLayout(self)
         self._root_layout = layout
-        layout.setContentsMargins(26, 26, 26, 26)
-        layout.setSpacing(16)
+        layout.setContentsMargins(22, 22, 22, 22)
+        layout.setSpacing(14)
 
         source_panel = QFrame()
         source_panel.setObjectName("panel")
         source_layout = QGridLayout(source_panel)
-        source_layout.setContentsMargins(18, 18, 18, 18)
-        source_layout.setHorizontalSpacing(14)
-        source_layout.setVerticalSpacing(12)
+        source_layout.setContentsMargins(16, 16, 16, 16)
+        source_layout.setHorizontalSpacing(12)
+        source_layout.setVerticalSpacing(10)
         source_layout.setColumnStretch(1, 1)
         source_layout.setColumnStretch(3, 1)
 
@@ -164,7 +164,7 @@ class CaromScreen(QWidget):
         source_input_row = QWidget()
         source_input_layout = QHBoxLayout(source_input_row)
         source_input_layout.setContentsMargins(0, 0, 0, 0)
-        source_input_layout.setSpacing(10)
+        source_input_layout.setSpacing(8)
         source_input_layout.addWidget(self.entry_source, 1)
         source_input_layout.addWidget(self.btn_browse_file)
         source_layout.addWidget(source_input_row, 1, 1, 1, 3)
@@ -180,21 +180,21 @@ class CaromScreen(QWidget):
 
         split = QHBoxLayout()
         self._content_split = split
-        split.setSpacing(16)
+        split.setSpacing(14)
 
         search_panel = QFrame()
         search_panel.setObjectName("panel")
         search_layout = QVBoxLayout(search_panel)
-        search_layout.setContentsMargins(18, 18, 18, 18)
-        search_layout.setSpacing(12)
+        search_layout.setContentsMargins(16, 16, 16, 16)
+        search_layout.setSpacing(10)
 
         search_header = QLabel("Search and results")
         search_header.setObjectName("panelTitle")
         search_layout.addWidget(search_header)
 
         search_controls = QGridLayout()
-        search_controls.setHorizontalSpacing(12)
-        search_controls.setVerticalSpacing(10)
+        search_controls.setHorizontalSpacing(10)
+        search_controls.setVerticalSpacing(8)
         search_controls.setColumnStretch(1, 1)
 
         self.search_mode = QComboBox()
@@ -219,23 +219,23 @@ class CaromScreen(QWidget):
 
         self.results_list = QListWidget()
         self.results_list.setObjectName("caromResultsList")
-        self.results_list.setSpacing(8)
+        self.results_list.setSpacing(6)
         search_layout.addWidget(self.results_list, 1)
         split.addWidget(search_panel, 5)
 
         selection_panel = QFrame()
         selection_panel.setObjectName("panel")
         selection_layout = QVBoxLayout(selection_panel)
-        selection_layout.setContentsMargins(18, 18, 18, 18)
-        selection_layout.setSpacing(12)
+        selection_layout.setContentsMargins(16, 16, 16, 16)
+        selection_layout.setSpacing(10)
 
         selection_header = QLabel("Selected people")
         selection_header.setObjectName("panelTitle")
         selection_layout.addWidget(selection_header)
 
         summary_grid = QGridLayout()
-        summary_grid.setHorizontalSpacing(12)
-        summary_grid.setVerticalSpacing(8)
+        summary_grid.setHorizontalSpacing(10)
+        summary_grid.setVerticalSpacing(6)
 
         self.total_selected_label = QLabel("0")
         self.capacity_label = QLabel(str(self.current_capacity))
@@ -256,7 +256,7 @@ class CaromScreen(QWidget):
 
         self.selected_list = QListWidget()
         self.selected_list.setObjectName("caromSelectedList")
-        self.selected_list.setSpacing(8)
+        self.selected_list.setSpacing(6)
         selection_layout.addWidget(self.selected_list, 1)
         split.addWidget(selection_panel, 4)
         layout.addLayout(split, 1)
@@ -264,8 +264,8 @@ class CaromScreen(QWidget):
         action_panel = QFrame()
         action_panel.setObjectName("panelAction")
         action_layout = QHBoxLayout(action_panel)
-        action_layout.setContentsMargins(18, 16, 18, 16)
-        action_layout.setSpacing(14)
+        action_layout.setContentsMargins(16, 12, 16, 12)
+        action_layout.setSpacing(12)
 
         status_col = QVBoxLayout()
         status_col.setSpacing(6)
@@ -281,7 +281,7 @@ class CaromScreen(QWidget):
         self.btn_generate = QPushButton("GENERATE CAROMETRO")
         self.btn_generate.setObjectName("primary")
         self.btn_generate.clicked.connect(self._start_generation)
-        self.btn_generate.setMinimumWidth(260)
+        self.btn_generate.setMinimumWidth(220)
         action_layout.addWidget(self.btn_generate)
         layout.addWidget(action_panel)
 
@@ -504,7 +504,7 @@ class CaromScreen(QWidget):
         for employee in self._filtered_employees:
             key = carom_employee_key(employee)
             item = QListWidgetItem()
-            item.setSizeHint(QSize(0, 56))
+            item.setSizeHint(QSize(0, 52))
             card = _SelectableEmployeeCard(key, employee)
             card.add_requested.connect(self._add_employee)
             self.results_list.addItem(item)
@@ -515,7 +515,7 @@ class CaromScreen(QWidget):
         for index, employee in enumerate(self._selected_employees, start=1):
             key = carom_employee_key(employee)
             item = QListWidgetItem()
-            item.setSizeHint(QSize(0, 56))
+            item.setSizeHint(QSize(0, 52))
             card = _SelectedEmployeeCard(key, employee, index)
             card.remove_requested.connect(self._remove_employee)
             self.selected_list.addItem(item)
@@ -626,9 +626,9 @@ class CaromScreen(QWidget):
         )
 
     def set_sidebar_collapsed(self, collapsed: bool) -> None:
-        margin = 20 if collapsed else 26
+        margin = 18 if collapsed else 22
         self._root_layout.setContentsMargins(margin, margin, margin, margin)
-        self._root_layout.setSpacing(12 if collapsed else 16)
-        self._content_split.setSpacing(12 if collapsed else 16)
+        self._root_layout.setSpacing(10 if collapsed else 14)
+        self._content_split.setSpacing(10 if collapsed else 14)
         for label in self._compact_labels:
             label.setVisible(not collapsed)

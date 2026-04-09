@@ -29,8 +29,8 @@ class SettingsScreen(QWidget):
         super().__init__()
         layout = QVBoxLayout(self)
         self._root_layout = layout
-        layout.setContentsMargins(26, 26, 26, 26)
-        layout.setSpacing(16)
+        layout.setContentsMargins(22, 22, 22, 22)
+        layout.setSpacing(14)
 
         title = QLabel("Configuracoes")
         title.setObjectName("title")
@@ -114,8 +114,9 @@ class SettingsScreen(QWidget):
         )
 
     def set_sidebar_collapsed(self, collapsed: bool) -> None:
-        self._root_layout.setContentsMargins(20, 20, 20, 20)
-        self._root_layout.setSpacing(12 if collapsed else 16)
+        margin = 18 if collapsed else 22
+        self._root_layout.setContentsMargins(margin, margin, margin, margin)
+        self._root_layout.setSpacing(10 if collapsed else 14)
         self.intro_card.subtitle_label.setVisible(not collapsed)
         self.data_card.subtitle_label.setVisible(not collapsed)
         self.cache_card.subtitle_label.setVisible(not collapsed)
