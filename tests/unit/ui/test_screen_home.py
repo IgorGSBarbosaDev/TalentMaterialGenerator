@@ -9,9 +9,9 @@ def test_home_screen_updates_history(qtbot) -> None:
     screen = HomeScreen()
     qtbot.addWidget(screen)
 
-    screen.refresh_history(["ficha: 1 arquivo"])
+    screen.refresh_history(["ficha: Ana_Martins.pptx"])
 
-    assert "ficha" in screen.history_label.text()
+    assert "Ana_Martins.pptx" in screen.history_label.text()
 
 
 def test_home_screen_hero_simplified_layout(qtbot) -> None:

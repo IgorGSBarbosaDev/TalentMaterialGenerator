@@ -178,3 +178,33 @@ def test_app_window_topbar_has_no_right_badge_widget(qtbot) -> None:
     qtbot.addWidget(window)
 
     assert hasattr(window, "topbar_badge") is False
+
+
+def test_app_window_formats_history_entry_with_generated_filename(qtbot) -> None:
+    window = AppWindow({"last_generations": [], "theme": "dark"})
+    qtbot.addWidget(window)
+
+    entry = window._format_history_entry(
+        "ficha",
+        {
+            "files": [r"C:\temp\fichas\Ana_Martins.pptx"],
+            "count": 1,
+        },
+    )
+
+    assert entry == "ficha: Ana_Martins.pptx"
+
+
+def test_app_window_formats_history_entry_with_fallback_count(qtbot) -> None:
+    window = AppWindow({"last_generations": [], "theme": "dark"})
+    qtbot.addWidget(window)
+
+    entry = window._format_history_entry(
+        "carom",
+        {
+            "files": [],
+            "count": 2,
+        },
+    )
+
+    assert entry == "carom: 2 arquivo(s)"

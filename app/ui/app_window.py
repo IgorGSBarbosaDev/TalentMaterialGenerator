@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 from typing import Any
 
 from PySide6.QtCore import QAbstractAnimation, QEasingCurve, QPropertyAnimation, Qt, QUrl
@@ -279,7 +280,7 @@ class AppWindow(QMainWindow):
             result["output_dir"], int(result["count"]), str(result["elapsed"])
         )
         self._stats[job_type] += int(result["count"])
-        self._history.insert(0, f"{job_type}: {result['count']} arquivo(s)")
+        self._history.insert(0, self._format_history_entry(job_type, result))
         self._history = self._history[:10]
         self.config = settings.update_config(
             {
@@ -298,6 +299,22 @@ class AppWindow(QMainWindow):
         self.current_worker = None
         self.progress_screen.on_error(message)
         QMessageBox.critical(self, "Erro", message)
+
+    def _format_history_entry(self, job_type: str, result: dict[str, Any]) -> str:
+        files = result.get("files", [])
+        valid_files = (
+            [str(path) for path in files if str(path).strip()]
+            if isinstance(files, (list, tuple))
+            else []
+        )
+        if valid_files:
+            first_name = Path(valid_files[0]).name
+            extra_count = len(valid_files) - 1
+            if extra_count > 0:
+                return f"{job_type}: {first_name} (+{extra_count})"
+            return f"{job_type}: {first_name}"
+
+        return f"{job_type}: {int(result.get('count', 0))} arquivo(s)"
 
     def _refresh_home(self) -> None:
         self.home_screen.update_stats(self._stats["ficha"], self._stats["carom"])
