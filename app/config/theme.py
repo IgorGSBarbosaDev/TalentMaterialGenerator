@@ -25,6 +25,8 @@ PALETTE: dict[str, dict[str, str]] = {
         "accent_hover": "#9AD11D",
         "accent_soft": "#1E2A14",
         "accent_surface": "#101A08",
+        "sidebar_accent": "#A6E22E",
+        "sidebar_accent_soft": "#243515",
         "success": "#84BD00",
         "warning": "#F59E0B",
         "error": "#EF4444",
@@ -54,6 +56,8 @@ PALETTE: dict[str, dict[str, str]] = {
         "accent_hover": "#5A8500",
         "accent_soft": "#E6F0CB",
         "accent_surface": "#F5F9E9",
+        "sidebar_accent": "#84BD00",
+        "sidebar_accent_soft": "#D9E9AF",
         "success": "#6F9E00",
         "warning": "#C98B00",
         "error": "#C24141",
@@ -96,8 +100,8 @@ QFrame#sidebar[collapsed="true"] {{
     background-color: {palette["sidebar_alt"]};
 }}
 QLabel#brandMark {{
-    background-color: {palette["accent_soft"]};
-    color: {palette["accent"]};
+    background-color: {palette["sidebar_accent_soft"]};
+    color: {palette["sidebar_accent"]};
     border-radius: 12px;
     font-size: 22px;
     font-weight: 800;
@@ -112,7 +116,7 @@ QLabel#brandTitle {{
 }}
 QLabel#brandSubtitle,
 QLabel#navSectionLabel {{
-    color: {palette["text_dim"]};
+    color: {palette["sidebar_accent"]};
     font-size: 11px;
     font-weight: 700;
     letter-spacing: 0.4px;
@@ -124,15 +128,17 @@ QPushButton#navButton {{
     border-radius: 10px;
     font-weight: 600;
     background-color: transparent;
+    border: 1px solid transparent;
     line-height: 1.15;
 }}
 QPushButton#navButton:hover {{
-    background-color: {palette["surface_alt"]};
+    background-color: {palette["sidebar_accent_soft"]};
+    border-color: {palette["sidebar_accent"]};
 }}
 QPushButton#navButton:checked {{
-    background-color: {palette["accent_soft"]};
-    border-color: {palette["accent"]};
-    color: {palette["accent"]};
+    background-color: {palette["sidebar_accent"]};
+    border-color: {palette["sidebar_accent"]};
+    color: #111111;
 }}
 QFrame#sidebar[collapsed="true"] QPushButton#navButton {{
     text-align: center;
