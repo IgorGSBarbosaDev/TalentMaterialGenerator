@@ -82,6 +82,9 @@ QWidget {{
     font-family: "Segoe UI";
     font-size: 13px;
 }}
+QLabel {{
+    background-color: transparent;
+}}
 QMainWindow {{
     background-color: {palette["bg"]};
 }}
@@ -150,7 +153,13 @@ QFrame#topbar {{
     background-color: {palette["surface"]};
     border-bottom: 1px solid {palette["border"]};
 }}
-QFrame#card, QFrame#panel {{
+QFrame#card,
+QFrame#panel,
+QFrame#sectionCard,
+QFrame#heroCard,
+QFrame#statusPanel,
+QFrame#logPanel,
+QFrame#settingsPanel {{
     background-color: {palette["surface"]};
     border: 1px solid {palette["border"]};
     border-radius: 14px;
