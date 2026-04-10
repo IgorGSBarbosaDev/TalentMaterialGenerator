@@ -36,12 +36,12 @@ def test_compute_projected_slide_count_uses_capacity() -> None:
 def test_compute_current_slide_status_reports_remaining_people() -> None:
     assert (
         generator_carom.compute_current_slide_status(3, 10)
-        == "7 people left to complete the current slide"
+        == "Faltam 7 pessoas para completar o slide atual"
     )
-    assert generator_carom.compute_current_slide_status(10, 10) == "Current slide complete"
+    assert generator_carom.compute_current_slide_status(10, 10) == "Slide atual completo"
     assert (
         generator_carom.compute_current_slide_status(11, 10)
-        == "9 people left to complete the current slide"
+        == "Faltam 9 pessoas para completar o slide atual"
     )
 
 
