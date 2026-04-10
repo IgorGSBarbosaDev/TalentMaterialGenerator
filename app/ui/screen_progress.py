@@ -23,7 +23,6 @@ class ProgressScreen(QWidget):
     chrome_changed = Signal()
 
     page_title = "Geracao"
-    page_subtitle = "Status da geracao"
     page_badge = "Em execucao"
 
     def __init__(self) -> None:
@@ -104,7 +103,6 @@ class ProgressScreen(QWidget):
     def set_context(self, title: str, subtitle: str, badge: str = "Em execucao") -> None:
         self.page_title = title
         self.page_badge = badge
-        self.page_subtitle = subtitle
         self.state_badge.update_status(badge, "info")
         self.subtitle_label.setText(subtitle)
         self.elapsed_metric.set_value("Preparando")
@@ -147,7 +145,6 @@ class ProgressScreen(QWidget):
     def on_complete(self, output_dir: str, count: int, elapsed: str) -> None:
         self._output_dir = output_dir
         self.page_badge = "Concluido"
-        self.page_subtitle = f"{count} arquivo(s) gerado(s) em {elapsed}."
         self.state_badge.update_status("Concluido", "success")
         self.elapsed_metric.set_value(elapsed)
         self.elapsed_metric.set_footnote("Tempo total")
@@ -160,7 +157,6 @@ class ProgressScreen(QWidget):
 
     def on_error(self, message: str) -> None:
         self.page_badge = "Falha"
-        self.page_subtitle = message
         self.state_badge.update_status("Falha", "error")
         self.elapsed_metric.set_value("Interrompido")
         self.elapsed_metric.set_footnote("Verifique o log")
@@ -170,7 +166,6 @@ class ProgressScreen(QWidget):
     def reset(self) -> None:
         self._output_dir = ""
         self.page_title = "Geracao"
-        self.page_subtitle = "Status da geracao"
         self.page_badge = "Em execucao"
         self.progress_bar.setValue(0)
         self.counter_label.setText("0 de 0")

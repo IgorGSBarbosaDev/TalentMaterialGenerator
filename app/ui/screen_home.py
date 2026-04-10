@@ -20,7 +20,6 @@ class HomeScreen(QWidget):
     settings_requested = Signal()
 
     page_title = "Inicio"
-    page_subtitle = "Visao geral"
     page_badge = "Dashboard"
 
     def __init__(self) -> None:

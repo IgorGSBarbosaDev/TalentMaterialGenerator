@@ -143,14 +143,10 @@ class AppWindow(QMainWindow):
         self._sidebar_animation.finished.connect(self._on_sidebar_animation_finished)
 
         title_col = QVBoxLayout()
-        title_col.setSpacing(2)
+        title_col.setSpacing(0)
         self.topbar_title = QLabel("USI Generator")
         self.topbar_title.setObjectName("title")
-        self.topbar_subtitle = QLabel("")
-        self.topbar_subtitle.setObjectName("muted")
-        self.topbar_subtitle.setWordWrap(True)
         title_col.addWidget(self.topbar_title)
-        title_col.addWidget(self.topbar_subtitle)
         topbar_layout.addLayout(title_col, 1)
 
         topbar_layout.addStretch(1)
@@ -227,7 +223,6 @@ class AppWindow(QMainWindow):
     def _sync_topbar(self) -> None:
         widget = self.screens[self._current_screen]
         self.topbar_title.setText(getattr(widget, "page_title", "USI Generator"))
-        self.topbar_subtitle.setText(getattr(widget, "page_subtitle", ""))
 
     def _has_running_worker(self) -> bool:
         return self.current_worker is not None and self.current_worker.isRunning()

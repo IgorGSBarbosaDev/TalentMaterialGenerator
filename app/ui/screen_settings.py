@@ -22,7 +22,6 @@ class SettingsScreen(QWidget):
     refresh_cache_requested = Signal()
 
     page_title = "Configuracoes"
-    page_subtitle = "Padroes e cache"
     page_badge = "Sistema"
 
     def __init__(self, config: dict) -> None:

@@ -32,7 +32,6 @@ class FichaScreen(QWidget):
     generate_requested = Signal(dict)
 
     page_title = "Ficha de Curriculo"
-    page_subtitle = ""
     page_badge = "Template"
 
     def __init__(self, config: dict[str, Any]) -> None:
