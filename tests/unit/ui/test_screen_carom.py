@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from app.config.settings import get_default_output_dir
+from app.core.reader import normalize_filename
 from app.ui.screen_carom import CaromScreen
 
 
@@ -32,6 +33,7 @@ def test_carom_screen_get_generation_payload_uses_default_output_dir(qtbot) -> N
     qtbot.addWidget(screen)
     _load_employees(screen)
     screen._add_employee("matricula:101")
+    screen.title_field.setText("Carômetro QA 2026")
 
     received = []
     screen.generate_requested.connect(received.append)
@@ -39,6 +41,7 @@ def test_carom_screen_get_generation_payload_uses_default_output_dir(qtbot) -> N
 
     assert received[0]["output_dir"] == str(get_default_output_dir())
     assert received[0]["preset_id"] == "regular"
+    assert received[0]["file_basename"] == normalize_filename("Carômetro QA 2026")
 
 
 def test_carom_screen_updates_completion_indicator(qtbot) -> None:

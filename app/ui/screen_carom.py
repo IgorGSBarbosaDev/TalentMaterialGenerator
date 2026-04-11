@@ -145,8 +145,6 @@ class CaromScreen(QWidget):
 
         self.title_field = QLineEdit("Carômetro")
         self.title_field.textChanged.connect(self._on_title_changed)
-        self.filename_field = QLineEdit()
-        self.filename_field.setReadOnly(True)
 
         self.entry_output = QLineEdit(str(get_default_output_dir()))
         self.entry_output.setReadOnly(True)
@@ -169,12 +167,10 @@ class CaromScreen(QWidget):
         source_layout.addWidget(source_input_row, 1, 1, 1, 3)
         source_layout.addWidget(self._field_label("Título"), 2, 0)
         source_layout.addWidget(self.title_field, 2, 1)
-        source_layout.addWidget(self._field_label("Nome do arquivo"), 2, 2)
-        source_layout.addWidget(self.filename_field, 2, 3)
+        source_layout.addWidget(self._field_label("Status da planilha"), 2, 2)
+        source_layout.addWidget(self.schema_status_label, 2, 3)
         source_layout.addWidget(self._field_label("Saída"), 3, 0)
         source_layout.addWidget(self.entry_output, 3, 1, 1, 3)
-        source_layout.addWidget(self._field_label("Status da planilha"), 4, 0)
-        source_layout.addWidget(self.schema_status_label, 4, 1, 1, 3)
         layout.addWidget(source_panel)
 
         split = QHBoxLayout()
@@ -286,7 +282,6 @@ class CaromScreen(QWidget):
 
         self._compact_labels = [self.results_hint]
         self._sync_source_mode()
-        self._sync_filename()
         self._set_schema_status("Planilha não validada.", "warning")
         self._set_status("Carregue uma planilha válida para começar a selecionar pessoas.", "info")
         self._refresh_selection_summary()
@@ -335,7 +330,6 @@ class CaromScreen(QWidget):
         self.model_selector.setCurrentIndex(1)
         self._clear_loaded_data()
         self._sync_source_mode()
-        self._sync_filename()
         self._set_schema_status("Planilha não validada.", "warning")
         self._set_status("Carregue uma planilha válida para começar a selecionar pessoas.", "info")
         self._refresh_selection_summary()
@@ -363,13 +357,11 @@ class CaromScreen(QWidget):
             else "https://... link compartilhado do OneDrive"
         )
 
-    def _sync_filename(self) -> None:
-        title = self.title_field.text().strip()
-        self.filename_field.setText(normalize_filename(title))
+    def _derive_filename(self) -> str:
+        return normalize_filename(self.title_field.text().strip())
 
     def _on_title_changed(self) -> None:
         self._set_invalid(self.title_field, False)
-        self._sync_filename()
         self._refresh_action_state()
 
     def _on_source_changed(self, *_args: object) -> None:
@@ -582,7 +574,7 @@ class CaromScreen(QWidget):
     def _refresh_action_state(self) -> None:
         worker_running = self._worker is not None and self._worker.isRunning()
         title = self.title_field.text().strip()
-        filename = self.filename_field.text().strip()
+        filename = self._derive_filename()
         ready_to_generate = (
             self._schema_valid
             and bool(self._selected_employees)
@@ -603,7 +595,7 @@ class CaromScreen(QWidget):
 
     def _start_generation(self) -> None:
         title = self.title_field.text().strip()
-        filename = self.filename_field.text().strip()
+        filename = self._derive_filename()
         self._set_invalid(self.title_field, title == "")
         if title == "":
             self._set_status("Informe um título antes de exportar.", "warning")
