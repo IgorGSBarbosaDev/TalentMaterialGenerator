@@ -47,7 +47,7 @@ def test_carom_screen_updates_completion_indicator(qtbot) -> None:
     _load_employees(screen)
     screen._add_employee("matricula:101")
 
-    assert screen.current_slide_label.text() == "9 people left to complete the current slide"
+    assert screen.current_slide_label.text() == "Faltam 9 pessoas para completar o slide atual"
 
 
 def test_carom_screen_prevents_duplicate_selection(qtbot) -> None:
@@ -58,7 +58,7 @@ def test_carom_screen_prevents_duplicate_selection(qtbot) -> None:
     screen._add_employee("matricula:101")
 
     assert len(screen._selected_employees) == 1
-    assert "already selected" in screen.status_label.text()
+    assert "já está selecionada" in screen.status_label.text()
 
 
 def test_carom_screen_live_search_filters_loaded_rows(qtbot) -> None:
@@ -79,7 +79,7 @@ def test_carom_screen_requires_title_and_selection_before_generation(qtbot) -> N
     screen.title_field.setText("")
     screen._start_generation()
 
-    assert "Enter a title" in screen.status_label.text()
+    assert "Informe um título" in screen.status_label.text()
     assert screen.btn_generate.isEnabled() is False
 
 

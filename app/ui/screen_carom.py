@@ -47,11 +47,11 @@ class _SelectableEmployeeCard(QFrame):
         layout.setContentsMargins(8, 6, 8, 6)
         layout.setSpacing(8)
 
-        meta = f"{employee.get('cargo', '')} | Matricula {employee.get('matricula', '-') or '-'}"
+        meta = f"{employee.get('cargo', '')} | Matrícula {employee.get('matricula', '-') or '-'}"
         self.preview = PreviewListItem(employee.get("nome", "") or "Sem Nome", meta)
         layout.addWidget(self.preview, 1)
 
-        self.add_button = QPushButton("Add")
+        self.add_button = QPushButton("Adicionar")
         self.add_button.clicked.connect(lambda: self.add_requested.emit(self.employee_key))
         layout.addWidget(self.add_button)
 
@@ -74,11 +74,11 @@ class _SelectedEmployeeCard(QFrame):
         order.setFixedSize(30, 30)
         layout.addWidget(order)
 
-        meta = f"{employee.get('cargo', '')} | Matricula {employee.get('matricula', '-') or '-'}"
+        meta = f"{employee.get('cargo', '')} | Matrícula {employee.get('matricula', '-') or '-'}"
         self.preview = PreviewListItem(employee.get("nome", "") or "Sem Nome", meta)
         layout.addWidget(self.preview, 1)
 
-        self.remove_button = QPushButton("Remove")
+        self.remove_button = QPushButton("Remover")
         self.remove_button.clicked.connect(lambda: self.remove_requested.emit(self.employee_key))
         layout.addWidget(self.remove_button)
 
@@ -86,17 +86,17 @@ class _SelectedEmployeeCard(QFrame):
 class CaromScreen(QWidget):
     generate_requested = Signal(dict)
 
-    page_title = "Carometro"
-    page_badge = "Grid"
+    page_title = "Carômetro"
+    page_badge = "Grade"
 
     PRESET_OPTIONS: tuple[tuple[str, str], ...] = (
         ("Mini", "mini"),
         ("Regular", "regular"),
-        ("Large", "large"),
+        ("Grande", "large"),
     )
     SEARCH_OPTIONS: tuple[tuple[str, str], ...] = (
-        ("Name", "nome"),
-        ("Matricula", "matricula"),
+        ("Nome", "nome"),
+        ("Matrícula", "matricula"),
     )
 
     def __init__(self, config: dict[str, Any]) -> None:
@@ -134,7 +134,7 @@ class CaromScreen(QWidget):
         self.entry_source.textChanged.connect(self._on_source_changed)
         self.entry_source.editingFinished.connect(self._start_schema_validation)
 
-        self.btn_browse_file = QPushButton("Browse")
+        self.btn_browse_file = QPushButton("Procurar")
         self.btn_browse_file.clicked.connect(self._choose_source_file)
 
         self.model_selector = QComboBox()
@@ -143,7 +143,7 @@ class CaromScreen(QWidget):
         self.model_selector.setCurrentIndex(1)
         self.model_selector.currentIndexChanged.connect(self._refresh_selection_summary)
 
-        self.title_field = QLineEdit("Carometro")
+        self.title_field = QLineEdit("Carômetro")
         self.title_field.textChanged.connect(self._on_title_changed)
         self.filename_field = QLineEdit()
         self.filename_field.setReadOnly(True)
@@ -155,11 +155,11 @@ class CaromScreen(QWidget):
         self.schema_status_label.setObjectName("statusLabel")
         self.schema_status_label.setWordWrap(True)
 
-        source_layout.addWidget(self._field_label("Source"), 0, 0)
+        source_layout.addWidget(self._field_label("Origem"), 0, 0)
         source_layout.addWidget(self.source_type, 0, 1)
-        source_layout.addWidget(self._field_label("Model"), 0, 2)
+        source_layout.addWidget(self._field_label("Modelo"), 0, 2)
         source_layout.addWidget(self.model_selector, 0, 3)
-        source_layout.addWidget(self._field_label("Spreadsheet / Link"), 1, 0)
+        source_layout.addWidget(self._field_label("Planilha / Link"), 1, 0)
         source_input_row = QWidget()
         source_input_layout = QHBoxLayout(source_input_row)
         source_input_layout.setContentsMargins(0, 0, 0, 0)
@@ -167,13 +167,13 @@ class CaromScreen(QWidget):
         source_input_layout.addWidget(self.entry_source, 1)
         source_input_layout.addWidget(self.btn_browse_file)
         source_layout.addWidget(source_input_row, 1, 1, 1, 3)
-        source_layout.addWidget(self._field_label("Title"), 2, 0)
+        source_layout.addWidget(self._field_label("Título"), 2, 0)
         source_layout.addWidget(self.title_field, 2, 1)
-        source_layout.addWidget(self._field_label("Filename"), 2, 2)
+        source_layout.addWidget(self._field_label("Nome do arquivo"), 2, 2)
         source_layout.addWidget(self.filename_field, 2, 3)
-        source_layout.addWidget(self._field_label("Output"), 3, 0)
+        source_layout.addWidget(self._field_label("Saída"), 3, 0)
         source_layout.addWidget(self.entry_output, 3, 1, 1, 3)
-        source_layout.addWidget(self._field_label("Dataset status"), 4, 0)
+        source_layout.addWidget(self._field_label("Status da planilha"), 4, 0)
         source_layout.addWidget(self.schema_status_label, 4, 1, 1, 3)
         layout.addWidget(source_panel)
 
@@ -187,7 +187,7 @@ class CaromScreen(QWidget):
         search_layout.setContentsMargins(16, 16, 16, 16)
         search_layout.setSpacing(10)
 
-        search_header = QLabel("Search and results")
+        search_header = QLabel("Busca e resultados")
         search_header.setObjectName("panelTitle")
         search_layout.addWidget(search_header)
 
@@ -202,16 +202,16 @@ class CaromScreen(QWidget):
         self.search_mode.currentIndexChanged.connect(self._on_search_changed)
 
         self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("Type to search people")
+        self.search_input.setPlaceholderText("Digite para buscar pessoas")
         self.search_input.textChanged.connect(self._on_search_changed)
 
-        self.results_hint = QLabel("Validate the spreadsheet to enable live search.")
+        self.results_hint = QLabel("Valide a planilha para habilitar a busca em tempo real.")
         self.results_hint.setObjectName("muted")
         self.results_hint.setWordWrap(True)
 
-        search_controls.addWidget(self._field_label("Search by"), 0, 0)
+        search_controls.addWidget(self._field_label("Buscar por"), 0, 0)
         search_controls.addWidget(self.search_mode, 0, 1)
-        search_controls.addWidget(self._field_label("Query"), 1, 0)
+        search_controls.addWidget(self._field_label("Termo"), 1, 0)
         search_controls.addWidget(self.search_input, 1, 1)
         search_layout.addLayout(search_controls)
         search_layout.addWidget(self.results_hint)
@@ -228,7 +228,7 @@ class CaromScreen(QWidget):
         selection_layout.setContentsMargins(16, 16, 16, 16)
         selection_layout.setSpacing(10)
 
-        selection_header = QLabel("Selected people")
+        selection_header = QLabel("Pessoas selecionadas")
         selection_header.setObjectName("panelTitle")
         selection_layout.addWidget(selection_header)
 
@@ -243,13 +243,13 @@ class CaromScreen(QWidget):
         self.current_slide_label.setObjectName("statusLabel")
         self.current_slide_label.setWordWrap(True)
 
-        summary_grid.addWidget(self._field_label("Total selected"), 0, 0)
+        summary_grid.addWidget(self._field_label("Total selecionado"), 0, 0)
         summary_grid.addWidget(self.total_selected_label, 0, 1)
-        summary_grid.addWidget(self._field_label("Per-slide capacity"), 1, 0)
+        summary_grid.addWidget(self._field_label("Capacidade por slide"), 1, 0)
         summary_grid.addWidget(self.capacity_label, 1, 1)
-        summary_grid.addWidget(self._field_label("Projected slides"), 2, 0)
+        summary_grid.addWidget(self._field_label("Slides previstos"), 2, 0)
         summary_grid.addWidget(self.slide_count_label, 2, 1)
-        summary_grid.addWidget(self._field_label("Current slide"), 3, 0)
+        summary_grid.addWidget(self._field_label("Slide atual"), 3, 0)
         summary_grid.addWidget(self.current_slide_label, 3, 1)
         selection_layout.addLayout(summary_grid)
 
@@ -268,7 +268,7 @@ class CaromScreen(QWidget):
 
         status_col = QVBoxLayout()
         status_col.setSpacing(6)
-        footer_label = QLabel("Generation status")
+        footer_label = QLabel("Status da geração")
         footer_label.setObjectName("panelTitle")
         self.status_label = QLabel("")
         self.status_label.setObjectName("statusLabel")
@@ -277,7 +277,7 @@ class CaromScreen(QWidget):
         status_col.addWidget(self.status_label)
         action_layout.addLayout(status_col, 1)
 
-        self.btn_generate = QPushButton("GENERATE CAROMETRO")
+        self.btn_generate = QPushButton("GERAR CARÔMETRO")
         self.btn_generate.setObjectName("primary")
         self.btn_generate.clicked.connect(self._start_generation)
         self.btn_generate.setMinimumWidth(220)
@@ -287,8 +287,8 @@ class CaromScreen(QWidget):
         self._compact_labels = [self.results_hint]
         self._sync_source_mode()
         self._sync_filename()
-        self._set_schema_status("Dataset not validated.", "warning")
-        self._set_status("Load a valid spreadsheet to start selecting people.", "info")
+        self._set_schema_status("Planilha não validada.", "warning")
+        self._set_status("Carregue uma planilha válida para começar a selecionar pessoas.", "info")
         self._refresh_selection_summary()
         self._refresh_action_state()
 
@@ -331,13 +331,13 @@ class CaromScreen(QWidget):
             else config.get("default_onedrive_url", "")
         )
         self.entry_output.setText(str(get_default_output_dir()))
-        self.title_field.setText("Carometro")
+        self.title_field.setText("Carômetro")
         self.model_selector.setCurrentIndex(1)
         self._clear_loaded_data()
         self._sync_source_mode()
         self._sync_filename()
-        self._set_schema_status("Dataset not validated.", "warning")
-        self._set_status("Load a valid spreadsheet to start selecting people.", "info")
+        self._set_schema_status("Planilha não validada.", "warning")
+        self._set_status("Carregue uma planilha válida para começar a selecionar pessoas.", "info")
         self._refresh_selection_summary()
         self._refresh_action_state()
 
@@ -380,29 +380,29 @@ class CaromScreen(QWidget):
         self._clear_loaded_data()
         source = self.entry_source.text().strip()
         if source:
-            self._set_schema_status("Dataset validation pending.", "info")
-            self._set_status("Source changed. Validate the dataset to enable search.", "info")
+            self._set_schema_status("Validação da planilha pendente.", "info")
+            self._set_status("Origem alterada. Valide a planilha para habilitar a busca.", "info")
         else:
-            self._set_schema_status("Dataset not validated.", "warning")
-            self._set_status("Load a valid spreadsheet to start selecting people.", "info")
+            self._set_schema_status("Planilha não validada.", "warning")
+            self._set_status("Carregue uma planilha válida para começar a selecionar pessoas.", "info")
         self._refresh_action_state()
 
     def _validate_source(self) -> bool:
         source = self.entry_source.text().strip()
         self._set_invalid(self.entry_source, source == "")
         if source == "":
-            self._set_status("Enter the spreadsheet source.", "warning")
-            self._set_schema_status("Dataset not validated.", "warning")
+            self._set_status("Informe a origem da planilha.", "warning")
+            self._set_schema_status("Planilha não validada.", "warning")
             return False
 
         if self.source_type.currentText() == "Arquivo local" and not Path(source).is_file():
-            self._set_status("The local spreadsheet was not found.", "error")
-            self._set_schema_status("Invalid dataset: local file not found.", "error")
+            self._set_status("A planilha local não foi encontrada.", "error")
+            self._set_schema_status("Planilha inválida: arquivo local não encontrado.", "error")
             return False
 
         if self.source_type.currentText() == "OneDrive" and not source.startswith("https://"):
-            self._set_status("Enter a valid OneDrive link.", "error")
-            self._set_schema_status("Invalid dataset: OneDrive link not recognized.", "error")
+            self._set_status("Informe um link do OneDrive válido.", "error")
+            self._set_schema_status("Planilha inválida: link do OneDrive não reconhecido.", "error")
             return False
         return True
 
@@ -424,8 +424,8 @@ class CaromScreen(QWidget):
         self._worker.succeeded.connect(self._handle_worker_success)
         self._worker.error.connect(self._handle_worker_error)
         self._worker.finished.connect(self._on_worker_finished)
-        self._set_schema_status("Validating standardized dataset...", "info")
-        self._set_status("Loading people from the spreadsheet...", "info")
+        self._set_schema_status("Validando planilha padronizada...", "info")
+        self._set_status("Carregando pessoas da planilha...", "info")
         self._refresh_action_state()
         self._worker.start()
 
@@ -440,10 +440,10 @@ class CaromScreen(QWidget):
         self._filtered_employees = list(self._loaded_employees)
         employee_count = int(result.get("employee_count", 0))
         self._set_schema_status(
-            f"Standardized dataset validated. {employee_count} employee(s) loaded.",
+            f"Planilha padronizada validada. {employee_count} colaborador(es) carregado(s).",
             "success",
         )
-        self._set_status("Dataset loaded. Use live search to build the carometro.", "success")
+        self._set_status("Planilha carregada. Use a busca em tempo real para montar o carômetro.", "success")
         self._refresh_results()
         self._refresh_selected_list()
         self._refresh_selection_summary()
@@ -469,7 +469,7 @@ class CaromScreen(QWidget):
         self._selected_keys = set()
         self.results_list.clear()
         self.selected_list.clear()
-        self.results_hint.setText("Validate the spreadsheet to enable live search.")
+        self.results_hint.setText("Valide a planilha para habilitar a busca em tempo real.")
         self._refresh_selection_summary()
 
     def _on_search_changed(self, *_args: object) -> None:
@@ -479,7 +479,7 @@ class CaromScreen(QWidget):
     def _refresh_results(self) -> None:
         self.results_list.clear()
         if not self._schema_valid:
-            self.results_hint.setText("Validate the spreadsheet to enable live search.")
+            self.results_hint.setText("Valide a planilha para habilitar a busca em tempo real.")
             return
 
         query = self.search_input.text().strip()
@@ -493,13 +493,18 @@ class CaromScreen(QWidget):
 
         if not self._filtered_employees:
             self.results_hint.setText(
-                "No available results for the current search."
+                "Nenhum resultado disponível para a busca atual."
                 if query
-                else "All loaded people are already selected."
+                else "Todas as pessoas carregadas já foram selecionadas."
             )
             return
 
-        self.results_hint.setText(f"{len(self._filtered_employees)} result(s) available.")
+        result_count = len(self._filtered_employees)
+        self.results_hint.setText(
+            "1 resultado disponível."
+            if result_count == 1
+            else f"{result_count} resultados disponíveis."
+        )
         for employee in self._filtered_employees:
             key = carom_employee_key(employee)
             item = QListWidgetItem()
@@ -522,7 +527,7 @@ class CaromScreen(QWidget):
 
     def _add_employee(self, employee_key: str) -> None:
         if employee_key in self._selected_keys:
-            self._set_status("This person is already selected.", "warning")
+            self._set_status("Esta pessoa já está selecionada.", "warning")
             return
         employee = next(
             (
@@ -540,7 +545,7 @@ class CaromScreen(QWidget):
         self._refresh_selected_list()
         self._refresh_selection_summary()
         self._set_status(
-            f"Added {employee.get('nome', 'employee')} to the carometro selection.",
+            f"{employee.get('nome', 'colaborador')} adicionado(a) à seleção do carômetro.",
             "success",
         )
         self._refresh_action_state()
@@ -555,7 +560,7 @@ class CaromScreen(QWidget):
         self._refresh_results()
         self._refresh_selected_list()
         self._refresh_selection_summary()
-        self._set_status("Person removed from the current selection.", "info")
+        self._set_status("Pessoa removida da seleção atual.", "info")
         self._refresh_action_state()
 
     def _refresh_selection_summary(self) -> None:
@@ -601,16 +606,16 @@ class CaromScreen(QWidget):
         filename = self.filename_field.text().strip()
         self._set_invalid(self.title_field, title == "")
         if title == "":
-            self._set_status("Enter a title before exporting.", "warning")
+            self._set_status("Informe um título antes de exportar.", "warning")
             return
         if filename == "":
-            self._set_status("The derived filename is invalid. Adjust the title.", "warning")
+            self._set_status("O nome de arquivo derivado é inválido. Ajuste o título.", "warning")
             return
         if not self._schema_valid:
-            self._set_status("Validate the dataset before exporting.", "warning")
+            self._set_status("Valide a planilha antes de exportar.", "warning")
             return
         if not self._selected_employees:
-            self._set_status("Select at least one person before exporting.", "warning")
+            self._set_status("Selecione pelo menos uma pessoa antes de exportar.", "warning")
             return
 
         self.generate_requested.emit(

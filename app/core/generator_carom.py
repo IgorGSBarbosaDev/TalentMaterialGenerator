@@ -90,13 +90,11 @@ def compute_projected_slide_count(selected_count: int, capacity: int) -> int:
 def compute_current_slide_status(selected_count: int, capacity: int) -> str:
     safe_capacity = max(capacity, 1)
     if selected_count <= 0:
-        return f"{safe_capacity} people left to complete the current slide"
+        return f"Faltam {safe_capacity} pessoas para completar o slide atual"
     position_in_current_slide = selected_count % safe_capacity
     if position_in_current_slide == 0:
-        return "Current slide complete"
-    return (
-        f"{safe_capacity - position_in_current_slide} people left to complete the current slide"
-    )
+        return "Slide atual completo"
+    return f"Faltam {safe_capacity - position_in_current_slide} pessoas para completar o slide atual"
 
 
 def _rgb_from_hex(hex_color: str) -> RGBColor:
