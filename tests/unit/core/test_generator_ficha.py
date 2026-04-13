@@ -22,6 +22,15 @@ def _employee(**overrides: str) -> FichaEmployee:
         "nota_2025": "4 / PROM",
         "nota_2024": "3 / PROM",
         "nota_2023": "5 / PROM",
+        "avaliacao_2025": "",
+        "avaliacao_2024": "",
+        "avaliacao_2023": "",
+        "score_2025": "",
+        "score_2024": "",
+        "score_2023": "",
+        "potencial_2025": "",
+        "potencial_2024": "",
+        "potencial_2023": "",
     }
     base.update(overrides)
     return base
@@ -121,6 +130,53 @@ def test_build_slide_includes_reference_section_titles() -> None:
     assert "Resumo" in texts
     assert "Trajetória Profissional" in texts
     assert "Performance e Potencial" in texts
+
+
+def test_build_slide_renders_annual_notes_from_structured_fallback() -> None:
+    prs = generator_ficha.create_presentation()
+    slide = generator_ficha.build_slide(
+        prs,
+        _employee(
+            nota_2025="",
+            nota_2024="",
+            nota_2023="",
+            score_2025="4",
+            potencial_2025="PROM",
+            score_2024="",
+            potencial_2024="AP",
+            score_2023="5",
+            potencial_2023="",
+        ),
+    )
+
+    texts = _shape_texts(slide)
+
+    assert any("2025: 4 / PROM" in text for text in texts)
+    assert any("2024: AP" in text for text in texts)
+    assert any("2023: 5" in text for text in texts)
+
+
+def test_build_slide_ignores_invalid_annual_note_values() -> None:
+    prs = generator_ficha.create_presentation()
+    slide = generator_ficha.build_slide(
+        prs,
+        _employee(
+            nota_2025="",
+            nota_2024="",
+            nota_2023="",
+            avaliacao_2025="#N/A",
+            score_2025="#N/A",
+            potencial_2025="#N/A",
+            score_2024="",
+            potencial_2024="",
+            score_2023="",
+            potencial_2023="",
+        ),
+    )
+
+    texts = [text.upper() for text in _shape_texts(slide)]
+
+    assert "PERFORMANCE E POTENCIAL" not in texts
 
 
 def test_build_slide_contains_reference_geometry_landmarks() -> None:

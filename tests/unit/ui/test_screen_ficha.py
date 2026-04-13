@@ -31,6 +31,15 @@ def _employee(**overrides: str) -> FichaEmployee:
         "nota_2025": "5 / AP",
         "nota_2024": "4 / PROM",
         "nota_2023": "3 / MN+",
+        "avaliacao_2025": "",
+        "avaliacao_2024": "",
+        "avaliacao_2023": "",
+        "score_2025": "",
+        "score_2024": "",
+        "score_2023": "",
+        "potencial_2025": "",
+        "potencial_2024": "",
+        "potencial_2023": "",
     }
     base.update(overrides)
     return base
@@ -136,11 +145,13 @@ def test_ficha_screen_worker_success_marks_schema_valid(qtbot) -> None:
             "row_count": 2,
             "matches": [],
             "source_result": None,
+            "schema_order_matches": True,
         }
     )
 
     assert screen._schema_valid is True
     assert "validada" in screen.schema_status_label.text().lower()
+    assert "layout de referencia da ficha confirmado" in screen.schema_status_label.text().lower()
 
 
 def test_ficha_screen_lookup_populates_results_table_with_multiple_name_matches(qtbot) -> None:

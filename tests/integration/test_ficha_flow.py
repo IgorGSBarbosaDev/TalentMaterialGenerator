@@ -63,6 +63,60 @@ def _build_standardized_spreadsheet(path: Path) -> Path:
     return path
 
 
+def _build_new_evaluation_spreadsheet(
+    path: Path,
+    *,
+    with_consolidated_values: bool,
+) -> Path:
+    workbook = Workbook()
+    sheet = workbook.active
+    assert sheet is not None
+    sheet.append(
+        [
+            "Matricula",
+            "Nome",
+            "Cargo",
+            "Idade",
+            "Antiguidade",
+            "Formacao",
+            "Resumo do perfil",
+            "Trajetoria",
+            "Avaliação 2025",
+            "Avaliação 2024",
+            "Avaliação 2023",
+            "Nota 2025",
+            "Potencial 2025",
+            "Nota 2024",
+            "Potencial 2024",
+            "Nota 2023",
+            "Potencial 2023",
+        ]
+    )
+    sheet.append(
+        [
+            "101",
+            "Ana Martins",
+            "Engenheira de Processos",
+            "31",
+            "5 anos",
+            "Engenharia Metalurgica",
+            "Profissional colaborativa e analitica",
+            "Analista Jr; Analista Pleno; Especialista",
+            "4 / PROM" if with_consolidated_values else "",
+            "5 / AP" if with_consolidated_values else "",
+            "",
+            "4",
+            "PROM",
+            "5",
+            "AP",
+            "",
+            "",
+        ]
+    )
+    workbook.save(path)
+    return path
+
+
 def test_full_ficha_lookup_and_generation_creates_single_pptx(tmp_path: Path) -> None:
     spreadsheet = _build_standardized_spreadsheet(tmp_path / "ficha.xlsx")
     rows = read_spreadsheet(str(spreadsheet))
@@ -83,6 +137,38 @@ def test_generated_slide_has_wide_dimensions(tmp_path: Path) -> None:
 
     assert presentation.slide_width == Inches(13.333)
     assert presentation.slide_height == Inches(7.5)
+
+
+def test_new_evaluation_layout_uses_consolidated_values_when_present(tmp_path: Path) -> None:
+    spreadsheet = _build_new_evaluation_spreadsheet(
+        tmp_path / "ficha_new_consolidated.xlsx",
+        with_consolidated_values=True,
+    )
+    rows = read_spreadsheet(str(spreadsheet))
+
+    matches = lookup_ficha_employees(rows, matricula_query="101")
+
+    assert matches[0]["nota_2025"] == "4 / PROM"
+    assert matches[0]["nota_2024"] == "5 / AP"
+    generated_file = generate_ficha_pptx(matches[0], str(tmp_path))
+
+    assert Path(generated_file).exists()
+
+
+def test_new_evaluation_layout_falls_back_to_score_and_potential(tmp_path: Path) -> None:
+    spreadsheet = _build_new_evaluation_spreadsheet(
+        tmp_path / "ficha_new_fallback.xlsx",
+        with_consolidated_values=False,
+    )
+    rows = read_spreadsheet(str(spreadsheet))
+
+    matches = lookup_ficha_employees(rows, matricula_query="101")
+
+    assert matches[0]["nota_2025"] == "4 / PROM"
+    assert matches[0]["nota_2024"] == "5 / AP"
+    generated_file = generate_ficha_pptx(matches[0], str(tmp_path))
+
+    assert Path(generated_file).exists()
 
 
 def test_output_filename_is_normalized_from_selected_employee(tmp_path: Path) -> None:

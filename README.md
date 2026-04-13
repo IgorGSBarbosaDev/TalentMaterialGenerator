@@ -22,18 +22,25 @@ Aplicativo desktop em PySide6 para geracao de fichas de curriculo e carometros a
 
 - `Matricula`
 - `Nome`
-- `Idade`
 - `Cargo`
+- `Idade`
 - `Antiguidade`
 - `Formacao`
 - `Resumo do perfil`
 - `Trajetoria`
+- `Avaliação 2025`
+- `Avaliação 2024`
+- `Avaliação 2023`
 - `Nota 2025`
+- `Potencial 2025`
 - `Nota 2024`
+- `Potencial 2024`
 - `Nota 2023`
+- `Potencial 2023`
 
 O sistema continua aceitando aliases conhecidos por auto-deteccao.
-Quando as colunas `Nota 2025`, `Nota 2024` e `Nota 2023` estiverem mapeadas, o campo interno `performance` sera montado automaticamente como historico multilinha.
+Na ficha, os campos anuais exibidos (`nota_2025`, `nota_2024`, `nota_2023`) podem vir diretamente das colunas consolidadas `Avaliação <ano>` ou ser derivados de `Nota <ano>` + `Potencial <ano>`.
+Quando os valores anuais estiverem disponiveis, o campo interno `performance` sera montado automaticamente como historico multilinha.
 
 ## Saida
 

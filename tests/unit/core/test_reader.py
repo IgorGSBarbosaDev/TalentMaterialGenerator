@@ -35,6 +35,30 @@ def test_detect_columns_maps_annual_note_headers() -> None:
     assert mapping["nota_2023"] == "Nota 2023"
 
 
+def test_resolve_ficha_schema_maps_new_evaluation_layout_without_ambiguity() -> None:
+    schema = reader.resolve_ficha_schema(
+        [
+            "Matricula",
+            "Nome",
+            "Cargo",
+            "Avaliação 2025",
+            "Nota 2025",
+            "Potencial 2025",
+            "Avaliação 2024",
+            "Nota 2024",
+            "Potencial 2024",
+        ]
+    )
+
+    assert schema["avaliacao_2025"] == "Avaliação 2025"
+    assert schema["score_2025"] == "Nota 2025"
+    assert schema["potencial_2025"] == "Potencial 2025"
+    assert schema["nota_2025"] is None
+    assert schema["avaliacao_2024"] == "Avaliação 2024"
+    assert schema["score_2024"] == "Nota 2024"
+    assert schema["potencial_2024"] == "Potencial 2024"
+
+
 def test_detect_columns_maps_resumo_do_perfil_header() -> None:
     mapping = reader.detect_columns(["Resumo do perfil"])
 
@@ -94,6 +118,30 @@ def test_has_expected_ficha_column_order_accepts_planilha_teste_contract() -> No
         "Nota 2025",
         "Nota 2024",
         "Nota 2023",
+    ]
+
+    assert reader.has_expected_ficha_column_order(headers) is True
+
+
+def test_has_expected_ficha_column_order_accepts_new_reference_contract() -> None:
+    headers = [
+        "Matricula",
+        "Nome",
+        "Cargo",
+        "Idade",
+        "Antiguidade",
+        "Formacao",
+        "Resumo do perfil",
+        "Trajetoria",
+        "Avaliação 2025",
+        "Avaliação 2024",
+        "Avaliação 2023",
+        "Nota 2025",
+        "Potencial 2025",
+        "Nota 2024",
+        "Potencial 2024",
+        "Nota 2023",
+        "Potencial 2023",
     ]
 
     assert reader.has_expected_ficha_column_order(headers) is True
@@ -257,6 +305,81 @@ def test_load_standardized_ficha_rows_preserves_annual_notes() -> None:
     assert result[0]["nota_2025"] == "2 / MN-"
     assert result[0]["nota_2024"] == "5 / AP"
     assert result[0]["nota_2023"] == ""
+    assert result[0]["score_2025"] == ""
+    assert result[0]["potencial_2025"] == ""
+
+
+def test_load_standardized_ficha_rows_prefers_consolidated_evaluations() -> None:
+    rows = [
+        {
+            "Matricula": "123",
+            "Nome": "Ana",
+            "Cargo": "Analista",
+            "Avaliação 2025": "5 /  AP",
+            "Nota 2025": "4",
+            "Potencial 2025": "PROM",
+            "Avaliação 2024": "3 / MN+",
+            "Nota 2024": "3",
+            "Potencial 2024": "MN+",
+        }
+    ]
+
+    result = reader.load_standardized_ficha_rows(rows)
+
+    assert result[0]["avaliacao_2025"] == "5 / AP"
+    assert result[0]["score_2025"] == "4"
+    assert result[0]["potencial_2025"] == "PROM"
+    assert result[0]["nota_2025"] == "5 / AP"
+    assert result[0]["nota_2024"] == "3 / MN+"
+
+
+def test_load_standardized_ficha_rows_falls_back_to_score_and_potential_when_needed() -> None:
+    rows = [
+        {
+            "Matricula": "123",
+            "Nome": "Ana",
+            "Cargo": "Analista",
+            "Avaliação 2025": "",
+            "Nota 2025": "4",
+            "Potencial 2025": "PROM",
+            "Avaliação 2024": "",
+            "Nota 2024": "",
+            "Potencial 2024": "MN+",
+            "Avaliação 2023": "",
+            "Nota 2023": "5",
+            "Potencial 2023": "",
+        }
+    ]
+
+    result = reader.load_standardized_ficha_rows(rows)
+
+    assert result[0]["nota_2025"] == "4 / PROM"
+    assert result[0]["nota_2024"] == "MN+"
+    assert result[0]["nota_2023"] == "5"
+
+
+def test_load_standardized_ficha_rows_treats_na_values_as_missing() -> None:
+    rows = [
+        {
+            "Matricula": "123",
+            "Nome": "Ana",
+            "Cargo": "Analista",
+            "Avaliação 2025": "#N/A",
+            "Nota 2025": "#N/A",
+            "Potencial 2025": "#N/A",
+            "Avaliação 2024": "#N/A",
+            "Nota 2024": "4",
+            "Potencial 2024": "AP",
+        }
+    ]
+
+    result = reader.load_standardized_ficha_rows(rows)
+
+    assert result[0]["nota_2025"] == ""
+    assert result[0]["avaliacao_2025"] == ""
+    assert result[0]["score_2025"] == ""
+    assert result[0]["potencial_2025"] == ""
+    assert result[0]["nota_2024"] == "4 / AP"
 
 
 def test_load_standardized_carom_rows_uses_detected_headers() -> None:

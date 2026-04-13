@@ -42,6 +42,65 @@ def test_ficha_lookup_worker_validates_standardized_schema(monkeypatch) -> None:
     assert results[0]["schema"]["matricula"] == "Matricula"
 
 
+def test_ficha_lookup_worker_accepts_new_reference_schema_order(monkeypatch) -> None:
+    source_result = SpreadsheetSourceResult(
+        path="base.xlsx",
+        source_kind="local",
+        is_temporary=False,
+        used_cache=False,
+        message="Usando planilha local.",
+    )
+
+    monkeypatch.setattr(
+        "app.core.worker.resolve_spreadsheet_source",
+        lambda *args, **kwargs: source_result,
+    )
+    monkeypatch.setattr(
+        "app.core.worker.read_spreadsheet",
+        lambda _path: [
+            {
+                "Matricula": "123",
+                "Nome": "Ana Martins",
+                "Cargo": "Analista",
+                "Idade": "30",
+                "Antiguidade": "5",
+                "Formacao": "Engenharia",
+                "Resumo do perfil": "Resumo",
+                "Trajetoria": "Historico",
+                "Avaliação 2025": "",
+                "Avaliação 2024": "",
+                "Avaliação 2023": "",
+                "Nota 2025": "4",
+                "Potencial 2025": "PROM",
+                "Nota 2024": "3",
+                "Potencial 2024": "AP",
+                "Nota 2023": "",
+                "Potencial 2023": "",
+            }
+        ],
+    )
+
+    worker = FichaLookupWorker(
+        {
+            "spreadsheet_source": "base.xlsx",
+            "lookup_name": "",
+            "lookup_matricula": "",
+            "validate_only": True,
+        }
+    )
+    results: list[dict] = []
+    worker.succeeded.connect(results.append)
+
+    worker.run()
+
+    assert results
+    assert results[0]["validated"] is True
+    assert results[0]["schema_order_matches"] is True
+    assert results[0]["schema"]["avaliacao_2025"] == "Avaliação 2025"
+    assert results[0]["schema"]["score_2025"] == "Nota 2025"
+    assert results[0]["schema"]["potencial_2025"] == "Potencial 2025"
+
+
 def test_ficha_lookup_worker_returns_matches_without_mapping(monkeypatch) -> None:
     source_result = SpreadsheetSourceResult(
         path="base.xlsx",

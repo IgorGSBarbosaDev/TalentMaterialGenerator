@@ -481,9 +481,9 @@ class FichaScreen(QWidget):
         row_count = int(result.get("row_count", 0))
         schema_order_matches = bool(result.get("schema_order_matches", False))
         order_note = (
-            " Ordem esperada confirmada."
+            " Layout de referencia da ficha confirmado."
             if schema_order_matches
-            else " Ordem diferente da planilha de referencia, mas colunas reconhecidas."
+            else " Layout diferente dos modelos de referencia, mas colunas reconhecidas."
         )
         self._set_schema_status(
             f"Base padronizada validada. {row_count} linha(s) reconhecida(s).{order_note}",

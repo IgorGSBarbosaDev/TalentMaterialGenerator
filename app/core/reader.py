@@ -59,7 +59,8 @@ NORMALIZED_VARIATIONS: dict[str, set[str]] = {
     for field, variations in COLUMN_VARIATIONS.items()
 }
 
-FICHA_FIELDS: Final[tuple[str, ...]] = (
+FICHA_EVALUATION_YEARS: Final[tuple[str, ...]] = ("2025", "2024", "2023")
+FICHA_BASE_FIELDS: Final[tuple[str, ...]] = (
     "matricula",
     "nome",
     "idade",
@@ -68,24 +69,57 @@ FICHA_FIELDS: Final[tuple[str, ...]] = (
     "formacao",
     "resumo_perfil",
     "trajetoria",
+)
+FICHA_FIELDS: Final[tuple[str, ...]] = (
+    *FICHA_BASE_FIELDS,
     "nota_2025",
     "nota_2024",
     "nota_2023",
+    "avaliacao_2025",
+    "avaliacao_2024",
+    "avaliacao_2023",
+    "score_2025",
+    "score_2024",
+    "score_2023",
+    "potencial_2025",
+    "potencial_2024",
+    "potencial_2023",
 )
 FICHA_REQUIRED_FIELDS: Final[tuple[str, ...]] = ("matricula", "nome", "cargo")
 MAX_FICHA_NAME_MATCHES: Final = 25
-EXPECTED_FICHA_COLUMN_ORDER: Final[tuple[str, ...]] = (
-    "Matricula",
-    "Nome",
-    "Idade",
-    "Cargo",
-    "Antiguidade",
-    "Formacao",
-    "Resumo do perfil",
-    "Trajetoria",
-    "Nota 2025",
-    "Nota 2024",
-    "Nota 2023",
+EXPECTED_FICHA_COLUMN_ORDERS: Final[tuple[tuple[str, ...], ...]] = (
+    (
+        "Matricula",
+        "Nome",
+        "Idade",
+        "Cargo",
+        "Antiguidade",
+        "Formacao",
+        "Resumo do perfil",
+        "Trajetoria",
+        "Nota 2025",
+        "Nota 2024",
+        "Nota 2023",
+    ),
+    (
+        "Matricula",
+        "Nome",
+        "Cargo",
+        "Idade",
+        "Antiguidade",
+        "Formacao",
+        "Resumo do perfil",
+        "Trajetoria",
+        "Avaliação 2025",
+        "Avaliação 2024",
+        "Avaliação 2023",
+        "Nota 2025",
+        "Potencial 2025",
+        "Nota 2024",
+        "Potencial 2024",
+        "Nota 2023",
+        "Potencial 2023",
+    ),
 )
 CAROM_FIELDS: Final[tuple[str, ...]] = (
     "matricula",
@@ -122,6 +156,15 @@ class FichaEmployee(TypedDict):
     nota_2025: str
     nota_2024: str
     nota_2023: str
+    avaliacao_2025: str
+    avaliacao_2024: str
+    avaliacao_2023: str
+    score_2025: str
+    score_2024: str
+    score_2023: str
+    potencial_2025: str
+    potencial_2024: str
+    potencial_2023: str
 
 
 class CaromEmployee(TypedDict):
@@ -220,7 +263,9 @@ def validate_carom_required_columns(mapping: dict[str, str | None]) -> list[str]
 
 def resolve_ficha_schema(headers: list[str]) -> dict[str, str | None]:
     detected = detect_columns(headers)
-    return {field: detected.get(field) for field in FICHA_FIELDS}
+    schema = {field: detected.get(field) for field in FICHA_BASE_FIELDS}
+    schema.update(_resolve_ficha_evaluation_schema(headers))
+    return schema
 
 
 def resolve_carom_schema(headers: list[str]) -> dict[str, str | None]:
@@ -251,9 +296,14 @@ def validate_standardized_carom_schema(headers: list[str]) -> dict[str, str | No
 
 
 def has_expected_ficha_column_order(headers: list[str]) -> bool:
-    if len(headers) < len(EXPECTED_FICHA_COLUMN_ORDER):
-        return False
-    return tuple(headers[: len(EXPECTED_FICHA_COLUMN_ORDER)]) == EXPECTED_FICHA_COLUMN_ORDER
+    normalized_headers = tuple(_normalize_text(header) for header in headers)
+    for expected_order in EXPECTED_FICHA_COLUMN_ORDERS:
+        normalized_expected = tuple(_normalize_text(header) for header in expected_order)
+        if len(normalized_headers) >= len(normalized_expected) and (
+            normalized_headers[: len(normalized_expected)] == normalized_expected
+        ):
+            return True
+    return False
 
 
 def extract_headers(rows: list[dict[str, str]]) -> list[str]:
@@ -266,6 +316,84 @@ def _normalize_lookup_value(value: str) -> str:
     return " ".join(ascii_only.strip().lower().split())
 
 
+def _find_header_by_alias(headers: list[str], aliases: tuple[str, ...]) -> str | None:
+    accepted = {_normalize_text(alias) for alias in aliases}
+    for header in headers:
+        if _normalize_text(header) in accepted:
+            return header
+    return None
+
+
+def _normalize_evaluation_value(value: str | None) -> str:
+    if value is None:
+        return ""
+    compact = " ".join(str(value).split())
+    if compact == "":
+        return ""
+    if compact.lower() in {"#n/a", "n/a"}:
+        return ""
+    return compact
+
+
+def _build_ficha_display_note(
+    *,
+    direct_value: str,
+    consolidated_value: str,
+    score_value: str,
+    potential_value: str,
+) -> str:
+    consolidated = _normalize_evaluation_value(consolidated_value)
+    if consolidated:
+        return consolidated
+
+    score = _normalize_evaluation_value(score_value)
+    potential = _normalize_evaluation_value(potential_value)
+    if score and potential:
+        return f"{score} / {potential}"
+    if score:
+        return score
+    if potential:
+        return potential
+    direct = _normalize_evaluation_value(direct_value)
+    if direct:
+        return direct
+    return ""
+
+
+def _resolve_ficha_evaluation_schema(headers: list[str]) -> dict[str, str | None]:
+    schema: dict[str, str | None] = {}
+    for year in FICHA_EVALUATION_YEARS:
+        consolidated_header = _find_header_by_alias(
+            headers,
+            (f"avaliacao_{year}", f"avaliacao {year}"),
+        )
+        detected_note_header = _find_header_by_alias(
+            headers,
+            (
+                f"score_{year}",
+                f"score {year}",
+                f"nota_{year}",
+                f"nota {year}",
+            ),
+        )
+        potential_header = _find_header_by_alias(
+            headers,
+            (f"potencial_{year}", f"potencial {year}"),
+        )
+        direct_header = None
+        score_header = detected_note_header
+        if detected_note_header and consolidated_header is None and potential_header is None:
+            direct_header = detected_note_header
+            score_header = None
+
+        schema[f"nota_{year}"] = direct_header
+        schema[f"avaliacao_{year}"] = consolidated_header
+        schema[f"score_{year}"] = score_header
+        schema[f"potencial_{year}"] = potential_header
+
+    return schema
+
+
 def remap_ficha_row(
     row: dict[str, str], mapping: dict[str, str | None]
 ) -> FichaEmployee:
@@ -276,6 +404,22 @@ def remap_ficha_row(
     }
     for field in FICHA_FIELDS:
         normalized.setdefault(field, "")
+
+    for year in FICHA_EVALUATION_YEARS:
+        normalized[f"avaliacao_{year}"] = _normalize_evaluation_value(
+            normalized.get(f"avaliacao_{year}")
+        )
+        normalized[f"score_{year}"] = _normalize_evaluation_value(normalized.get(f"score_{year}"))
+        normalized[f"potencial_{year}"] = _normalize_evaluation_value(
+            normalized.get(f"potencial_{year}")
+        )
+        normalized[f"nota_{year}"] = _build_ficha_display_note(
+            direct_value=normalized.get(f"nota_{year}", ""),
+            consolidated_value=normalized.get(f"avaliacao_{year}", ""),
+            score_value=normalized.get(f"score_{year}", ""),
+            potential_value=normalized.get(f"potencial_{year}", ""),
+        )
+
     return normalized
 
 
@@ -561,12 +705,13 @@ def cleanup_source(result: SpreadsheetSourceResult) -> None:
 
 def _build_performance_from_annual_notes(normalized: dict[str, str]) -> str:
     items: list[str] = []
-    for field, year in (
-        ("nota_2025", "2025"),
-        ("nota_2024", "2024"),
-        ("nota_2023", "2023"),
-    ):
-        value = normalized.get(field, "").strip()
+    for year in FICHA_EVALUATION_YEARS:
+        value = _build_ficha_display_note(
+            direct_value=normalized.get(f"nota_{year}", ""),
+            consolidated_value=normalized.get(f"avaliacao_{year}", ""),
+            score_value=normalized.get(f"score_{year}", ""),
+            potential_value=normalized.get(f"potencial_{year}", ""),
+        )
         if value:
             items.append(f"{year} - {value}")
     return "\n".join(items)

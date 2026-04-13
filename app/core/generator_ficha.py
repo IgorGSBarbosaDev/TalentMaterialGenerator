@@ -217,6 +217,30 @@ def _clean(value: str | None) -> str:
     return "" if value is None else value.strip()
 
 
+def _clean_evaluation_value(value: str | None) -> str:
+    compact = " ".join(_clean(value).split())
+    if compact.lower() in {"", "#n/a", "n/a"}:
+        return ""
+    return compact
+
+
+def _resolve_annual_note(employee: FichaEmployee, year: str) -> str:
+    consolidated = _clean_evaluation_value(employee.get(f"avaliacao_{year}"))
+    if consolidated:
+        return consolidated
+
+    score = _clean_evaluation_value(employee.get(f"score_{year}"))
+    potential = _clean_evaluation_value(employee.get(f"potencial_{year}"))
+    if score and potential:
+        return f"{score} / {potential}"
+    if score:
+        return score
+    if potential:
+        return potential
+
+    return _clean_evaluation_value(employee.get(f"nota_{year}"))
+
+
 def _add_metadata_block(slide: Slide, employee: FichaEmployee) -> None:
     _textbox, frame = _new_textbox(
         slide,
@@ -304,12 +328,8 @@ def _add_trajectory_block(slide: Slide, entries: list[str]) -> None:
 
 def _annual_notes(employee: FichaEmployee) -> list[tuple[str, str]]:
     values: list[tuple[str, str]] = []
-    for field, label in (
-        ("nota_2025", "2025"),
-        ("nota_2024", "2024"),
-        ("nota_2023", "2023"),
-    ):
-        value = _clean(employee.get(field))
+    for label in ("2025", "2024", "2023"):
+        value = _resolve_annual_note(employee, label)
         if value:
             values.append((label, value))
     return values

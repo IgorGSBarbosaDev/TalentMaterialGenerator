@@ -177,15 +177,24 @@ A modelagem atual já considera, entre outros:
 - `nota_2025`
 - `nota_2024`
 - `nota_2023`
+- `avaliacao_2025`
+- `avaliacao_2024`
+- `avaliacao_2023`
+- `score_2025`
+- `score_2024`
+- `score_2023`
+- `potencial_2025`
+- `potencial_2024`
+- `potencial_2023`
 
 ### Regra adicional importante
 
-O módulo consegue montar o campo `performance` automaticamente a partir dos campos anuais de nota (`nota_2025`, `nota_2024`, `nota_2023`), quando esses valores existem.
+O módulo consegue montar o campo `performance` automaticamente a partir dos campos anuais exibidos na ficha (`nota_2025`, `nota_2024`, `nota_2023`), quando esses valores existem.
 
 Isso significa que a ficha hoje pode usar:
 
 - performance diretamente mapeada da planilha;
-- ou performance derivada das notas anuais.
+- ou performance derivada das notas anuais, seja por colunas consolidadas `Avaliação <ano>` ou por `Nota <ano>` + `Potencial <ano>`.
 
 ## Geração de ficha
 
@@ -464,6 +473,15 @@ A tela permite mapear campos como:
 - nota_2025
 - nota_2024
 - nota_2023
+- avaliacao_2025
+- avaliacao_2024
+- avaliacao_2023
+- score_2025
+- score_2024
+- score_2023
+- potencial_2025
+- potencial_2024
+- potencial_2023
 - performance
 
 ### Validação atual
@@ -666,7 +684,7 @@ Tanto ficha quanto carômetro usam placeholder circular branco com borda verde, 
 4. O campo `foto` não faz mais parte do fluxo principal.
 5. A geração principal é em `.pptx`; PDF existe, mas não é a prioridade do produto hoje.
 6. O diretório de saída, no estado atual, está mais fixado por padrão do que realmente livre/configurável.
-7. O modelo de dados atual já aceita campos adicionais como `matricula` e notas anuais (`nota_2025`, `nota_2024`, `nota_2023`), inclusive para compor performance.
+7. O modelo de dados atual já aceita campos adicionais como `matricula`, notas anuais exibidas (`nota_2025`, `nota_2024`, `nota_2023`) e os campos estruturados/consolidados de avaliação por ano, inclusive para compor performance.
 8. O projeto já possui estrutura de testes para a nova arquitetura.
 9. Existe uma camada de componentes visuais compartilhados em `app/ui/components.py`, então mudanças de UI devem considerar essa base comum.
 10. A descrição correta do projeto deve sempre ser baseada no estado atual do código, e não no plano antigo da versão anterior.
