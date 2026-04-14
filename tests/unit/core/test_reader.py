@@ -387,8 +387,11 @@ def test_load_standardized_carom_rows_uses_detected_headers() -> None:
         {
             "Matricula": "123",
             "Nome": "Ana",
+            "Idade": "31",
             "Cargo": "Analista",
             "Area": "Operacao",
+            "CEO3": "CEO3 Ana",
+            "CEO4": "CEO4 Ana",
         }
     ]
 
@@ -397,6 +400,69 @@ def test_load_standardized_carom_rows_uses_detected_headers() -> None:
     assert result[0]["matricula"] == "123"
     assert result[0]["nome"] == "Ana"
     assert result[0]["area"] == "Operacao"
+    assert result[0]["idade"] == "31"
+    assert result[0]["ceo3"] == "CEO3 Ana"
+    assert result[0]["ceo4"] == "CEO4 Ana"
+
+
+def test_resolve_carom_schema_includes_evaluation_and_ceo_fields() -> None:
+    schema = reader.resolve_carom_schema(
+        [
+            "Matricula",
+            "Nome",
+            "Idade",
+            "Cargo",
+            "Formacao",
+            "Avaliacao 2025",
+            "Nota 2025",
+            "Potencial 2025",
+            "CEO3",
+            "CEO4",
+        ]
+    )
+
+    assert schema["avaliacao_2025"] == "Avaliacao 2025"
+    assert schema["score_2025"] == "Nota 2025"
+    assert schema["potencial_2025"] == "Potencial 2025"
+    assert schema["ceo3"] == "CEO3"
+    assert schema["ceo4"] == "CEO4"
+
+
+def test_load_standardized_carom_rows_builds_display_score_from_score_and_potential() -> None:
+    rows = [
+        {
+            "Matricula": "123",
+            "Nome": "Ana",
+            "Idade": "31",
+            "Cargo": "Analista",
+            "Formacao": "Engenharia",
+            "Nota 2025": "4",
+            "Potencial 2025": "AP",
+            "CEO3": "CEO3 Ana",
+            "CEO4": "CEO4 Ana",
+        }
+    ]
+
+    result = reader.load_standardized_carom_rows(rows)
+
+    assert reader.resolve_carom_display_score_potential(result[0]) == "4 / AP"
+
+
+def test_validate_carom_schema_for_big_requires_template_fields() -> None:
+    missing = reader.validate_carom_schema_for_preset(
+        {"matricula": "Matricula", "nome": "Nome", "cargo": "Cargo"},
+        "big",
+    )
+
+    assert missing == [
+        "idade",
+        "formacao",
+        "ceo3",
+        "nota_2025",
+        "avaliacao_2025",
+        "score_2025",
+        "potencial_2025",
+    ]
 
 
 def test_validate_ficha_employee_requires_nome_and_cargo() -> None:
