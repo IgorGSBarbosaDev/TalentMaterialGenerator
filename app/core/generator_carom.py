@@ -6,79 +6,30 @@ from pathlib import Path
 from typing import Final, TypedDict
 
 from pptx import Presentation as PresentationFactory
-from pptx.dml.color import RGBColor
-from pptx.enum.shapes import MSO_AUTO_SHAPE_TYPE, MSO_SHAPE
-from pptx.presentation import Presentation
 from pptx.slide import Slide
-from pptx.util import Inches, Pt
 
-from app.core.reader import CaromEmployee, normalize_filename
+from app.core.carom_templates import CaromTemplate, get_carom_preset
+from app.core.pptx_template_utils import (
+    clear_text,
+    clone_slide,
+    placeholder_picture_bytes,
+    replace_picture,
+    replace_text,
+    resolve_shape_path,
+)
+from app.core.reader import (
+    CaromEmployee,
+    normalize_filename,
+    resolve_carom_display_score_potential,
+)
 
-SLIDE_WIDTH: Final = Inches(13.271)
-SLIDE_HEIGHT: Final = Inches(7.500)
-HEADER_COLOR: Final = "#2D4200"
-HEADER_TEXT_COLOR: Final = "#FFFFFF"
-CARD_BG_COLOR: Final = "#F5F5F5"
-TEXT_COLOR: Final = "#111827"
-META_COLOR: Final = "#4B5563"
-PLACEHOLDER_BORDER: Final = "#84BD00"
-
-
-class CaromPreset(TypedDict):
-    id: str
-    label: str
-    columns: int
-    rows: int
-    capacity: int
-    rendered_fields: tuple[str, ...]
+PROJETO_TRAINEE_BODY_TEXT: Final = "insira projeto trainee aqui"
 
 
 class CaromConfig(TypedDict):
     preset_id: str
     titulo: str
     file_basename: str
-
-
-CAROM_PRESETS: Final[dict[str, CaromPreset]] = {
-    "mini": {
-        "id": "mini",
-        "label": "Mini",
-        "columns": 3,
-        "rows": 6,
-        "capacity": 18,
-        "rendered_fields": ("nome", "cargo", "matricula"),
-    },
-    "regular": {
-        "id": "regular",
-        "label": "Regular",
-        "columns": 2,
-        "rows": 5,
-        "capacity": 10,
-        "rendered_fields": ("nome", "cargo", "matricula"),
-    },
-    "large": {
-        "id": "large",
-        "label": "Large",
-        "columns": 2,
-        "rows": 4,
-        "capacity": 8,
-        "rendered_fields": ("nome", "cargo", "matricula"),
-    },
-}
-
-
-def create_presentation() -> Presentation:
-    prs = PresentationFactory()
-    prs.slide_width = SLIDE_WIDTH
-    prs.slide_height = SLIDE_HEIGHT
-    return prs
-
-
-def get_carom_preset(preset_id: str) -> CaromPreset:
-    normalized = preset_id.strip().lower()
-    if normalized not in CAROM_PRESETS:
-        raise ValueError(f"Preset de carometro desconhecido: {preset_id}")
-    return CAROM_PRESETS[normalized]
 
 
 def compute_projected_slide_count(selected_count: int, capacity: int) -> int:
@@ -97,182 +48,188 @@ def compute_current_slide_status(selected_count: int, capacity: int) -> str:
     return f"Faltam {safe_capacity - position_in_current_slide} pessoas para completar o slide atual"
 
 
-def _rgb_from_hex(hex_color: str) -> RGBColor:
-    value = hex_color.strip().lstrip("#")
-    return RGBColor(int(value[0:2], 16), int(value[2:4], 16), int(value[4:6], 16))
-
-
-def _clean_str(value: object) -> str:
+def _clean(value: object) -> str:
     return "" if value is None else str(value).strip()
 
 
-def _add_rect(
-    slide: Slide, *, left: float, top: float, width: float, height: float, color: str
-) -> None:
-    shape = slide.shapes.add_shape(
-        MSO_SHAPE.ROUNDED_RECTANGLE,
-        Inches(left),
-        Inches(top),
-        Inches(width),
-        Inches(height),
+def _compose_non_empty(parts: list[str], separator: str) -> str:
+    return separator.join(part for part in parts if part)
+
+
+def _employee_name(employee: CaromEmployee) -> str:
+    return _clean(employee.get("nome")) or "Sem Nome"
+
+
+def _employee_age(employee: CaromEmployee) -> str:
+    return _clean(employee.get("idade"))
+
+
+def _employee_role(employee: CaromEmployee) -> str:
+    return _clean(employee.get("cargo"))
+
+
+def _employee_formation(employee: CaromEmployee) -> str:
+    return _clean(employee.get("formacao"))
+
+
+def _employee_ceo3(employee: CaromEmployee) -> str:
+    return _clean(employee.get("ceo3"))
+
+
+def _employee_ceo4(employee: CaromEmployee) -> str:
+    return _clean(employee.get("ceo4"))
+
+
+def _employee_score(employee: CaromEmployee) -> str:
+    return _clean(resolve_carom_display_score_potential(employee))
+
+
+def _mini_lines(employee: CaromEmployee) -> list[str]:
+    return [
+        _employee_name(employee),
+        _compose_non_empty([_employee_role(employee), _employee_age(employee)], " | "),
+        _employee_ceo3(employee),
+    ]
+
+
+def _big_lines(employee: CaromEmployee) -> list[str]:
+    headline = _compose_non_empty(
+        [
+            _employee_name(employee),
+            _compose_non_empty(
+                [_employee_age(employee), _employee_score(employee)],
+                " - ",
+            ),
+        ],
+        " | ",
     )
-    shape.fill.solid()
-    shape.fill.fore_color.rgb = _rgb_from_hex(color)
-    shape.line.fill.background()
+    return [
+        headline,
+        _employee_formation(employee),
+        _employee_role(employee),
+        _employee_ceo3(employee),
+    ]
 
 
-def _add_text(
+def _trainee_identity_lines(employee: CaromEmployee) -> list[str]:
+    headline = _compose_non_empty(
+        [
+            _employee_name(employee),
+            _compose_non_empty(
+                [_employee_age(employee), _employee_score(employee)],
+                " - ",
+            ),
+        ],
+        " | ",
+    )
+    return [
+        headline,
+        _employee_role(employee),
+        _employee_formation(employee),
+        _employee_ceo4(employee),
+    ]
+
+
+def _talent_review_lines(employee: CaromEmployee) -> list[str]:
+    headline = _compose_non_empty(
+        [
+            _employee_name(employee),
+            _compose_non_empty(
+                [_employee_age(employee), _employee_score(employee)],
+                " - ",
+            ),
+        ],
+        " | ",
+    )
+    return [
+        headline,
+        _employee_role(employee),
+        "Sucessor Imediato",
+        _employee_ceo3(employee),
+        "Em desenvolvimento",
+        _employee_ceo4(employee),
+    ]
+
+
+def _picture_bytes_for_employee(employee: CaromEmployee) -> bytes:
+    foto = _clean(employee.get("foto"))
+    if foto:
+        photo_path = Path(foto)
+        if photo_path.is_file():
+            return photo_path.read_bytes()
+    return placeholder_picture_bytes()
+
+
+def _replace_picture_at_path(slide: Slide, picture_path: tuple[int, ...], image_bytes: bytes) -> None:
+    picture_shape = resolve_shape_path(slide, picture_path)
+    replace_picture(slide, picture_shape, image_bytes)
+
+
+def _set_title_if_editable(slide: Slide, preset: CaromTemplate, title: str) -> None:
+    if not preset.editable_title or preset.title_path is None:
+        return
+    replace_text(resolve_shape_path(slide, preset.title_path), [title])
+    if preset.subtitle_path is not None:
+        clear_text(resolve_shape_path(slide, preset.subtitle_path))
+
+
+def _render_slot(slide: Slide, preset: CaromTemplate, slot: dict[str, tuple[int, ...]], employee: CaromEmployee | None) -> None:
+    if preset.id == "mini":
+        _render_basic_slot(slide, slot, employee, _mini_lines)
+        return
+    if preset.id == "big":
+        _render_basic_slot(slide, slot, employee, _big_lines)
+        return
+    if preset.id == "projeto_trainee":
+        _render_trainee_slot(slide, slot, employee)
+        return
+    if preset.id == "talent_review":
+        _render_talent_review_slot(slide, slot, employee)
+        return
+    raise ValueError(f"Preset de carometro desconhecido: {preset.id}")
+
+
+def _render_basic_slot(
     slide: Slide,
-    *,
-    text: str,
-    left: float,
-    top: float,
-    width: float,
-    height: float,
-    color: str,
-    size_pt: int,
-    bold: bool = False,
+    slot: dict[str, tuple[int, ...]],
+    employee: CaromEmployee | None,
+    formatter: Callable[[CaromEmployee], list[str]],
 ) -> None:
-    textbox = slide.shapes.add_textbox(
-        Inches(left), Inches(top), Inches(width), Inches(height)
-    )
-    paragraph = textbox.text_frame.paragraphs[0]
-    paragraph.text = text
-    paragraph.font.size = Pt(size_pt)
-    paragraph.font.bold = bold
-    paragraph.font.color.rgb = _rgb_from_hex(color)
+    if employee is None:
+        clear_text(resolve_shape_path(slide, slot["text"]))
+        _replace_picture_at_path(slide, slot["picture"], placeholder_picture_bytes())
+        return
+    replace_text(resolve_shape_path(slide, slot["text"]), formatter(employee))
+    _replace_picture_at_path(slide, slot["picture"], _picture_bytes_for_employee(employee))
 
 
-def _add_placeholder(slide: Slide, left: float, top: float, size: float) -> None:
-    oval = slide.shapes.add_shape(
-        MSO_AUTO_SHAPE_TYPE.OVAL,
-        Inches(left),
-        Inches(top),
-        Inches(size),
-        Inches(size),
-    )
-    oval.fill.solid()
-    oval.fill.fore_color.rgb = _rgb_from_hex("#FFFFFF")
-    oval.line.color.rgb = _rgb_from_hex(PLACEHOLDER_BORDER)
-    oval.line.width = Pt(2)
-
-
-def _build_card(
+def _render_trainee_slot(
     slide: Slide,
-    employee: CaromEmployee,
-    *,
-    card_x: float,
-    card_y: float,
-    card_width: float,
-    card_height: float,
+    slot: dict[str, tuple[int, ...]],
+    employee: CaromEmployee | None,
 ) -> None:
-    _add_rect(
-        slide,
-        left=card_x,
-        top=card_y,
-        width=card_width,
-        height=card_height,
-        color=CARD_BG_COLOR,
-    )
-
-    placeholder_size = min(card_width * 0.30, card_height * 0.44)
-    placeholder_x = card_x + 0.12
-    placeholder_y = card_y + 0.12
-    _add_placeholder(slide, placeholder_x, placeholder_y, placeholder_size)
-
-    text_left = placeholder_x + placeholder_size + 0.14
-    text_width = max(card_width - (text_left - card_x) - 0.12, 0.5)
-
-    name = _clean_str(employee.get("nome")) or "Sem Nome"
-    cargo = _clean_str(employee.get("cargo")) or "Cargo nao informado"
-    matricula = _clean_str(employee.get("matricula")) or "-"
-
-    _add_text(
-        slide,
-        text=name,
-        left=text_left,
-        top=card_y + 0.18,
-        width=text_width,
-        height=0.28,
-        color=TEXT_COLOR,
-        size_pt=11,
-        bold=True,
-    )
-    _add_text(
-        slide,
-        text=cargo,
-        left=text_left,
-        top=card_y + 0.48,
-        width=text_width,
-        height=0.28,
-        color=META_COLOR,
-        size_pt=9,
-    )
-    _add_text(
-        slide,
-        text=f"Matricula {matricula}",
-        left=text_left,
-        top=card_y + 0.78,
-        width=text_width,
-        height=0.24,
-        color=META_COLOR,
-        size_pt=8,
-    )
+    if employee is None:
+        clear_text(resolve_shape_path(slide, slot["identity"]))
+        clear_text(resolve_shape_path(slide, slot["body"]))
+        _replace_picture_at_path(slide, slot["picture"], placeholder_picture_bytes())
+        return
+    replace_text(resolve_shape_path(slide, slot["identity"]), _trainee_identity_lines(employee))
+    replace_text(resolve_shape_path(slide, slot["body"]), [PROJETO_TRAINEE_BODY_TEXT])
+    _replace_picture_at_path(slide, slot["picture"], _picture_bytes_for_employee(employee))
 
 
-def _build_slide(
-    prs: Presentation,
-    title: str,
-    employees: list[CaromEmployee],
-    preset: CaromPreset,
+def _render_talent_review_slot(
+    slide: Slide,
+    slot: dict[str, tuple[int, ...]],
+    employee: CaromEmployee | None,
 ) -> None:
-    slide = prs.slides.add_slide(prs.slide_layouts[6])
-    slide_width = prs.slide_width / Inches(1)
-    slide_height = prs.slide_height / Inches(1)
-    margin_x = 0.38
-    margin_bottom = 0.34
-    header_height = 0.82
-    gutter_x = 0.16
-    gutter_y = 0.14
-    columns = preset["columns"]
-    rows = preset["rows"]
-    available_height = slide_height - header_height - margin_x - margin_bottom
-    card_width = (slide_width - (2 * margin_x) - (gutter_x * (columns - 1))) / columns
-    card_height = (available_height - (gutter_y * (rows - 1))) / rows
-
-    _add_rect(
-        slide,
-        left=0.0,
-        top=0.0,
-        width=slide_width,
-        height=header_height,
-        color=HEADER_COLOR,
-    )
-    _add_text(
-        slide,
-        text=title,
-        left=margin_x,
-        top=0.22,
-        width=slide_width - (2 * margin_x),
-        height=0.32,
-        color=HEADER_TEXT_COLOR,
-        size_pt=16,
-        bold=True,
-    )
-
-    for index, employee in enumerate(employees):
-        row_index = index // columns
-        col_index = index % columns
-        card_x = margin_x + col_index * (card_width + gutter_x)
-        card_y = header_height + margin_x + row_index * (card_height + gutter_y)
-        _build_card(
-            slide,
-            employee,
-            card_x=card_x,
-            card_y=card_y,
-            card_width=card_width,
-            card_height=card_height,
-        )
+    text_shape = resolve_shape_path(slide, slot["text"])
+    if employee is None:
+        replace_text(text_shape, ["", "", "", "", "", ""])
+        _replace_picture_at_path(slide, slot["picture"], placeholder_picture_bytes())
+        return
+    replace_text(text_shape, _talent_review_lines(employee))
+    _replace_picture_at_path(slide, slot["picture"], _picture_bytes_for_employee(employee))
 
 
 def _send_callback(callback: Callable[[dict], None] | None, payload: dict) -> None:
@@ -290,19 +247,27 @@ def generate_carom_pptx(
         return []
 
     preset = get_carom_preset(config["preset_id"])
-    title = _clean_str(config.get("titulo", "")) or "Carometro"
-    safe_name = normalize_filename(_clean_str(config.get("file_basename", "")) or title) or "Carometro"
+    title = _clean(config.get("titulo", "")) or preset.default_title
+    safe_name = normalize_filename(_clean(config.get("file_basename", "")) or title) or "Carometro"
     output_root = Path(output_dir) / "carometros"
     output_root.mkdir(parents=True, exist_ok=True)
 
-    prs = create_presentation()
-    capacity = preset["capacity"]
+    prs = PresentationFactory(str(preset.template_path))
+    template_slide = prs.slides[0]
+    capacity = preset.capacity
     total_slides = compute_projected_slide_count(len(employees), capacity)
+    slides: list[Slide] = [template_slide]
+    for _ in range(total_slides - 1):
+        slides.append(clone_slide(prs, template_slide))
 
-    for slide_index in range(total_slides):
+    for slide_index, slide in enumerate(slides):
         start = slide_index * capacity
         end = start + capacity
-        _build_slide(prs, title, employees[start:end], preset)
+        batch = employees[start:end]
+        _set_title_if_editable(slide, preset, title)
+        for slot_index, slot in enumerate(preset.slots):
+            employee = batch[slot_index] if slot_index < len(batch) else None
+            _render_slot(slide, preset, slot, employee)
         _send_callback(
             callback,
             {

@@ -18,6 +18,8 @@ from app.core.reader import (
     read_spreadsheet,
     resolve_spreadsheet_source,
     validate_carom_employee,
+    validate_carom_employee_for_preset,
+    validate_carom_schema_for_preset,
     validate_standardized_carom_schema,
     validate_standardized_ficha_schema,
     validate_ficha_employee,
@@ -160,6 +162,18 @@ class GenerationWorker(QThread):
                 employees: list[CaromEmployee] = list(self.config.get("selected_employees", []))
                 if not employees:
                     raise ValueError("Selecione ao menos um colaborador para gerar o carometro.")
+                preset_id = str(self.config.get("preset_id", "big"))
+                schema_fields = dict(self.config.get("schema_fields", {}))
+                if schema_fields:
+                    missing_schema_fields = validate_carom_schema_for_preset(
+                        schema_fields,
+                        preset_id,
+                    )
+                    if missing_schema_fields:
+                        joined = ", ".join(missing_schema_fields)
+                        raise ValueError(
+                            f"O template selecionado exige colunas ausentes na planilha: {joined}."
+                        )
                 for employee in employees:
                     missing_required = validate_carom_employee(employee)
                     if missing_required:
@@ -167,9 +181,19 @@ class GenerationWorker(QThread):
                         raise ValueError(
                             f"Um colaborador selecionado nao possui os campos obrigatorios: {joined}."
                         )
+                    missing_template_fields = validate_carom_employee_for_preset(
+                        employee,
+                        preset_id,
+                    )
+                    if missing_template_fields:
+                        joined = ", ".join(missing_template_fields)
+                        raise ValueError(
+                            "Um colaborador selecionado nao possui os campos obrigatorios "
+                            f"para o template escolhido: {joined}."
+                        )
                 self.log.emit(f"{len(employees)} colaboradores selecionados", "success")
                 carom_config: CaromConfig = {
-                    "preset_id": str(self.config.get("preset_id", "regular")),
+                    "preset_id": preset_id,
                     "file_basename": str(self.config.get("file_basename", "")),
                     "titulo": str(self.config.get("titulo", "Carometro")),
                 }
