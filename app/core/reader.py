@@ -13,6 +13,7 @@ import requests
 from openpyxl import load_workbook
 
 from app.config import settings
+from app.core.carom_templates import get_carom_preset
 
 COLUMN_VARIATIONS: dict[str, tuple[str, ...]] = {
     "matricula": ("matricula", "matricula_funcional", "matricula_colaborador", "id", "id_unico"),
@@ -45,6 +46,8 @@ COLUMN_VARIATIONS: dict[str, tuple[str, ...]] = {
     "foto": ("foto", "photo", "photo_ref", "photo_reference", "imagem", "avatar"),
     "localizacao": ("localizacao", "location", "cidade", "site"),
     "unidade_gestao": ("unidade_gestao", "management_unit", "gerencia_unidade"),
+    "ceo3": ("ceo3", "ceo_3"),
+    "ceo4": ("ceo4", "ceo_4"),
 }
 
 
@@ -124,11 +127,21 @@ EXPECTED_FICHA_COLUMN_ORDERS: Final[tuple[tuple[str, ...], ...]] = (
 CAROM_FIELDS: Final[tuple[str, ...]] = (
     "matricula",
     "nome",
+    "idade",
     "cargo",
+    "formacao",
+    "resumo_perfil",
+    "trajetoria",
     "foto",
     "area",
     "localizacao",
     "unidade_gestao",
+    "nota_2025",
+    "avaliacao_2025",
+    "score_2025",
+    "potencial_2025",
+    "ceo3",
+    "ceo4",
 )
 CAROM_REQUIRED_FIELDS: Final[tuple[str, ...]] = ("matricula", "nome", "cargo")
 
@@ -170,11 +183,21 @@ class FichaEmployee(TypedDict):
 class CaromEmployee(TypedDict):
     matricula: str
     nome: str
+    idade: str
     cargo: str
+    formacao: str
+    resumo_perfil: str
+    trajetoria: str
     foto: str
     area: str
     localizacao: str
     unidade_gestao: str
+    nota_2025: str
+    avaliacao_2025: str
+    score_2025: str
+    potencial_2025: str
+    ceo3: str
+    ceo4: str
 
 
 def read_spreadsheet(path: str) -> list[dict[str, str]]:
@@ -237,6 +260,8 @@ def detect_columns(headers: list[str]) -> dict[str, str | None]:
         "foto": None,
         "localizacao": None,
         "unidade_gestao": None,
+        "ceo3": None,
+        "ceo4": None,
     }
 
     for header in headers:
@@ -270,7 +295,28 @@ def resolve_ficha_schema(headers: list[str]) -> dict[str, str | None]:
 
 def resolve_carom_schema(headers: list[str]) -> dict[str, str | None]:
     detected = detect_columns(headers)
-    return {field: detected.get(field) for field in CAROM_FIELDS}
+    schema = {
+        field: detected.get(field)
+        for field in (
+            "matricula",
+            "nome",
+            "idade",
+            "cargo",
+            "formacao",
+            "resumo_perfil",
+            "trajetoria",
+            "foto",
+            "area",
+            "localizacao",
+            "unidade_gestao",
+            "ceo3",
+            "ceo4",
+        )
+    }
+    evaluation_schema = _resolve_ficha_evaluation_schema(headers)
+    for field in ("nota_2025", "avaliacao_2025", "score_2025", "potencial_2025"):
+        schema[field] = evaluation_schema.get(field)
+    return schema
 
 
 def validate_standardized_ficha_schema(headers: list[str]) -> dict[str, str | None]:
@@ -446,6 +492,15 @@ def remap_carom_row(
     }
     for field in CAROM_FIELDS:
         normalized.setdefault(field, "")
+    normalized["avaliacao_2025"] = _normalize_evaluation_value(normalized.get("avaliacao_2025"))
+    normalized["score_2025"] = _normalize_evaluation_value(normalized.get("score_2025"))
+    normalized["potencial_2025"] = _normalize_evaluation_value(normalized.get("potencial_2025"))
+    normalized["nota_2025"] = _build_ficha_display_note(
+        direct_value=normalized.get("nota_2025", ""),
+        consolidated_value=normalized.get("avaliacao_2025", ""),
+        score_value=normalized.get("score_2025", ""),
+        potential_value=normalized.get("potencial_2025", ""),
+    )
     return normalized
 
 
@@ -464,6 +519,44 @@ def load_standardized_carom_rows(rows: list[dict[str, str]]) -> list[CaromEmploy
 
 def validate_carom_employee(employee: CaromEmployee) -> list[str]:
     return [field for field in CAROM_REQUIRED_FIELDS if employee.get(field, "").strip() == ""]
+
+
+def resolve_carom_display_score_potential(employee: CaromEmployee) -> str:
+    return _build_ficha_display_note(
+        direct_value=employee.get("nota_2025", ""),
+        consolidated_value=employee.get("avaliacao_2025", ""),
+        score_value=employee.get("score_2025", ""),
+        potential_value=employee.get("potencial_2025", ""),
+    )
+
+
+def carom_schema_has_display_score(mapping: dict[str, str | None]) -> bool:
+    return any(
+        mapping.get(field)
+        for field in ("nota_2025", "avaliacao_2025", "score_2025", "potencial_2025")
+    )
+
+
+def validate_carom_schema_for_preset(
+    mapping: dict[str, str | None],
+    preset_id: str,
+) -> list[str]:
+    preset = get_carom_preset(preset_id)
+    missing = [field for field in preset.required_fields if not mapping.get(field)]
+    if preset.requires_display_score and not carom_schema_has_display_score(mapping):
+        missing.extend(("nota_2025", "avaliacao_2025", "score_2025", "potencial_2025"))
+    return list(dict.fromkeys(missing))
+
+
+def validate_carom_employee_for_preset(
+    employee: CaromEmployee,
+    preset_id: str,
+) -> list[str]:
+    preset = get_carom_preset(preset_id)
+    missing = [field for field in preset.required_fields if employee.get(field, "").strip() == ""]
+    if preset.requires_display_score and resolve_carom_display_score_potential(employee) == "":
+        missing.extend(("nota_2025", "avaliacao_2025", "score_2025", "potencial_2025"))
+    return list(dict.fromkeys(missing))
 
 
 def carom_employee_key(employee: CaromEmployee) -> str:

@@ -30,6 +30,7 @@ from app.core.reader import (
     carom_employee_key,
     filter_carom_employees,
     normalize_filename,
+    validate_carom_schema_for_preset,
 )
 from app.core.worker import CaromLookupWorker
 from app.ui.components import PreviewListItem, repolish
@@ -47,7 +48,7 @@ class _SelectableEmployeeCard(QFrame):
         layout.setContentsMargins(8, 6, 8, 6)
         layout.setSpacing(8)
 
-        meta = f"{employee.get('cargo', '')} | Matrícula {employee.get('matricula', '-') or '-'}"
+        meta = f"{employee.get('cargo', '')} | Matricula {employee.get('matricula', '-') or '-'}"
         self.preview = PreviewListItem(employee.get("nome", "") or "Sem Nome", meta)
         layout.addWidget(self.preview, 1)
 
@@ -74,7 +75,7 @@ class _SelectedEmployeeCard(QFrame):
         order.setFixedSize(30, 30)
         layout.addWidget(order)
 
-        meta = f"{employee.get('cargo', '')} | Matrícula {employee.get('matricula', '-') or '-'}"
+        meta = f"{employee.get('cargo', '')} | Matricula {employee.get('matricula', '-') or '-'}"
         self.preview = PreviewListItem(employee.get("nome", "") or "Sem Nome", meta)
         layout.addWidget(self.preview, 1)
 
@@ -86,17 +87,18 @@ class _SelectedEmployeeCard(QFrame):
 class CaromScreen(QWidget):
     generate_requested = Signal(dict)
 
-    page_title = "Carômetro"
+    page_title = "Carometro"
     page_badge = "Grade"
 
     PRESET_OPTIONS: tuple[tuple[str, str], ...] = (
         ("Mini", "mini"),
-        ("Regular", "regular"),
-        ("Grande", "large"),
+        ("Big", "big"),
+        ("Projeto Trainee", "projeto_trainee"),
+        ("Talent Review", "talent_review"),
     )
     SEARCH_OPTIONS: tuple[tuple[str, str], ...] = (
         ("Nome", "nome"),
-        ("Matrícula", "matricula"),
+        ("Matricula", "matricula"),
     )
 
     def __init__(self, config: dict[str, Any]) -> None:
@@ -111,6 +113,7 @@ class CaromScreen(QWidget):
         self._selected_keys: set[str] = set()
         self._source_result = None
         self._schema_fields: dict[str, str | None] = {}
+        self._last_editable_title = "Carometro"
 
         layout = QVBoxLayout(self)
         self._root_layout = layout
@@ -141,9 +144,9 @@ class CaromScreen(QWidget):
         for label, value in self.PRESET_OPTIONS:
             self.model_selector.addItem(label, value)
         self.model_selector.setCurrentIndex(1)
-        self.model_selector.currentIndexChanged.connect(self._refresh_selection_summary)
+        self.model_selector.currentIndexChanged.connect(self._on_preset_changed)
 
-        self.title_field = QLineEdit("Carômetro")
+        self.title_field = QLineEdit("Carometro")
         self.title_field.textChanged.connect(self._on_title_changed)
 
         self.entry_output = QLineEdit(str(get_default_output_dir()))
@@ -165,11 +168,11 @@ class CaromScreen(QWidget):
         source_input_layout.addWidget(self.entry_source, 1)
         source_input_layout.addWidget(self.btn_browse_file)
         source_layout.addWidget(source_input_row, 1, 1, 1, 3)
-        source_layout.addWidget(self._field_label("Título"), 2, 0)
+        source_layout.addWidget(self._field_label("Titulo"), 2, 0)
         source_layout.addWidget(self.title_field, 2, 1)
         source_layout.addWidget(self._field_label("Status da planilha"), 2, 2)
         source_layout.addWidget(self.schema_status_label, 2, 3)
-        source_layout.addWidget(self._field_label("Saída"), 3, 0)
+        source_layout.addWidget(self._field_label("Saida"), 3, 0)
         source_layout.addWidget(self.entry_output, 3, 1, 1, 3)
         layout.addWidget(source_panel)
 
@@ -264,7 +267,7 @@ class CaromScreen(QWidget):
 
         status_col = QVBoxLayout()
         status_col.setSpacing(6)
-        footer_label = QLabel("Status da geração")
+        footer_label = QLabel("Status da geracao")
         footer_label.setObjectName("panelTitle")
         self.status_label = QLabel("")
         self.status_label.setObjectName("statusLabel")
@@ -273,7 +276,7 @@ class CaromScreen(QWidget):
         status_col.addWidget(self.status_label)
         action_layout.addLayout(status_col, 1)
 
-        self.btn_generate = QPushButton("GERAR CARÔMETRO")
+        self.btn_generate = QPushButton("GERAR CAROMETRO")
         self.btn_generate.setObjectName("primary")
         self.btn_generate.clicked.connect(self._start_generation)
         self.btn_generate.setMinimumWidth(220)
@@ -282,18 +285,19 @@ class CaromScreen(QWidget):
 
         self._compact_labels = [self.results_hint]
         self._sync_source_mode()
-        self._set_schema_status("Planilha não validada.", "warning")
-        self._set_status("Carregue uma planilha válida para começar a selecionar pessoas.", "info")
+        self._sync_title_mode(reset_title=True)
+        self._set_schema_status("Planilha nao validada.", "warning")
+        self._set_status("Carregue uma planilha valida para comecar a selecionar pessoas.", "info")
         self._refresh_selection_summary()
         self._refresh_action_state()
 
     @property
     def current_preset_id(self) -> str:
-        return str(self.model_selector.currentData() or "regular")
+        return str(self.model_selector.currentData() or "big")
 
     @property
     def current_capacity(self) -> int:
-        return get_carom_preset(self.current_preset_id)["capacity"]
+        return get_carom_preset(self.current_preset_id).capacity
 
     def _field_label(self, text: str) -> QLabel:
         label = QLabel(text)
@@ -326,12 +330,13 @@ class CaromScreen(QWidget):
             else config.get("default_onedrive_url", "")
         )
         self.entry_output.setText(str(get_default_output_dir()))
-        self.title_field.setText("Carômetro")
+        self._last_editable_title = "Carometro"
         self.model_selector.setCurrentIndex(1)
         self._clear_loaded_data()
         self._sync_source_mode()
-        self._set_schema_status("Planilha não validada.", "warning")
-        self._set_status("Carregue uma planilha válida para começar a selecionar pessoas.", "info")
+        self._sync_title_mode(reset_title=True)
+        self._set_schema_status("Planilha nao validada.", "warning")
+        self._set_status("Carregue uma planilha valida para comecar a selecionar pessoas.", "info")
         self._refresh_selection_summary()
         self._refresh_action_state()
 
@@ -357,11 +362,35 @@ class CaromScreen(QWidget):
             else "https://... link compartilhado do OneDrive"
         )
 
+    def _sync_title_mode(self, *, reset_title: bool = False) -> None:
+        preset = get_carom_preset(self.current_preset_id)
+        if preset.editable_title:
+            self.title_field.setReadOnly(False)
+            self.title_field.setEnabled(True)
+            if reset_title or self.title_field.text().strip() in {"", "Carometro Projeto Trainee", "Talent Review"}:
+                self.title_field.setText(self._last_editable_title or preset.default_title)
+            return
+
+        current_text = self.title_field.text().strip()
+        if current_text:
+            self._last_editable_title = current_text
+        self.title_field.setText(preset.default_title)
+        self.title_field.setReadOnly(True)
+        self.title_field.setEnabled(False)
+
     def _derive_filename(self) -> str:
         return normalize_filename(self.title_field.text().strip())
 
     def _on_title_changed(self) -> None:
+        if get_carom_preset(self.current_preset_id).editable_title:
+            self._last_editable_title = self.title_field.text().strip() or self._last_editable_title
         self._set_invalid(self.title_field, False)
+        self._refresh_action_state()
+
+    def _on_preset_changed(self, *_args: object) -> None:
+        self._sync_title_mode()
+        self._refresh_selection_summary()
+        self._refresh_preset_schema_status()
         self._refresh_action_state()
 
     def _on_source_changed(self, *_args: object) -> None:
@@ -372,11 +401,11 @@ class CaromScreen(QWidget):
         self._clear_loaded_data()
         source = self.entry_source.text().strip()
         if source:
-            self._set_schema_status("Validação da planilha pendente.", "info")
+            self._set_schema_status("Validacao da planilha pendente.", "info")
             self._set_status("Origem alterada. Valide a planilha para habilitar a busca.", "info")
         else:
-            self._set_schema_status("Planilha não validada.", "warning")
-            self._set_status("Carregue uma planilha válida para começar a selecionar pessoas.", "info")
+            self._set_schema_status("Planilha nao validada.", "warning")
+            self._set_status("Carregue uma planilha valida para comecar a selecionar pessoas.", "info")
         self._refresh_action_state()
 
     def _validate_source(self) -> bool:
@@ -384,17 +413,17 @@ class CaromScreen(QWidget):
         self._set_invalid(self.entry_source, source == "")
         if source == "":
             self._set_status("Informe a origem da planilha.", "warning")
-            self._set_schema_status("Planilha não validada.", "warning")
+            self._set_schema_status("Planilha nao validada.", "warning")
             return False
 
         if self.source_type.currentText() == "Arquivo local" and not Path(source).is_file():
-            self._set_status("A planilha local não foi encontrada.", "error")
-            self._set_schema_status("Planilha inválida: arquivo local não encontrado.", "error")
+            self._set_status("A planilha local nao foi encontrada.", "error")
+            self._set_schema_status("Planilha invalida: arquivo local nao encontrado.", "error")
             return False
 
         if self.source_type.currentText() == "OneDrive" and not source.startswith("https://"):
-            self._set_status("Informe um link do OneDrive válido.", "error")
-            self._set_schema_status("Planilha inválida: link do OneDrive não reconhecido.", "error")
+            self._set_status("Informe um link do OneDrive valido.", "error")
+            self._set_schema_status("Planilha invalida: link do OneDrive nao reconhecido.", "error")
             return False
         return True
 
@@ -431,11 +460,7 @@ class CaromScreen(QWidget):
         self.search_input.clear()
         self._filtered_employees = list(self._loaded_employees)
         employee_count = int(result.get("employee_count", 0))
-        self._set_schema_status(
-            f"Planilha padronizada validada. {employee_count} colaborador(es) carregado(s).",
-            "success",
-        )
-        self._set_status("Planilha carregada. Use a busca em tempo real para montar o carômetro.", "success")
+        self._refresh_preset_schema_status(employee_count=employee_count)
         self._refresh_results()
         self._refresh_selected_list()
         self._refresh_selection_summary()
@@ -464,6 +489,34 @@ class CaromScreen(QWidget):
         self.results_hint.setText("Valide a planilha para habilitar a busca em tempo real.")
         self._refresh_selection_summary()
 
+    def _current_preset_missing_fields(self) -> list[str]:
+        if not self._schema_valid:
+            return []
+        return validate_carom_schema_for_preset(self._schema_fields, self.current_preset_id)
+
+    def _refresh_preset_schema_status(self, *, employee_count: int | None = None) -> None:
+        if not self._schema_valid:
+            return
+        missing = self._current_preset_missing_fields()
+        if missing:
+            joined = ", ".join(missing)
+            self._set_schema_status(
+                f"Planilha validada, mas o template atual exige colunas ausentes: {joined}.",
+                "warning",
+            )
+            self._set_status(
+                f"O template atual nao pode ser gerado com esta planilha. Campos ausentes: {joined}.",
+                "warning",
+            )
+            return
+
+        loaded = employee_count if employee_count is not None else len(self._loaded_employees)
+        self._set_schema_status(
+            f"Planilha padronizada validada. {loaded} colaborador(es) carregado(s).",
+            "success",
+        )
+        self._set_status("Planilha carregada. Use a busca em tempo real para montar o carometro.", "success")
+
     def _on_search_changed(self, *_args: object) -> None:
         self._refresh_results()
         self._refresh_action_state()
@@ -485,17 +538,17 @@ class CaromScreen(QWidget):
 
         if not self._filtered_employees:
             self.results_hint.setText(
-                "Nenhum resultado disponível para a busca atual."
+                "Nenhum resultado disponivel para a busca atual."
                 if query
-                else "Todas as pessoas carregadas já foram selecionadas."
+                else "Todas as pessoas carregadas ja foram selecionadas."
             )
             return
 
         result_count = len(self._filtered_employees)
         self.results_hint.setText(
-            "1 resultado disponível."
+            "1 resultado disponivel."
             if result_count == 1
-            else f"{result_count} resultados disponíveis."
+            else f"{result_count} resultados disponiveis."
         )
         for employee in self._filtered_employees:
             key = carom_employee_key(employee)
@@ -519,7 +572,7 @@ class CaromScreen(QWidget):
 
     def _add_employee(self, employee_key: str) -> None:
         if employee_key in self._selected_keys:
-            self._set_status("Esta pessoa já está selecionada.", "warning")
+            self._set_status("Esta pessoa ja esta selecionada.", "warning")
             return
         employee = next(
             (
@@ -537,7 +590,7 @@ class CaromScreen(QWidget):
         self._refresh_selected_list()
         self._refresh_selection_summary()
         self._set_status(
-            f"{employee.get('nome', 'colaborador')} adicionado(a) à seleção do carômetro.",
+            f"{employee.get('nome', 'colaborador')} adicionado(a) a selecao do carometro.",
             "success",
         )
         self._refresh_action_state()
@@ -552,7 +605,7 @@ class CaromScreen(QWidget):
         self._refresh_results()
         self._refresh_selected_list()
         self._refresh_selection_summary()
-        self._set_status("Pessoa removida da seleção atual.", "info")
+        self._set_status("Pessoa removida da selecao atual.", "info")
         self._refresh_action_state()
 
     def _refresh_selection_summary(self) -> None:
@@ -560,12 +613,8 @@ class CaromScreen(QWidget):
         selected_count = len(self._selected_employees)
         self.total_selected_label.setText(str(selected_count))
         self.capacity_label.setText(str(capacity))
-        self.slide_count_label.setText(
-            str(compute_projected_slide_count(selected_count, capacity))
-        )
-        self.current_slide_label.setText(
-            compute_current_slide_status(selected_count, capacity)
-        )
+        self.slide_count_label.setText(str(compute_projected_slide_count(selected_count, capacity)))
+        self.current_slide_label.setText(compute_current_slide_status(selected_count, capacity))
         self.current_slide_label.setProperty(
             "state", "success" if selected_count and selected_count % capacity == 0 else "info"
         )
@@ -575,8 +624,11 @@ class CaromScreen(QWidget):
         worker_running = self._worker is not None and self._worker.isRunning()
         title = self.title_field.text().strip()
         filename = self._derive_filename()
+        missing_fields = self._current_preset_missing_fields()
+        preset = get_carom_preset(self.current_preset_id)
         ready_to_generate = (
             self._schema_valid
+            and not missing_fields
             and bool(self._selected_employees)
             and bool(title)
             and bool(filename)
@@ -590,7 +642,8 @@ class CaromScreen(QWidget):
         self.btn_browse_file.setEnabled(
             self.source_type.currentText() == "Arquivo local" and not worker_running
         )
-        self.title_field.setEnabled(not worker_running)
+        if preset.editable_title:
+            self.title_field.setEnabled(not worker_running)
         self.btn_generate.setEnabled(ready_to_generate)
 
     def _start_generation(self) -> None:
@@ -598,13 +651,21 @@ class CaromScreen(QWidget):
         filename = self._derive_filename()
         self._set_invalid(self.title_field, title == "")
         if title == "":
-            self._set_status("Informe um título antes de exportar.", "warning")
+            self._set_status("Informe um titulo antes de exportar.", "warning")
             return
         if filename == "":
-            self._set_status("O nome de arquivo derivado é inválido. Ajuste o título.", "warning")
+            self._set_status("O nome de arquivo derivado e invalido. Ajuste o titulo.", "warning")
             return
         if not self._schema_valid:
             self._set_status("Valide a planilha antes de exportar.", "warning")
+            return
+        missing_fields = self._current_preset_missing_fields()
+        if missing_fields:
+            joined = ", ".join(missing_fields)
+            self._set_status(
+                f"O template atual exige colunas ausentes na planilha: {joined}.",
+                "warning",
+            )
             return
         if not self._selected_employees:
             self._set_status("Selecione pelo menos uma pessoa antes de exportar.", "warning")
@@ -615,6 +676,7 @@ class CaromScreen(QWidget):
                 "output_dir": str(get_default_output_dir()),
                 "selected_employees": list(self._selected_employees),
                 "source_result": self._source_result,
+                "schema_fields": dict(self._schema_fields),
                 "preset_id": self.current_preset_id,
                 "titulo": title,
                 "file_basename": filename,
