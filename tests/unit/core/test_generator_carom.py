@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 from pptx import Presentation
 
 from app.core import generator_carom
@@ -37,8 +38,16 @@ def _all_slide_text(slide) -> str:
     return "\n".join(values)
 
 
-def test_get_carom_preset_maps_legacy_regular_to_big_template() -> None:
+def test_get_carom_preset_maps_legacy_regular_to_mini_template() -> None:
     preset = generator_carom.get_carom_preset("regular")
+
+    assert preset.id == "mini"
+    assert preset.capacity == 18
+    assert preset.template_path.name == "Carometro-mini.pptx"
+
+
+def test_get_carom_preset_maps_legacy_large_to_big_template() -> None:
+    preset = generator_carom.get_carom_preset("large")
 
     assert preset.id == "big"
     assert preset.capacity == 8
@@ -89,12 +98,48 @@ def test_generate_carom_pptx_uses_title_on_every_big_slide(tmp_path: Path) -> No
     files = generator_carom.generate_carom_pptx(
         [_employee(index) for index in range(1, 12)],
         str(tmp_path),
-        {"preset_id": "regular", "titulo": "Leadership Board", "file_basename": "Leadership_Board"},
+        {"preset_id": "big", "titulo": "Leadership Board", "file_basename": "Leadership_Board"},
     )
 
     prs = Presentation(files[0])
     slide_titles = [slide.shapes[17].text for slide in prs.slides]
     assert slide_titles == ["Leadership Board", "Leadership Board"]
+
+
+def test_generate_carom_pptx_allows_legacy_regular_without_ceo_fields(tmp_path: Path) -> None:
+    employee = _employee(1)
+    employee["ceo3"] = ""
+    employee["ceo4"] = ""
+    employee["nota_2025"] = ""
+    employee["avaliacao_2025"] = ""
+    employee["score_2025"] = ""
+    employee["potencial_2025"] = ""
+
+    files = generator_carom.generate_carom_pptx(
+        [employee],
+        str(tmp_path),
+        {"preset_id": "regular", "titulo": "Carometro", "file_basename": "Carometro"},
+    )
+
+    assert Path(files[0]).exists()
+
+
+def test_generate_carom_pptx_rejects_big_when_required_ceo_field_is_missing(
+    tmp_path: Path,
+) -> None:
+    employee = _employee(1)
+    employee["ceo3"] = ""
+
+    with pytest.raises(ValueError, match="ceo3"):
+        generator_carom.generate_carom_pptx(
+            [employee],
+            str(tmp_path),
+            {
+                "preset_id": "big",
+                "titulo": "Leadership Board",
+                "file_basename": "Leadership_Board",
+            },
+        )
 
 
 def test_generate_carom_pptx_clears_unused_big_slots_without_sample_text(tmp_path: Path) -> None:

@@ -448,6 +448,80 @@ def test_load_standardized_carom_rows_builds_display_score_from_score_and_potent
     assert reader.resolve_carom_display_score_potential(result[0]) == "4 / AP"
 
 
+def test_validate_standardized_carom_schema_accepts_legacy_without_ceo_fields() -> None:
+    schema = reader.validate_standardized_carom_schema(
+        ["Matricula", "Nome", "Idade", "Cargo"]
+    )
+
+    assert schema["matricula"] == "Matricula"
+    assert schema["nome"] == "Nome"
+    assert schema["cargo"] == "Cargo"
+    assert schema["ceo3"] is None
+    assert schema["ceo4"] is None
+
+
+def test_legacy_standardized_carom_schema_has_export_eligible_preset() -> None:
+    schema = reader.validate_standardized_carom_schema(
+        ["Matricula", "Nome", "Idade", "Cargo"]
+    )
+    eligible = [
+        preset_id
+        for preset_id in ("mini", "big", "projeto_trainee", "talent_review")
+        if not reader.validate_carom_schema_for_preset(schema, preset_id)
+    ]
+
+    assert eligible == ["mini"]
+
+
+def test_legacy_carom_alias_regular_remains_export_eligible() -> None:
+    schema = reader.validate_standardized_carom_schema(
+        ["Matricula", "Nome", "Idade", "Cargo"]
+    )
+
+    assert reader.validate_carom_schema_for_preset(schema, "regular") == []
+
+
+def test_ceo_driven_carom_presets_fail_clearly_without_ceo_columns() -> None:
+    schema = reader.validate_standardized_carom_schema(
+        [
+            "Matricula",
+            "Nome",
+            "Idade",
+            "Cargo",
+            "Formacao",
+            "Nota 2025",
+            "Potencial 2025",
+        ]
+    )
+
+    assert "ceo3" in reader.validate_carom_schema_for_preset(schema, "big")
+    assert "ceo4" in reader.validate_carom_schema_for_preset(schema, "projeto_trainee")
+    assert reader.validate_carom_schema_for_preset(schema, "talent_review")[:2] == [
+        "ceo3",
+        "ceo4",
+    ]
+
+
+def test_ceo_driven_carom_presets_accept_complete_schema() -> None:
+    schema = reader.validate_standardized_carom_schema(
+        [
+            "Matricula",
+            "Nome",
+            "Idade",
+            "Cargo",
+            "Formacao",
+            "Nota 2025",
+            "Potencial 2025",
+            "CEO3",
+            "CEO4",
+        ]
+    )
+
+    assert reader.validate_carom_schema_for_preset(schema, "big") == []
+    assert reader.validate_carom_schema_for_preset(schema, "projeto_trainee") == []
+    assert reader.validate_carom_schema_for_preset(schema, "talent_review") == []
+
+
 def test_validate_carom_schema_for_big_requires_template_fields() -> None:
     missing = reader.validate_carom_schema_for_preset(
         {"matricula": "Matricula", "nome": "Nome", "cargo": "Cargo"},
