@@ -37,9 +37,14 @@ Aplicativo desktop em PySide6 para geracao de fichas de curriculo e carometros a
 - `Potencial 2024`
 - `Nota 2023`
 - `Potencial 2023`
+- `CEO1`
+- `CEO2`
+- `CEO3`
+- `CEO4`
 
 O sistema continua aceitando aliases conhecidos por auto-deteccao.
 Na ficha, os campos anuais exibidos (`nota_2025`, `nota_2024`, `nota_2023`) podem vir diretamente das colunas consolidadas `Avaliação <ano>` ou ser derivados de `Nota <ano>` + `Potencial <ano>`.
+As colunas `CEO1` a `CEO4` sao aceitas no contrato da planilha; a ficha nao usa esses campos no layout, enquanto templates de carometro usam `CEO3` e `CEO4` quando exigidos.
 Quando os valores anuais estiverem disponiveis, o campo interno `performance` sera montado automaticamente como historico multilinha.
 
 ## Saida

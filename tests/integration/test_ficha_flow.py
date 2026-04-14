@@ -90,6 +90,10 @@ def _build_new_evaluation_spreadsheet(
             "Potencial 2024",
             "Nota 2023",
             "Potencial 2023",
+            "CEO1",
+            "CEO2",
+            "CEO3",
+            "CEO4",
         ]
     )
     sheet.append(
@@ -111,6 +115,10 @@ def _build_new_evaluation_spreadsheet(
             "AP",
             "",
             "",
+            "Diretoria",
+            "VP",
+            "Sucessor Imediato",
+            "Em desenvolvimento",
         ]
     )
     workbook.save(path)

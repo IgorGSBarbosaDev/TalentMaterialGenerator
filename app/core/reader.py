@@ -46,6 +46,8 @@ COLUMN_VARIATIONS: dict[str, tuple[str, ...]] = {
     "foto": ("foto", "photo", "photo_ref", "photo_reference", "imagem", "avatar"),
     "localizacao": ("localizacao", "location", "cidade", "site"),
     "unidade_gestao": ("unidade_gestao", "management_unit", "gerencia_unidade"),
+    "ceo1": ("ceo1", "ceo_1"),
+    "ceo2": ("ceo2", "ceo_2"),
     "ceo3": ("ceo3", "ceo_3"),
     "ceo4": ("ceo4", "ceo_4"),
 }
@@ -136,6 +138,8 @@ CAROM_FIELDS: Final[tuple[str, ...]] = (
     "area",
     "localizacao",
     "unidade_gestao",
+    "ceo1",
+    "ceo2",
     "nota_2025",
     "avaliacao_2025",
     "score_2025",
@@ -192,6 +196,8 @@ class CaromEmployee(TypedDict):
     area: str
     localizacao: str
     unidade_gestao: str
+    ceo1: str
+    ceo2: str
     nota_2025: str
     avaliacao_2025: str
     score_2025: str
@@ -260,6 +266,8 @@ def detect_columns(headers: list[str]) -> dict[str, str | None]:
         "foto": None,
         "localizacao": None,
         "unidade_gestao": None,
+        "ceo1": None,
+        "ceo2": None,
         "ceo3": None,
         "ceo4": None,
     }
@@ -309,6 +317,8 @@ def resolve_carom_schema(headers: list[str]) -> dict[str, str | None]:
             "area",
             "localizacao",
             "unidade_gestao",
+            "ceo1",
+            "ceo2",
             "ceo3",
             "ceo4",
         )

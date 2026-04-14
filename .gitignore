@@ -10,6 +10,8 @@ config.json
 .coverage
 htmlcov/
 .tmp/
+.tmp-*/
+tmp*/
 80
 *.log
 PlanilhaTeste.xlsx

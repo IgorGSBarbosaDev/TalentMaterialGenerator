@@ -35,6 +35,15 @@ def test_detect_columns_maps_annual_note_headers() -> None:
     assert mapping["nota_2023"] == "Nota 2023"
 
 
+def test_detect_columns_maps_all_ceo_headers_from_new_spreadsheet() -> None:
+    mapping = reader.detect_columns(["CEO1", "CEO2", "CEO3", "CEO4"])
+
+    assert mapping["ceo1"] == "CEO1"
+    assert mapping["ceo2"] == "CEO2"
+    assert mapping["ceo3"] == "CEO3"
+    assert mapping["ceo4"] == "CEO4"
+
+
 def test_resolve_ficha_schema_maps_new_evaluation_layout_without_ambiguity() -> None:
     schema = reader.resolve_ficha_schema(
         [
@@ -142,6 +151,34 @@ def test_has_expected_ficha_column_order_accepts_new_reference_contract() -> Non
         "Potencial 2024",
         "Nota 2023",
         "Potencial 2023",
+    ]
+
+    assert reader.has_expected_ficha_column_order(headers) is True
+
+
+def test_has_expected_ficha_column_order_accepts_new_reference_contract_with_ceos() -> None:
+    headers = [
+        "Matricula",
+        "Nome",
+        "Cargo",
+        "Idade",
+        "Antiguidade",
+        "Formacao",
+        "Resumo do perfil",
+        "Trajetoria",
+        "Avaliação 2025",
+        "Avaliação 2024",
+        "Avaliação 2023",
+        "Nota 2025",
+        "Potencial 2025",
+        "Nota 2024",
+        "Potencial 2024",
+        "Nota 2023",
+        "Potencial 2023",
+        "CEO1",
+        "CEO2",
+        "CEO3",
+        "CEO4",
     ]
 
     assert reader.has_expected_ficha_column_order(headers) is True
@@ -382,6 +419,37 @@ def test_load_standardized_ficha_rows_treats_na_values_as_missing() -> None:
     assert result[0]["nota_2024"] == "4 / AP"
 
 
+def test_load_standardized_ficha_rows_ignores_appended_ceo_columns() -> None:
+    rows = [
+        {
+            "Matricula": "123",
+            "Nome": "Ana",
+            "Cargo": "Analista",
+            "Avaliação 2025": "5 / AP",
+            "Avaliação 2024": "",
+            "Avaliação 2023": "",
+            "Nota 2025": "5",
+            "Potencial 2025": "AP",
+            "Nota 2024": "",
+            "Potencial 2024": "",
+            "Nota 2023": "",
+            "Potencial 2023": "",
+            "CEO1": "Diretoria",
+            "CEO2": "VP",
+            "CEO3": "Sucessor Imediato",
+            "CEO4": "Em desenvolvimento",
+        }
+    ]
+
+    result = reader.load_standardized_ficha_rows(rows)
+
+    assert result[0]["nota_2025"] == "5 / AP"
+    assert "ceo1" not in result[0]
+    assert "ceo2" not in result[0]
+    assert "ceo3" not in result[0]
+    assert "ceo4" not in result[0]
+
+
 def test_load_standardized_carom_rows_uses_detected_headers() -> None:
     rows = [
         {
@@ -390,6 +458,8 @@ def test_load_standardized_carom_rows_uses_detected_headers() -> None:
             "Idade": "31",
             "Cargo": "Analista",
             "Area": "Operacao",
+            "CEO1": "CEO1 Ana",
+            "CEO2": "CEO2 Ana",
             "CEO3": "CEO3 Ana",
             "CEO4": "CEO4 Ana",
         }
@@ -401,6 +471,8 @@ def test_load_standardized_carom_rows_uses_detected_headers() -> None:
     assert result[0]["nome"] == "Ana"
     assert result[0]["area"] == "Operacao"
     assert result[0]["idade"] == "31"
+    assert result[0]["ceo1"] == "CEO1 Ana"
+    assert result[0]["ceo2"] == "CEO2 Ana"
     assert result[0]["ceo3"] == "CEO3 Ana"
     assert result[0]["ceo4"] == "CEO4 Ana"
 
@@ -416,6 +488,8 @@ def test_resolve_carom_schema_includes_evaluation_and_ceo_fields() -> None:
             "Avaliacao 2025",
             "Nota 2025",
             "Potencial 2025",
+            "CEO1",
+            "CEO2",
             "CEO3",
             "CEO4",
         ]
@@ -424,6 +498,8 @@ def test_resolve_carom_schema_includes_evaluation_and_ceo_fields() -> None:
     assert schema["avaliacao_2025"] == "Avaliacao 2025"
     assert schema["score_2025"] == "Nota 2025"
     assert schema["potencial_2025"] == "Potencial 2025"
+    assert schema["ceo1"] == "CEO1"
+    assert schema["ceo2"] == "CEO2"
     assert schema["ceo3"] == "CEO3"
     assert schema["ceo4"] == "CEO4"
 
