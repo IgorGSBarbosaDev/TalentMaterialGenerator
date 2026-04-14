@@ -21,6 +21,7 @@ from app.core.reader import (
     CaromEmployee,
     normalize_filename,
     resolve_carom_display_score_potential,
+    validate_carom_employee_for_preset,
 )
 
 PROJETO_TRAINEE_BODY_TEXT: Final = "insira projeto trainee aqui"
@@ -237,6 +238,18 @@ def _send_callback(callback: Callable[[dict], None] | None, payload: dict) -> No
         callback(payload)
 
 
+def _validate_employees_for_preset(employees: list[CaromEmployee], preset_id: str) -> None:
+    for employee in employees:
+        missing = validate_carom_employee_for_preset(employee, preset_id)
+        if missing:
+            joined = ", ".join(missing)
+            name = _employee_name(employee)
+            raise ValueError(
+                f"O colaborador '{name}' nao possui os campos obrigatorios "
+                f"para o template escolhido: {joined}."
+            )
+
+
 def generate_carom_pptx(
     employees: list[CaromEmployee],
     output_dir: str,
@@ -247,6 +260,7 @@ def generate_carom_pptx(
         return []
 
     preset = get_carom_preset(config["preset_id"])
+    _validate_employees_for_preset(employees, preset.id)
     title = _clean(config.get("titulo", "")) or preset.default_title
     safe_name = normalize_filename(_clean(config.get("file_basename", "")) or title) or "Carometro"
     output_root = Path(output_dir) / "carometros"

@@ -26,7 +26,7 @@ class CaromTemplate:
         return resolve_carom_template_path(self.template_name)
 
 CAROM_TEMPLATE_ALIASES: Final[dict[str, str]] = {
-    "regular": "big",
+    "regular": "mini",
     "large": "big",
 }
 
@@ -41,7 +41,7 @@ CAROM_TEMPLATES: Final[dict[str, CaromTemplate]] = {
         default_title="Carometro",
         title_path=(1,),
         subtitle_path=(3, 1),
-        required_fields=("nome", "cargo", "idade", "ceo3"),
+        required_fields=("nome", "cargo"),
         requires_display_score=False,
         slots=(
             {"picture": (4, 0), "text": (4, 1)},

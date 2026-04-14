@@ -286,6 +286,7 @@ class CaromScreen(QWidget):
         self._compact_labels = [self.results_hint]
         self._sync_source_mode()
         self._sync_title_mode(reset_title=True)
+        self._refresh_preset_option_states()
         self._set_schema_status("Planilha nao validada.", "warning")
         self._set_status("Carregue uma planilha valida para comecar a selecionar pessoas.", "info")
         self._refresh_selection_summary()
@@ -335,6 +336,7 @@ class CaromScreen(QWidget):
         self._clear_loaded_data()
         self._sync_source_mode()
         self._sync_title_mode(reset_title=True)
+        self._refresh_preset_option_states()
         self._set_schema_status("Planilha nao validada.", "warning")
         self._set_status("Carregue uma planilha valida para comecar a selecionar pessoas.", "info")
         self._refresh_selection_summary()
@@ -399,6 +401,7 @@ class CaromScreen(QWidget):
         self._schema_fields = {}
         self._source_result = None
         self._clear_loaded_data()
+        self._refresh_preset_option_states()
         source = self.entry_source.text().strip()
         if source:
             self._set_schema_status("Validacao da planilha pendente.", "info")
@@ -459,6 +462,8 @@ class CaromScreen(QWidget):
         self._selected_keys = set()
         self.search_input.clear()
         self._filtered_employees = list(self._loaded_employees)
+        self._refresh_preset_option_states()
+        self._select_first_compatible_preset()
         employee_count = int(result.get("employee_count", 0))
         self._refresh_preset_schema_status(employee_count=employee_count)
         self._refresh_results()
@@ -471,6 +476,7 @@ class CaromScreen(QWidget):
         self._schema_fields = {}
         self._source_result = None
         self._clear_loaded_data()
+        self._refresh_preset_option_states()
         self._set_schema_status(message, "error")
         self._set_status(message, "error")
         self._refresh_action_state()
@@ -493,6 +499,35 @@ class CaromScreen(QWidget):
         if not self._schema_valid:
             return []
         return validate_carom_schema_for_preset(self._schema_fields, self.current_preset_id)
+
+    def _preset_missing_fields(self, preset_id: str) -> list[str]:
+        if not self._schema_valid:
+            return []
+        return validate_carom_schema_for_preset(self._schema_fields, preset_id)
+
+    def _refresh_preset_option_states(self) -> None:
+        model = self.model_selector.model()
+        for index in range(self.model_selector.count()):
+            item = model.item(index)
+            if item is None:
+                continue
+            preset_id = str(self.model_selector.itemData(index))
+            missing = self._preset_missing_fields(preset_id)
+            item.setEnabled(not missing)
+            item.setToolTip(
+                ""
+                if not missing
+                else f"Indisponivel para esta planilha. Campos ausentes: {', '.join(missing)}."
+            )
+
+    def _select_first_compatible_preset(self) -> None:
+        if not self._schema_valid or not self._current_preset_missing_fields():
+            return
+        for index in range(self.model_selector.count()):
+            preset_id = str(self.model_selector.itemData(index))
+            if not self._preset_missing_fields(preset_id):
+                self.model_selector.setCurrentIndex(index)
+                return
 
     def _refresh_preset_schema_status(self, *, employee_count: int | None = None) -> None:
         if not self._schema_valid:
