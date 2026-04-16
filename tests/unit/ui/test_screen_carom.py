@@ -43,6 +43,13 @@ def _legacy_employee(matricula: str, nome: str) -> dict[str, str]:
 
 
 def _load_employees(screen: CaromScreen) -> None:
+    _load_employee_list(
+        screen,
+        [_employee("101", "Ana Martins"), _employee("102", "Carlos Souza")],
+    )
+
+
+def _load_employee_list(screen: CaromScreen, employees: list[dict[str, str]]) -> None:
     screen._handle_worker_success(
         {
             "schema": {
@@ -56,9 +63,9 @@ def _load_employees(screen: CaromScreen) -> None:
                 "ceo3": "CEO3",
                 "ceo4": "CEO4",
             },
-            "employees": [_employee("101", "Ana Martins"), _employee("102", "Carlos Souza")],
+            "employees": employees,
             "source_result": None,
-            "employee_count": 2,
+            "employee_count": len(employees),
         }
     )
 
@@ -83,6 +90,16 @@ def _preset_item_enabled(screen: CaromScreen, index: int) -> bool:
     item = screen.model_selector.model().item(index)
     assert item is not None
     return bool(item.isEnabled())
+
+
+def _visible_result_names(screen: CaromScreen) -> list[str]:
+    names = []
+    for index in range(screen.results_list.count()):
+        item = screen.results_list.item(index)
+        card = screen.results_list.itemWidget(item)
+        assert card is not None
+        names.append(card.preview.title_label.text())
+    return names
 
 
 def test_carom_screen_get_generation_payload_uses_default_output_dir(qtbot) -> None:
@@ -140,15 +157,151 @@ def test_carom_screen_prevents_duplicate_selection(qtbot) -> None:
     assert "ja esta selecionada" in screen.status_label.text()
 
 
-def test_carom_screen_live_search_filters_loaded_rows(qtbot) -> None:
+def test_carom_screen_search_filters_only_when_requested(qtbot) -> None:
     screen = CaromScreen({})
     qtbot.addWidget(screen)
     _load_employees(screen)
 
     screen.search_input.setText("carl")
 
+    assert len(screen._filtered_employees) == 2
+
+    screen.btn_search.click()
+
     assert len(screen._filtered_employees) == 1
     assert screen._filtered_employees[0]["nome"] == "Carlos Souza"
+
+    screen.search_input.setText("ana")
+
+    assert screen._filtered_employees[0]["nome"] == "Carlos Souza"
+
+    screen.search_input.returnPressed.emit()
+
+    assert len(screen._filtered_employees) == 1
+    assert screen._filtered_employees[0]["nome"] == "Ana Martins"
+
+
+def test_carom_screen_keeps_full_dataset_but_renders_only_first_page(qtbot) -> None:
+    screen = CaromScreen({})
+    qtbot.addWidget(screen)
+    employees = [_employee(str(100 + index), f"Colab {index:03}") for index in range(1, 56)]
+
+    _load_employee_list(screen, employees)
+
+    assert len(screen._loaded_employees) == 55
+    assert len(screen._filtered_employees) == 55
+    assert screen.results_list.count() == 50
+    assert screen.page_indicator.text() == "Pagina 1 de 2"
+    assert screen.pagination_count_label.text() == "Mostrando 1-50 de 55 colaborador(es)."
+
+
+def test_carom_screen_moves_between_pages_without_reloading_dataset(qtbot) -> None:
+    screen = CaromScreen({})
+    qtbot.addWidget(screen)
+    employees = [_employee(str(100 + index), f"Colab {index:03}") for index in range(1, 61)]
+    _load_employee_list(screen, employees)
+
+    assert _visible_result_names(screen)[0] == "Colab 001"
+
+    screen._go_to_next_page()
+
+    assert len(screen._loaded_employees) == 60
+    assert screen._current_page == 2
+    assert screen.results_list.count() == 10
+    assert _visible_result_names(screen)[0] == "Colab 051"
+    assert screen.page_indicator.text() == "Pagina 2 de 2"
+
+    screen._go_to_previous_page()
+
+    assert screen._current_page == 1
+    assert screen.results_list.count() == 50
+    assert _visible_result_names(screen)[0] == "Colab 001"
+
+
+def test_carom_screen_searches_full_dataset_beyond_first_visible_page(qtbot) -> None:
+    screen = CaromScreen({})
+    qtbot.addWidget(screen)
+    employees = [_employee(str(100 + index), f"Colab {index:03}") for index in range(1, 61)]
+    employees[55] = _employee("999", "Zelda Rocha")
+    _load_employee_list(screen, employees)
+
+    assert "Zelda Rocha" not in _visible_result_names(screen)
+
+    screen.search_input.setText("zelda")
+    screen.btn_search.click()
+
+    assert len(screen._loaded_employees) == 60
+    assert len(screen._filtered_employees) == 1
+    assert _visible_result_names(screen) == ["Zelda Rocha"]
+
+
+def test_carom_screen_empty_search_resets_to_full_paginated_dataset(qtbot) -> None:
+    screen = CaromScreen({})
+    qtbot.addWidget(screen)
+    employees = [_employee(str(100 + index), f"Colab {index:03}") for index in range(1, 61)]
+    employees[55] = _employee("999", "Zelda Rocha")
+    _load_employee_list(screen, employees)
+    screen.search_input.setText("zelda")
+    screen.btn_search.click()
+
+    screen.search_input.clear()
+    assert len(screen._filtered_employees) == 1
+
+    screen.btn_search.click()
+
+    assert len(screen._filtered_employees) == 60
+    assert screen.results_list.count() == 50
+    assert screen._current_page == 1
+    assert screen.page_indicator.text() == "Pagina 1 de 2"
+
+
+def test_carom_screen_paginates_search_results(qtbot) -> None:
+    screen = CaromScreen({})
+    qtbot.addWidget(screen)
+    employees = [_employee(str(100 + index), f"Ana {index:03}") for index in range(1, 76)]
+    employees.extend(_employee(str(300 + index), f"Bruno {index:03}") for index in range(1, 6))
+    _load_employee_list(screen, employees)
+
+    screen.search_input.setText("ana")
+    screen.btn_search.click()
+
+    assert len(screen._filtered_employees) == 75
+    assert screen.results_list.count() == 50
+    assert screen.page_indicator.text() == "Pagina 1 de 2"
+
+    screen._go_to_next_page()
+
+    assert screen.results_list.count() == 25
+    assert _visible_result_names(screen)[0] == "Ana 051"
+    assert screen.page_indicator.text() == "Pagina 2 de 2"
+
+
+def test_carom_screen_selected_records_survive_paging_search_and_generation(qtbot) -> None:
+    screen = CaromScreen({})
+    qtbot.addWidget(screen)
+    employees = [_employee(str(100 + index), f"Colab {index:03}") for index in range(1, 61)]
+    _load_employee_list(screen, employees)
+    screen._add_employee("matricula:101")
+    screen._go_to_next_page()
+    screen._add_employee("matricula:151")
+
+    screen.search_input.setText("sem resultado")
+    screen.btn_search.click()
+
+    assert [employee["nome"] for employee in screen._selected_employees] == [
+        "Colab 001",
+        "Colab 051",
+    ]
+    assert screen.results_list.count() == 0
+
+    received = []
+    screen.generate_requested.connect(received.append)
+    screen._start_generation()
+
+    assert [employee["nome"] for employee in received[0]["selected_employees"]] == [
+        "Colab 001",
+        "Colab 051",
+    ]
 
 
 def test_carom_screen_requires_title_and_selection_before_generation(qtbot) -> None:

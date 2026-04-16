@@ -114,6 +114,10 @@ class CaromScreen(QWidget):
         self._source_result = None
         self._schema_fields: dict[str, str | None] = {}
         self._last_editable_title = "Carometro"
+        self._current_page = 1
+        self._page_size = 50
+        self._applied_search_query = ""
+        self._applied_search_mode = "nome"
 
         layout = QVBoxLayout(self)
         self._root_layout = layout
@@ -198,20 +202,39 @@ class CaromScreen(QWidget):
         self.search_mode = QComboBox()
         for label, value in self.SEARCH_OPTIONS:
             self.search_mode.addItem(label, value)
-        self.search_mode.currentIndexChanged.connect(self._on_search_changed)
+        self.search_mode.currentIndexChanged.connect(self._on_search_filter_changed)
 
         self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("Digite para buscar pessoas")
-        self.search_input.textChanged.connect(self._on_search_changed)
+        self.search_input.setPlaceholderText("Digite nome ou matricula")
+        self.search_input.textChanged.connect(self._on_search_text_changed)
+        self.search_input.returnPressed.connect(self._apply_search)
 
-        self.results_hint = QLabel("Valide a planilha para habilitar a busca em tempo real.")
+        self.btn_search = QPushButton("Pesquisar")
+        self.btn_search.clicked.connect(self._apply_search)
+
+        self.results_hint = QLabel("Valide a planilha para habilitar a busca.")
         self.results_hint.setObjectName("muted")
         self.results_hint.setWordWrap(True)
+
+        self.pagination_count_label = QLabel("")
+        self.pagination_count_label.setObjectName("muted")
+        self.pagination_count_label.setWordWrap(True)
+
+        self.btn_previous_page = QPushButton("Anterior")
+        self.btn_previous_page.clicked.connect(self._go_to_previous_page)
+
+        self.page_indicator = QLabel("Pagina 0 de 0")
+        self.page_indicator.setObjectName("muted")
+        self.page_indicator.setAlignment(Qt.AlignCenter)
+
+        self.btn_next_page = QPushButton("Proximo")
+        self.btn_next_page.clicked.connect(self._go_to_next_page)
 
         search_controls.addWidget(self._field_label("Buscar por"), 0, 0)
         search_controls.addWidget(self.search_mode, 0, 1)
         search_controls.addWidget(self._field_label("Termo"), 1, 0)
         search_controls.addWidget(self.search_input, 1, 1)
+        search_controls.addWidget(self.btn_search, 1, 2)
         search_layout.addLayout(search_controls)
         search_layout.addWidget(self.results_hint)
 
@@ -219,6 +242,14 @@ class CaromScreen(QWidget):
         self.results_list.setObjectName("caromResultsList")
         self.results_list.setSpacing(6)
         search_layout.addWidget(self.results_list, 1)
+
+        pagination_layout = QHBoxLayout()
+        pagination_layout.setSpacing(8)
+        pagination_layout.addWidget(self.pagination_count_label, 1)
+        pagination_layout.addWidget(self.btn_previous_page)
+        pagination_layout.addWidget(self.page_indicator)
+        pagination_layout.addWidget(self.btn_next_page)
+        search_layout.addLayout(pagination_layout)
         split.addWidget(search_panel, 5)
 
         selection_panel = QFrame()
@@ -291,6 +322,7 @@ class CaromScreen(QWidget):
         self._set_status("Carregue uma planilha valida para comecar a selecionar pessoas.", "info")
         self._refresh_selection_summary()
         self._refresh_action_state()
+        self._update_pagination_state()
 
     @property
     def current_preset_id(self) -> str:
@@ -461,12 +493,13 @@ class CaromScreen(QWidget):
         self._selected_employees = []
         self._selected_keys = set()
         self.search_input.clear()
-        self._filtered_employees = list(self._loaded_employees)
+        self._applied_search_query = ""
+        self._applied_search_mode = str(self.search_mode.currentData() or "nome")
+        self._set_filtered_employees(self._loaded_employees)
         self._refresh_preset_option_states()
         self._select_first_compatible_preset()
         employee_count = int(result.get("employee_count", 0))
         self._refresh_preset_schema_status(employee_count=employee_count)
-        self._refresh_results()
         self._refresh_selected_list()
         self._refresh_selection_summary()
         self._refresh_action_state()
@@ -490,9 +523,13 @@ class CaromScreen(QWidget):
         self._filtered_employees = []
         self._selected_employees = []
         self._selected_keys = set()
+        self._current_page = 1
+        self._applied_search_query = ""
+        self._applied_search_mode = "nome"
         self.results_list.clear()
         self.selected_list.clear()
-        self.results_hint.setText("Valide a planilha para habilitar a busca em tempo real.")
+        self.results_hint.setText("Valide a planilha para habilitar a busca.")
+        self._update_pagination_state()
         self._refresh_selection_summary()
 
     def _current_preset_missing_fields(self) -> list[str]:
@@ -550,33 +587,113 @@ class CaromScreen(QWidget):
             f"Planilha padronizada validada. {loaded} colaborador(es) carregado(s).",
             "success",
         )
-        self._set_status("Planilha carregada. Use a busca em tempo real para montar o carometro.", "success")
+        self._set_status(
+            "Planilha carregada. Digite um termo e clique em Pesquisar para filtrar.",
+            "success",
+        )
 
-    def _on_search_changed(self, *_args: object) -> None:
-        self._refresh_results()
+    def _on_search_text_changed(self, *_args: object) -> None:
+        if self._schema_valid:
+            self._set_status(
+                "Filtro alterado. Clique em Pesquisar para atualizar os resultados.",
+                "info",
+            )
+        self._refresh_action_state()
+
+    def _on_search_filter_changed(self, *_args: object) -> None:
+        if self._schema_valid:
+            self._set_status(
+                "Tipo de busca alterado. Clique em Pesquisar para atualizar os resultados.",
+                "info",
+            )
+        self._refresh_action_state()
+
+    def _apply_search(self) -> None:
+        if not self._schema_valid:
+            self._set_status("Valide a planilha antes de pesquisar.", "warning")
+            return
+
+        self._applied_search_query = self.search_input.text().strip()
+        self._applied_search_mode = str(self.search_mode.currentData() or "nome")
+        filtered = filter_carom_employees(
+            self._loaded_employees,
+            query=self._applied_search_query,
+            mode=self._applied_search_mode,
+        )
+        self._set_filtered_employees(filtered)
+        if self._applied_search_query:
+            self._set_status("Busca atualizada.", "success")
+        else:
+            self._set_status("Busca limpa. Exibindo todas as pessoas disponiveis.", "info")
         self._refresh_action_state()
 
     def _refresh_results(self) -> None:
-        self.results_list.clear()
         if not self._schema_valid:
-            self.results_hint.setText("Valide a planilha para habilitar a busca em tempo real.")
+            self.results_list.clear()
+            self.results_hint.setText("Valide a planilha para habilitar a busca.")
+            self._update_pagination_state()
             return
 
-        query = self.search_input.text().strip()
-        mode = str(self.search_mode.currentData() or "nome")
-        filtered = filter_carom_employees(self._loaded_employees, query=query, mode=mode)
-        self._filtered_employees = [
+        filtered = filter_carom_employees(
+            self._loaded_employees,
+            query=self._applied_search_query,
+            mode=self._applied_search_mode,
+        )
+        self._set_filtered_employees(filtered, reset_page=False)
+
+    def _available_employees(self, employees: list[CaromEmployee]) -> list[CaromEmployee]:
+        return [
             employee
-            for employee in filtered
+            for employee in employees
             if carom_employee_key(employee) not in self._selected_keys
         ]
+
+    def _set_filtered_employees(
+        self,
+        employees: list[CaromEmployee],
+        *,
+        reset_page: bool = True,
+    ) -> None:
+        self._filtered_employees = self._available_employees(list(employees))
+        if reset_page:
+            self._current_page = 1
+        self._clamp_current_page()
+        self._refresh_results_view()
+
+    def _total_pages(self) -> int:
+        if not self._filtered_employees:
+            return 0
+        return (len(self._filtered_employees) + self._page_size - 1) // self._page_size
+
+    def _clamp_current_page(self) -> None:
+        total_pages = self._total_pages()
+        if total_pages == 0:
+            self._current_page = 1
+            return
+        self._current_page = min(max(self._current_page, 1), total_pages)
+
+    def _get_visible_page_records(self) -> list[CaromEmployee]:
+        self._clamp_current_page()
+        if not self._filtered_employees:
+            return []
+        start = (self._current_page - 1) * self._page_size
+        end = start + self._page_size
+        return self._filtered_employees[start:end]
+
+    def _refresh_results_view(self) -> None:
+        self.results_list.clear()
+        if not self._schema_valid:
+            self.results_hint.setText("Valide a planilha para habilitar a busca.")
+            self._update_pagination_state()
+            return
 
         if not self._filtered_employees:
             self.results_hint.setText(
                 "Nenhum resultado disponivel para a busca atual."
-                if query
+                if self._applied_search_query
                 else "Todas as pessoas carregadas ja foram selecionadas."
             )
+            self._update_pagination_state()
             return
 
         result_count = len(self._filtered_employees)
@@ -585,7 +702,7 @@ class CaromScreen(QWidget):
             if result_count == 1
             else f"{result_count} resultados disponiveis."
         )
-        for employee in self._filtered_employees:
+        for employee in self._get_visible_page_records():
             key = carom_employee_key(employee)
             item = QListWidgetItem()
             item.setSizeHint(QSize(0, 52))
@@ -593,6 +710,38 @@ class CaromScreen(QWidget):
             card.add_requested.connect(self._add_employee)
             self.results_list.addItem(item)
             self.results_list.setItemWidget(item, card)
+        self._update_pagination_state()
+
+    def _update_pagination_state(self) -> None:
+        total_records = len(self._filtered_employees) if self._schema_valid else 0
+        total_pages = self._total_pages() if self._schema_valid else 0
+        worker_running = self._worker is not None and self._worker.isRunning()
+        if total_records == 0 or total_pages == 0:
+            self.pagination_count_label.setText("Nenhum colaborador para exibir.")
+            self.page_indicator.setText("Pagina 0 de 0")
+        else:
+            start = (self._current_page - 1) * self._page_size + 1
+            end = min(start + self._page_size - 1, total_records)
+            self.pagination_count_label.setText(
+                f"Mostrando {start}-{end} de {total_records} colaborador(es)."
+            )
+            self.page_indicator.setText(f"Pagina {self._current_page} de {total_pages}")
+
+        can_page = self._schema_valid and not worker_running and total_pages > 0
+        self.btn_previous_page.setEnabled(can_page and self._current_page > 1)
+        self.btn_next_page.setEnabled(can_page and self._current_page < total_pages)
+
+    def _go_to_previous_page(self) -> None:
+        if self._current_page <= 1:
+            return
+        self._current_page -= 1
+        self._refresh_results_view()
+
+    def _go_to_next_page(self) -> None:
+        if self._current_page >= self._total_pages():
+            return
+        self._current_page += 1
+        self._refresh_results_view()
 
     def _refresh_selected_list(self) -> None:
         self.selected_list.clear()
@@ -671,6 +820,7 @@ class CaromScreen(QWidget):
         )
         self.search_mode.setEnabled(self._schema_valid and not worker_running)
         self.search_input.setEnabled(self._schema_valid and not worker_running)
+        self.btn_search.setEnabled(self._schema_valid and not worker_running)
         self.model_selector.setEnabled(not worker_running)
         self.source_type.setEnabled(not worker_running)
         self.entry_source.setEnabled(not worker_running)
@@ -680,6 +830,7 @@ class CaromScreen(QWidget):
         if preset.editable_title:
             self.title_field.setEnabled(not worker_running)
         self.btn_generate.setEnabled(ready_to_generate)
+        self._update_pagination_state()
 
     def _start_generation(self) -> None:
         title = self.title_field.text().strip()
