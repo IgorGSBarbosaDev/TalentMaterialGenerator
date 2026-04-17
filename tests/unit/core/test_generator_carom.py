@@ -1,11 +1,16 @@
 from __future__ import annotations
 
+import re
+from datetime import datetime
 from pathlib import Path
 
 import pytest
 from pptx import Presentation
+from pptx.enum.shapes import MSO_SHAPE, MSO_SHAPE_TYPE
 
 from app.core import generator_carom
+from app.core.carom_templates import CAROM_TEMPLATES, get_carom_preset
+from app.core.pptx_template_utils import resolve_shape_path
 
 
 def _employee(index: int) -> dict[str, str]:
@@ -36,6 +41,16 @@ def _all_slide_text(slide) -> str:
         if hasattr(shape, "text"):
             values.append(shape.text)
     return "\n".join(values)
+
+
+def _assert_picture_slots_are_circular_placeholders(file_path: str, preset_id: str) -> None:
+    prs = Presentation(file_path)
+    preset = get_carom_preset(preset_id)
+    for slot in preset.slots:
+        shape = resolve_shape_path(prs.slides[0], slot["picture"])
+        assert shape.shape_type == MSO_SHAPE_TYPE.AUTO_SHAPE
+        assert shape.auto_shape_type == MSO_SHAPE.OVAL
+        assert shape.width == shape.height
 
 
 def test_get_carom_preset_maps_legacy_regular_to_mini_template() -> None:
@@ -72,6 +87,73 @@ def test_compute_current_slide_status_reports_remaining_people() -> None:
     )
 
 
+def test_build_carom_output_filename_uses_preset_type_and_local_timestamp() -> None:
+    filename = generator_carom.build_carom_output_filename(
+        get_carom_preset("mini"),
+        datetime(2026, 4, 16, 14, 35, 22),
+    )
+
+    assert filename == "CarometroMini_16042026_143522.pptx"
+
+
+def test_carom_output_types_match_required_filenames() -> None:
+    generated_at = datetime(2026, 4, 16, 14, 35, 22)
+
+    assert {
+        preset_id: generator_carom.build_carom_output_filename(preset, generated_at)
+        for preset_id, preset in CAROM_TEMPLATES.items()
+    } == {
+        "mini": "CarometroMini_16042026_143522.pptx",
+        "big": "CarometroBig_16042026_143522.pptx",
+        "projeto_trainee": "CarometroProjetoTrainee_16042026_143522.pptx",
+        "talent_review": "CarometroTalentReview_16042026_143522.pptx",
+    }
+
+
+def test_build_carom_output_filename_changes_between_seconds() -> None:
+    preset = get_carom_preset("big")
+
+    first = generator_carom.build_carom_output_filename(
+        preset,
+        datetime(2026, 4, 16, 14, 35, 22),
+    )
+    second = generator_carom.build_carom_output_filename(
+        preset,
+        datetime(2026, 4, 16, 14, 35, 23),
+    )
+
+    assert first != second
+
+
+def test_unique_carom_output_path_waits_for_next_second_when_file_exists(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    class FakeDateTime:
+        values = iter(
+            (
+                datetime(2026, 4, 16, 14, 35, 22),
+                datetime(2026, 4, 16, 14, 35, 22),
+                datetime(2026, 4, 16, 14, 35, 23),
+                datetime(2026, 4, 16, 14, 35, 23),
+            )
+        )
+
+        @classmethod
+        def now(cls):
+            return next(cls.values)
+
+    preset = get_carom_preset("big")
+    existing = tmp_path / "CarometroBig_16042026_143522.pptx"
+    existing.write_bytes(b"existing")
+    monkeypatch.setattr(generator_carom, "datetime", FakeDateTime)
+    monkeypatch.setattr(generator_carom, "sleep", lambda _seconds: None)
+
+    output_path = generator_carom._build_unique_carom_output_path(tmp_path, preset)
+
+    assert output_path == tmp_path / "CarometroBig_16042026_143523.pptx"
+
+
 def test_generate_carom_pptx_creates_single_file(tmp_path: Path) -> None:
     files = generator_carom.generate_carom_pptx(
         [_employee(1), _employee(2)],
@@ -83,6 +165,18 @@ def test_generate_carom_pptx_creates_single_file(tmp_path: Path) -> None:
     assert Path(files[0]).exists()
 
 
+def test_generate_carom_pptx_uses_timestamped_preset_output_name(tmp_path: Path) -> None:
+    files = generator_carom.generate_carom_pptx(
+        [_employee(1)],
+        str(tmp_path),
+        {"preset_id": "big", "titulo": "Leadership Board", "file_basename": "Ignored_Name"},
+    )
+
+    output_path = Path(files[0])
+    assert output_path.parent == tmp_path / "carometros"
+    assert re.fullmatch(r"CarometroBig_\d{8}_\d{6}\.pptx", output_path.name)
+
+
 def test_generate_carom_pptx_breaks_big_selection_into_multiple_slides(tmp_path: Path) -> None:
     files = generator_carom.generate_carom_pptx(
         [_employee(index) for index in range(1, 10)],
@@ -92,6 +186,35 @@ def test_generate_carom_pptx_breaks_big_selection_into_multiple_slides(tmp_path:
 
     prs = Presentation(files[0])
     assert len(prs.slides) == 2
+
+
+@pytest.mark.parametrize("preset_id", tuple(CAROM_TEMPLATES))
+def test_generate_carom_pptx_uses_circular_photo_placeholders_for_every_preset(
+    tmp_path: Path,
+    preset_id: str,
+) -> None:
+    files = generator_carom.generate_carom_pptx(
+        [_employee(index) for index in range(1, 3)],
+        str(tmp_path),
+        {"preset_id": preset_id, "titulo": "Carometro", "file_basename": "Carometro"},
+    )
+
+    _assert_picture_slots_are_circular_placeholders(files[0], preset_id)
+
+
+def test_generate_carom_pptx_ignores_valid_foto_path_for_manual_placeholders(
+    tmp_path: Path,
+) -> None:
+    employee = _employee(1)
+    employee["foto"] = str(Path("tests/fixtures/fotos/avatar_test.png").resolve())
+
+    files = generator_carom.generate_carom_pptx(
+        [employee],
+        str(tmp_path),
+        {"preset_id": "big", "titulo": "Leadership Board", "file_basename": "Leadership_Board"},
+    )
+
+    _assert_picture_slots_are_circular_placeholders(files[0], "big")
 
 
 def test_generate_carom_pptx_uses_title_on_every_big_slide(tmp_path: Path) -> None:

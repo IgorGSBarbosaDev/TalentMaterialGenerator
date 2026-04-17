@@ -7,10 +7,12 @@ from io import BytesIO
 from typing import Any
 
 from pptx.dml.color import RGBColor
+from pptx.enum.shapes import MSO_SHAPE
 from pptx.oxml.ns import qn
 from pptx.slide import Slide
 
 _REL_ATTRS = (qn("r:embed"), qn("r:link"), qn("r:id"))
+PLACEHOLDER_RGB = RGBColor(232, 236, 241)
 
 
 def clone_slide(prs, template_slide: Slide) -> Slide:
@@ -127,8 +129,28 @@ def replace_picture(slide: Slide, picture_shape: Any, image_bytes: bytes) -> Any
     return new_picture
 
 
+def replace_picture_with_circular_placeholder(slide: Slide, picture_shape: Any) -> Any:
+    diameter = min(picture_shape.width, picture_shape.height)
+    left = picture_shape.left + (picture_shape.width - diameter) // 2
+    top = picture_shape.top + (picture_shape.height - diameter) // 2
+    placeholder = slide.shapes.add_shape(
+        MSO_SHAPE.OVAL,
+        left,
+        top,
+        diameter,
+        diameter,
+    )
+    placeholder.fill.solid()
+    placeholder.fill.fore_color.rgb = PLACEHOLDER_RGB
+    placeholder.line.color.rgb = PLACEHOLDER_RGB
+    placeholder._element.getparent().remove(placeholder._element)
+    picture_shape._element.addprevious(placeholder._element)
+    picture_shape._element.getparent().remove(picture_shape._element)
+    return placeholder
+
+
 def placeholder_picture_bytes() -> bytes:
-    return _solid_png_bytes(232, 236, 241)
+    return _solid_png_bytes(PLACEHOLDER_RGB[0], PLACEHOLDER_RGB[1], PLACEHOLDER_RGB[2])
 
 
 def _solid_png_bytes(red: int, green: int, blue: int) -> bytes:

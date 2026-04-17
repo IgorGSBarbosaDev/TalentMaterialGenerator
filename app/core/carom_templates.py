@@ -11,6 +11,7 @@ from app.core.resource_paths import resolve_existing_resource_path
 class CaromTemplate:
     id: str
     label: str
+    output_type: str
     template_name: str
     capacity: int
     editable_title: bool
@@ -35,6 +36,7 @@ CAROM_TEMPLATES: Final[dict[str, CaromTemplate]] = {
     "mini": CaromTemplate(
         id="mini",
         label="Mini",
+        output_type="Mini",
         template_name="Carometro-mini.pptx",
         capacity=18,
         editable_title=True,
@@ -67,6 +69,7 @@ CAROM_TEMPLATES: Final[dict[str, CaromTemplate]] = {
     "big": CaromTemplate(
         id="big",
         label="Big",
+        output_type="Big",
         template_name="Carometro-big.pptx",
         capacity=8,
         editable_title=True,
@@ -89,6 +92,7 @@ CAROM_TEMPLATES: Final[dict[str, CaromTemplate]] = {
     "projeto_trainee": CaromTemplate(
         id="projeto_trainee",
         label="Projeto Trainee",
+        output_type="ProjetoTrainee",
         template_name="CarometroProjetoTrainee.pptx",
         capacity=2,
         editable_title=False,
@@ -105,6 +109,7 @@ CAROM_TEMPLATES: Final[dict[str, CaromTemplate]] = {
     "talent_review": CaromTemplate(
         id="talent_review",
         label="Talent Review",
+        output_type="TalentReview",
         template_name="CarometroTalentReview.pptx",
         capacity=12,
         editable_title=False,

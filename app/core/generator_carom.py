@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import math
 from collections.abc import Callable
+from datetime import datetime
 from pathlib import Path
+from time import sleep
 from typing import Final, TypedDict
 
 from pptx import Presentation as PresentationFactory
@@ -12,19 +14,18 @@ from app.core.carom_templates import CaromTemplate, get_carom_preset
 from app.core.pptx_template_utils import (
     clear_text,
     clone_slide,
-    placeholder_picture_bytes,
-    replace_picture,
+    replace_picture_with_circular_placeholder,
     replace_text,
     resolve_shape_path,
 )
 from app.core.reader import (
     CaromEmployee,
-    normalize_filename,
     resolve_carom_display_score_potential,
     validate_carom_employee_for_preset,
 )
 
 PROJETO_TRAINEE_BODY_TEXT: Final = "insira projeto trainee aqui"
+CAROM_OUTPUT_TIMESTAMP_FORMAT: Final = "%d%m%Y_%H%M%S"
 
 
 class CaromConfig(TypedDict):
@@ -83,6 +84,26 @@ def _employee_ceo4(employee: CaromEmployee) -> str:
 
 def _employee_score(employee: CaromEmployee) -> str:
     return _clean(resolve_carom_display_score_potential(employee))
+
+
+def build_carom_output_filename(
+    preset: CaromTemplate,
+    generated_at: datetime | None = None,
+) -> str:
+    timestamp = (generated_at or datetime.now()).strftime(CAROM_OUTPUT_TIMESTAMP_FORMAT)
+    return f"Carometro{preset.output_type}_{timestamp}.pptx"
+
+
+def _build_unique_carom_output_path(output_root: Path, preset: CaromTemplate) -> Path:
+    generated_at = datetime.now()
+    output_path = output_root / build_carom_output_filename(preset, generated_at)
+    while output_path.exists():
+        current_second = generated_at.strftime(CAROM_OUTPUT_TIMESTAMP_FORMAT)
+        while datetime.now().strftime(CAROM_OUTPUT_TIMESTAMP_FORMAT) == current_second:
+            sleep(0.05)
+        generated_at = datetime.now()
+        output_path = output_root / build_carom_output_filename(preset, generated_at)
+    return output_path
 
 
 def _mini_lines(employee: CaromEmployee) -> list[str]:
@@ -152,18 +173,9 @@ def _talent_review_lines(employee: CaromEmployee) -> list[str]:
     ]
 
 
-def _picture_bytes_for_employee(employee: CaromEmployee) -> bytes:
-    foto = _clean(employee.get("foto"))
-    if foto:
-        photo_path = Path(foto)
-        if photo_path.is_file():
-            return photo_path.read_bytes()
-    return placeholder_picture_bytes()
-
-
-def _replace_picture_at_path(slide: Slide, picture_path: tuple[int, ...], image_bytes: bytes) -> None:
+def _replace_picture_at_path(slide: Slide, picture_path: tuple[int, ...]) -> None:
     picture_shape = resolve_shape_path(slide, picture_path)
-    replace_picture(slide, picture_shape, image_bytes)
+    replace_picture_with_circular_placeholder(slide, picture_shape)
 
 
 def _set_title_if_editable(slide: Slide, preset: CaromTemplate, title: str) -> None:
@@ -198,10 +210,10 @@ def _render_basic_slot(
 ) -> None:
     if employee is None:
         clear_text(resolve_shape_path(slide, slot["text"]))
-        _replace_picture_at_path(slide, slot["picture"], placeholder_picture_bytes())
+        _replace_picture_at_path(slide, slot["picture"])
         return
     replace_text(resolve_shape_path(slide, slot["text"]), formatter(employee))
-    _replace_picture_at_path(slide, slot["picture"], _picture_bytes_for_employee(employee))
+    _replace_picture_at_path(slide, slot["picture"])
 
 
 def _render_trainee_slot(
@@ -212,11 +224,11 @@ def _render_trainee_slot(
     if employee is None:
         clear_text(resolve_shape_path(slide, slot["identity"]))
         clear_text(resolve_shape_path(slide, slot["body"]))
-        _replace_picture_at_path(slide, slot["picture"], placeholder_picture_bytes())
+        _replace_picture_at_path(slide, slot["picture"])
         return
     replace_text(resolve_shape_path(slide, slot["identity"]), _trainee_identity_lines(employee))
     replace_text(resolve_shape_path(slide, slot["body"]), [PROJETO_TRAINEE_BODY_TEXT])
-    _replace_picture_at_path(slide, slot["picture"], _picture_bytes_for_employee(employee))
+    _replace_picture_at_path(slide, slot["picture"])
 
 
 def _render_talent_review_slot(
@@ -227,10 +239,10 @@ def _render_talent_review_slot(
     text_shape = resolve_shape_path(slide, slot["text"])
     if employee is None:
         replace_text(text_shape, ["", "", "", "", "", ""])
-        _replace_picture_at_path(slide, slot["picture"], placeholder_picture_bytes())
+        _replace_picture_at_path(slide, slot["picture"])
         return
     replace_text(text_shape, _talent_review_lines(employee))
-    _replace_picture_at_path(slide, slot["picture"], _picture_bytes_for_employee(employee))
+    _replace_picture_at_path(slide, slot["picture"])
 
 
 def _send_callback(callback: Callable[[dict], None] | None, payload: dict) -> None:
@@ -262,7 +274,6 @@ def generate_carom_pptx(
     preset = get_carom_preset(config["preset_id"])
     _validate_employees_for_preset(employees, preset.id)
     title = _clean(config.get("titulo", "")) or preset.default_title
-    safe_name = normalize_filename(_clean(config.get("file_basename", "")) or title) or "Carometro"
     output_root = Path(output_dir) / "carometros"
     output_root.mkdir(parents=True, exist_ok=True)
 
@@ -300,6 +311,6 @@ def generate_carom_pptx(
             },
         )
 
-    output_path = output_root / f"{safe_name}.pptx"
+    output_path = _build_unique_carom_output_path(output_root, preset)
     prs.save(str(output_path))
     return [str(output_path)]
