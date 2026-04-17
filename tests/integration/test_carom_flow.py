@@ -183,3 +183,28 @@ def test_talent_review_flow_keeps_template_text_without_ceo_fields(tmp_path: Pat
     assert paragraphs[5] == "NomeCadeira"
     assert "CEO3" not in slide_text
     assert "CEO4" not in slide_text
+
+
+def test_talent_review_flow_ignores_ceo_values_when_columns_are_present(tmp_path: Path) -> None:
+    spreadsheet = _build_standardized_carom_spreadsheet(tmp_path / "carom-tr-ceos.xlsx", 12)
+    employees = load_standardized_carom_rows(read_spreadsheet(str(spreadsheet)))
+    config: CaromConfig = {
+        "preset_id": "talent_review",
+        "titulo": "Ignored",
+        "file_basename": "Talent_Review",
+    }
+
+    generated_files = generate_carom_pptx(employees, str(tmp_path), config)
+    slide = Presentation(generated_files[0]).slides[0]
+    slide_text = "\n".join(
+        child.text
+        for shape in slide.shapes
+        for child in ([shape] + list(shape.shapes) if hasattr(shape, "shapes") else [shape])
+        if hasattr(child, "text")
+    )
+
+    assert slide_text.count("Sucessor Imediato") == 12
+    assert slide_text.count("Em desenvolvimento") == 12
+    assert slide_text.count("NomeCadeira") == 24
+    assert "CEO3" not in slide_text
+    assert "CEO4" not in slide_text

@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 from pptx import Presentation
 from pptx.enum.shapes import MSO_SHAPE_TYPE
+from pptx.oxml.ns import qn
 
 from app.core import generator_carom
 from app.core.carom_templates import CAROM_TEMPLATES, get_carom_preset
@@ -61,6 +62,59 @@ def _assert_picture_slots_are_circular_placeholders(file_path: str, preset_id: s
         assert prst_geom.get("prst") == "ellipse"
         assert shape.width == shape.height
         assert src_rect is None or not src_rect.attrib
+
+
+def _talent_review_slot_paragraphs(file_path: str, slot_index: int) -> list[str]:
+    prs = Presentation(file_path)
+    text_shape = _talent_review_slot_text_shape(prs, slot_index)
+    return [paragraph.text for paragraph in text_shape.text_frame.paragraphs]
+
+
+def _talent_review_slot_text_shape(prs: Presentation, slot_index: int):
+    preset = get_carom_preset("talent_review")
+    shape = resolve_shape_path(prs.slides[0], preset.slots[slot_index]["text"])
+    if not hasattr(shape, "text_frame") and hasattr(shape, "shapes"):
+        shape = next(child for child in shape.shapes if hasattr(child, "text_frame"))
+    return shape
+
+
+def _paragraph_run_properties(file_path: str, slot_index: int, paragraph_index: int):
+    prs = Presentation(file_path)
+    text_shape = _talent_review_slot_text_shape(prs, slot_index)
+    paragraph = text_shape.text_frame.paragraphs[paragraph_index]
+    assert len(paragraph.runs) == 1
+    run_properties = paragraph.runs[0]._r.rPr
+    assert run_properties is not None
+    return run_properties
+
+
+def _run_srgb_fill(run_properties) -> str | None:
+    srgb = run_properties.find(qn("a:solidFill")).find(qn("a:srgbClr"))
+    return None if srgb is None else srgb.get("val")
+
+
+def _run_scheme_fill(run_properties) -> str | None:
+    scheme = run_properties.find(qn("a:solidFill")).find(qn("a:schemeClr"))
+    return None if scheme is None else scheme.get("val")
+
+
+def _run_highlight(run_properties) -> str | None:
+    highlight = run_properties.find(qn("a:highlight"))
+    if highlight is None:
+        return None
+    srgb = highlight.find(qn("a:srgbClr"))
+    return None if srgb is None else srgb.get("val")
+
+
+def _talent_review_expected_lines(employee: dict[str, str]) -> list[str]:
+    return [
+        f"{employee['nome']} | {employee['idade']} - {employee['nota_2025']}",
+        employee["cargo"],
+        "Sucessor Imediato",
+        "NomeCadeira",
+        "Em desenvolvimento",
+        "NomeCadeira",
+    ]
 
 
 def test_get_carom_preset_maps_legacy_regular_to_mini_template() -> None:
@@ -332,6 +386,109 @@ def test_generate_carom_pptx_keeps_talent_review_template_text_without_ceo_field
     assert paragraphs[5] == "NomeCadeira"
     assert "CEO3" not in slide_text
     assert "CEO4" not in slide_text
+
+
+def test_generate_carom_pptx_rebuilds_every_talent_review_slot_with_static_successor_block(
+    tmp_path: Path,
+) -> None:
+    employee = _employee(1)
+    employee.update(
+        {
+            "nome": "ADEILSON ROBERTO MENDES",
+            "idade": "56",
+            "cargo": "COMMERCIAL EXECUTIVE MANAGER",
+            "nota_2025": "3 / MN+",
+            "avaliacao_2025": "3 / MN+",
+            "score_2025": "3",
+            "potencial_2025": "MN+",
+            "ceo3": "Commercial Vice-Presidency - USI",
+            "ceo4": "Commercial - USI",
+        }
+    )
+    employees = [dict(employee) for _slot in get_carom_preset("talent_review").slots]
+
+    files = generator_carom.generate_carom_pptx(
+        employees,
+        str(tmp_path),
+        {"preset_id": "talent_review", "titulo": "Ignored", "file_basename": "Talent_Review"},
+    )
+
+    prs = Presentation(files[0])
+    slide_text = _all_slide_text(prs.slides[0])
+    expected_lines = _talent_review_expected_lines(employee)
+    for slot_index in range(len(get_carom_preset("talent_review").slots)):
+        paragraphs = _talent_review_slot_paragraphs(files[0], slot_index)
+        assert paragraphs == expected_lines
+        assert paragraphs[0] != ""
+        assert paragraphs[1] != ""
+
+    assert "\x0b" not in slide_text
+    assert "Commercial Vice-Presidency - USI" not in slide_text
+    assert "Commercial - USI" not in slide_text
+    assert "CEO3" not in slide_text
+    assert "CEO4" not in slide_text
+
+
+def test_generate_carom_pptx_preserves_talent_review_static_run_formatting(
+    tmp_path: Path,
+) -> None:
+    employee = _employee(1)
+    employees = [dict(employee) for _slot in get_carom_preset("talent_review").slots]
+
+    files = generator_carom.generate_carom_pptx(
+        employees,
+        str(tmp_path),
+        {"preset_id": "talent_review", "titulo": "Ignored", "file_basename": "Talent_Review"},
+    )
+
+    for slot_index in range(len(get_carom_preset("talent_review").slots)):
+        successor = _paragraph_run_properties(files[0], slot_index, 2)
+        first_nomination = _paragraph_run_properties(files[0], slot_index, 3)
+        development = _paragraph_run_properties(files[0], slot_index, 4)
+        second_nomination = _paragraph_run_properties(files[0], slot_index, 5)
+
+        assert _run_highlight(successor) == "84BD00"
+        assert _run_scheme_fill(successor) == "bg1"
+        assert _run_highlight(development) == "0000FF"
+        assert _run_scheme_fill(development) == "bg1"
+
+        assert _run_highlight(first_nomination) is None
+        assert _run_srgb_fill(first_nomination) == "242424"
+        assert _run_highlight(second_nomination) is None
+        assert _run_srgb_fill(second_nomination) == "242424"
+
+
+def test_generate_carom_pptx_normalizes_talent_review_dynamic_text(
+    tmp_path: Path,
+) -> None:
+    employee = _employee(1)
+    employee.update(
+        {
+            "nome": "\tADEILSON\r\nROBERTO\xa0\xa0MENDES ",
+            "idade": " 56 ",
+            "cargo": "\nCOMMERCIAL\t EXECUTIVE\x0bMANAGER  ",
+            "nota_2025": "",
+            "avaliacao_2025": "",
+            "score_2025": " 3 ",
+            "potencial_2025": " MN+ ",
+        }
+    )
+
+    files = generator_carom.generate_carom_pptx(
+        [employee],
+        str(tmp_path),
+        {"preset_id": "talent_review", "titulo": "Ignored", "file_basename": "Talent_Review"},
+    )
+
+    paragraphs = _talent_review_slot_paragraphs(files[0], 0)
+    assert paragraphs == [
+        "ADEILSON ROBERTO MENDES | 56 - 3 / MN+",
+        "COMMERCIAL EXECUTIVE MANAGER",
+        "Sucessor Imediato",
+        "NomeCadeira",
+        "Em desenvolvimento",
+        "NomeCadeira",
+    ]
 
 
 def test_generate_carom_pptx_paginates_full_talent_review_capacity(tmp_path: Path) -> None:

@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import math
+import re
 from collections.abc import Callable
+from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
 from time import sleep
-from typing import Final, TypedDict
+from typing import Any, Final, TypedDict
 
 from pptx import Presentation as PresentationFactory
 from pptx.slide import Slide
@@ -15,7 +17,6 @@ from app.core.pptx_template_utils import (
     clear_text,
     clone_slide,
     replace_text,
-    replace_text_prefix,
     resolve_shape_path,
     reset_picture_to_circular_placeholder,
 )
@@ -27,6 +28,13 @@ from app.core.reader import (
 
 PROJETO_TRAINEE_BODY_TEXT: Final = "insira projeto trainee aqui"
 CAROM_OUTPUT_TIMESTAMP_FORMAT: Final = "%d%m%Y_%H%M%S"
+TALENT_REVIEW_STATIC_LINES: Final[tuple[str, str, str, str]] = (
+    "Sucessor Imediato",
+    "NomeCadeira",
+    "Em desenvolvimento",
+    "NomeCadeira",
+)
+TALENT_REVIEW_LINE_COUNT: Final = 6
 
 
 class CaromConfig(TypedDict):
@@ -85,6 +93,13 @@ def _employee_ceo4(employee: CaromEmployee) -> str:
 
 def _employee_score(employee: CaromEmployee) -> str:
     return _clean(resolve_carom_display_score_potential(employee))
+
+
+def _clean_single_line(value: object) -> str:
+    if value is None:
+        return ""
+    normalized = str(value).replace("\xa0", " ")
+    return re.sub(r"\s+", " ", normalized).strip()
 
 
 def build_carom_output_filename(
@@ -156,15 +171,18 @@ def _trainee_identity_lines(employee: CaromEmployee) -> list[str]:
 def _talent_review_lines(employee: CaromEmployee) -> list[str]:
     headline = _compose_non_empty(
         [
-            _employee_name(employee),
+            _clean_single_line(employee.get("nome")) or "Sem Nome",
             _compose_non_empty(
-                [_employee_age(employee), _employee_score(employee)],
+                [
+                    _clean_single_line(employee.get("idade")),
+                    _clean_single_line(resolve_carom_display_score_potential(employee)),
+                ],
                 " - ",
             ),
         ],
         " | ",
     )
-    return [headline, _employee_role(employee)]
+    return [headline, _clean_single_line(employee.get("cargo")), *TALENT_REVIEW_STATIC_LINES]
 
 
 def _replace_picture_at_path(slide: Slide, picture_path: tuple[int, ...]) -> None:
@@ -232,11 +250,107 @@ def _render_talent_review_slot(
 ) -> None:
     text_shape = _resolve_talent_review_text_shape(slide, slot["text"])
     if employee is None:
-        clear_text(text_shape)
+        _replace_talent_review_text(text_shape, [""] * TALENT_REVIEW_LINE_COUNT)
         _replace_picture_at_path(slide, slot["picture"])
         return
-    replace_text_prefix(text_shape, _talent_review_lines(employee))
+    _replace_talent_review_text(text_shape, _talent_review_lines(employee))
     _replace_picture_at_path(slide, slot["picture"])
+
+
+def _replace_talent_review_text(shape: Any, lines: list[str]) -> None:
+    frame = shape.text_frame
+    styles = _capture_talent_review_styles(frame)
+    _ensure_talent_review_paragraph_count(frame)
+
+    for index, line in enumerate(lines):
+        paragraph = frame.paragraphs[index]
+        _replace_paragraph_with_style(paragraph, line, styles[index])
+
+
+def _ensure_talent_review_paragraph_count(frame: Any) -> None:
+    while len(frame.paragraphs) < TALENT_REVIEW_LINE_COUNT:
+        frame.add_paragraph()
+
+    while len(frame.paragraphs) > TALENT_REVIEW_LINE_COUNT:
+        paragraph = frame.paragraphs[-1]
+        paragraph._p.getparent().remove(paragraph._p)
+
+
+def _capture_talent_review_styles(frame: Any) -> list[dict[str, Any]]:
+    paragraphs = list(frame.paragraphs)
+    styles = [
+        _capture_paragraph_style(paragraphs[0]) if len(paragraphs) > 0 else {},
+        _capture_paragraph_style(paragraphs[1]) if len(paragraphs) > 1 else {},
+    ]
+    styles.extend(_capture_static_talent_review_styles(paragraphs))
+    while len(styles) < TALENT_REVIEW_LINE_COUNT:
+        styles.append(styles[-1] if styles else {})
+    return styles[:TALENT_REVIEW_LINE_COUNT]
+
+
+def _capture_static_talent_review_styles(paragraphs: list[Any]) -> list[dict[str, Any]]:
+    style_by_line: dict[int, dict[str, Any]] = {}
+    nome_cadeira_indexes = [3, 5]
+
+    for paragraph in paragraphs:
+        for run in paragraph.runs:
+            text = run.text.strip()
+            if text == "Sucessor Imediato":
+                style_by_line.setdefault(2, _capture_paragraph_style(paragraph, run))
+            elif text == "NomeCadeira":
+                next_index = nome_cadeira_indexes.pop(0) if nome_cadeira_indexes else 5
+                style_by_line.setdefault(next_index, _capture_paragraph_style(paragraph, run))
+            elif text == "Em desenvolvimento":
+                style_by_line.setdefault(4, _capture_paragraph_style(paragraph, run))
+
+    return [
+        style_by_line.get(2) or _fallback_style(paragraphs, 2),
+        style_by_line.get(3) or _fallback_style(paragraphs, 3),
+        style_by_line.get(4) or _fallback_style(paragraphs, 4),
+        style_by_line.get(5) or _fallback_style(paragraphs, 5),
+    ]
+
+
+def _fallback_style(paragraphs: list[Any], index: int) -> dict[str, Any]:
+    if index < len(paragraphs):
+        return _capture_paragraph_style(paragraphs[index])
+    if paragraphs:
+        return _capture_paragraph_style(paragraphs[-1])
+    return {}
+
+
+def _capture_paragraph_style(paragraph: Any, run: Any | None = None) -> dict[str, Any]:
+    style: dict[str, Any] = {}
+    if paragraph._p.pPr is not None:
+        style["paragraph_properties"] = deepcopy(paragraph._p.pPr)
+
+    source_run = run
+    if source_run is None and paragraph.runs:
+        source_run = paragraph.runs[0]
+    if source_run is not None and source_run._r.rPr is not None:
+        style["run_properties"] = deepcopy(source_run._r.rPr)
+    return style
+
+
+def _replace_paragraph_with_style(paragraph: Any, text: str, style: dict[str, Any]) -> None:
+    if paragraph._p.pPr is not None:
+        paragraph._p.remove(paragraph._p.pPr)
+    if style.get("paragraph_properties") is not None:
+        paragraph._p.insert(0, deepcopy(style["paragraph_properties"]))
+
+    paragraph_properties = paragraph._p.pPr
+    for child in list(paragraph._p):
+        if child is not paragraph_properties:
+            paragraph._p.remove(child)
+    if text == "":
+        return
+
+    run = paragraph.add_run()
+    run.text = text
+    if style.get("run_properties") is not None:
+        if run._r.rPr is not None:
+            run._r.remove(run._r.rPr)
+        run._r.insert(0, deepcopy(style["run_properties"]))
 
 
 def _resolve_talent_review_text_shape(slide: Slide, text_path: tuple[int, ...]):
