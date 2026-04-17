@@ -14,9 +14,9 @@ from app.core.carom_templates import CaromTemplate, get_carom_preset
 from app.core.pptx_template_utils import (
     clear_text,
     clone_slide,
-    replace_picture_with_circular_placeholder,
     replace_text,
     resolve_shape_path,
+    reset_picture_to_circular_placeholder,
 )
 from app.core.reader import (
     CaromEmployee,
@@ -175,7 +175,7 @@ def _talent_review_lines(employee: CaromEmployee) -> list[str]:
 
 def _replace_picture_at_path(slide: Slide, picture_path: tuple[int, ...]) -> None:
     picture_shape = resolve_shape_path(slide, picture_path)
-    replace_picture_with_circular_placeholder(slide, picture_shape)
+    reset_picture_to_circular_placeholder(slide, picture_shape)
 
 
 def _set_title_if_editable(slide: Slide, preset: CaromTemplate, title: str) -> None:

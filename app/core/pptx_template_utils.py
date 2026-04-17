@@ -7,7 +7,6 @@ from io import BytesIO
 from typing import Any
 
 from pptx.dml.color import RGBColor
-from pptx.enum.shapes import MSO_SHAPE
 from pptx.oxml.ns import qn
 from pptx.slide import Slide
 
@@ -129,24 +128,32 @@ def replace_picture(slide: Slide, picture_shape: Any, image_bytes: bytes) -> Any
     return new_picture
 
 
-def replace_picture_with_circular_placeholder(slide: Slide, picture_shape: Any) -> Any:
+def reset_picture_to_circular_placeholder(slide: Slide, picture_shape: Any) -> Any:
     diameter = min(picture_shape.width, picture_shape.height)
-    left = picture_shape.left + (picture_shape.width - diameter) // 2
-    top = picture_shape.top + (picture_shape.height - diameter) // 2
-    placeholder = slide.shapes.add_shape(
-        MSO_SHAPE.OVAL,
-        left,
-        top,
-        diameter,
-        diameter,
-    )
-    placeholder.fill.solid()
-    placeholder.fill.fore_color.rgb = PLACEHOLDER_RGB
-    placeholder.line.color.rgb = PLACEHOLDER_RGB
-    placeholder._element.getparent().remove(placeholder._element)
-    picture_shape._element.addprevious(placeholder._element)
-    picture_shape._element.getparent().remove(picture_shape._element)
-    return placeholder
+    picture_shape.left = picture_shape.left + (picture_shape.width - diameter) // 2
+    picture_shape.top = picture_shape.top + (picture_shape.height - diameter) // 2
+    picture_shape.width = diameter
+    picture_shape.height = diameter
+
+    image_stream = BytesIO(placeholder_picture_bytes())
+    _image_part, rel_id = slide.part.get_or_add_image_part(image_stream)
+    blip = picture_shape._element.blipFill.blip
+    if blip is not None:
+        blip.set(qn("r:embed"), rel_id)
+        blip.attrib.pop(qn("r:link"), None)
+
+    src_rect = picture_shape._element.blipFill.srcRect
+    if src_rect is not None:
+        src_rect.getparent().remove(src_rect)
+
+    sp_pr = picture_shape._element.spPr
+    if sp_pr.custGeom is not None:
+        sp_pr._remove_custGeom()
+    prst_geom = sp_pr.prstGeom if sp_pr.prstGeom is not None else sp_pr._add_prstGeom()
+    prst_geom.set("prst", "ellipse")
+    if prst_geom.avLst is None:
+        prst_geom._add_avLst()
+    return picture_shape
 
 
 def placeholder_picture_bytes() -> bytes:

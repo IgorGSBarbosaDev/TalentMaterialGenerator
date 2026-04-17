@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 from pptx import Presentation
-from pptx.enum.shapes import MSO_SHAPE, MSO_SHAPE_TYPE
+from pptx.enum.shapes import MSO_SHAPE_TYPE
 
 from app.core import generator_carom
 from app.core.carom_templates import CAROM_TEMPLATES, get_carom_preset
@@ -48,9 +48,13 @@ def _assert_picture_slots_are_circular_placeholders(file_path: str, preset_id: s
     preset = get_carom_preset(preset_id)
     for slot in preset.slots:
         shape = resolve_shape_path(prs.slides[0], slot["picture"])
-        assert shape.shape_type == MSO_SHAPE_TYPE.AUTO_SHAPE
-        assert shape.auto_shape_type == MSO_SHAPE.OVAL
+        prst_geom = shape._element.spPr.prstGeom
+        src_rect = shape._element.blipFill.srcRect
+        assert shape.shape_type == MSO_SHAPE_TYPE.PICTURE
+        assert prst_geom is not None
+        assert prst_geom.get("prst") == "ellipse"
         assert shape.width == shape.height
+        assert src_rect is None or not src_rect.attrib
 
 
 def test_get_carom_preset_maps_legacy_regular_to_mini_template() -> None:
