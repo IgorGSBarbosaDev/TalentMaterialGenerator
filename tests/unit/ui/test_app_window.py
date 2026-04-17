@@ -145,9 +145,9 @@ def test_app_window_minimized_sidebar_keeps_compact_centered_nav_content(qtbot) 
     _wait_sidebar_animation_finished(qtbot, window)
     home_text = window.menu_buttons["home"].text()
 
-    assert "\n" in home_text
-    assert "H" in home_text
-    assert "Inicio" in home_text
+    assert home_text == "Inicio"
+    assert "\n" not in home_text
+    assert not (len(home_text) == 1 and home_text.isalpha() and home_text.isupper())
 
 
 def test_app_window_sidebar_toggle_ignores_clicks_while_animating(qtbot) -> None:

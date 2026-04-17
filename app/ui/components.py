@@ -138,7 +138,7 @@ class NavButton(QPushButton):
 
     def set_compact(self, compact: bool) -> None:
         if compact:
-            self.setText(f"{self._icon_text}\n{self._compact_label}")
+            self.setText(self._compact_label)
             self.setProperty("compact", "true")
         else:
             self.setText(self._full_label)
