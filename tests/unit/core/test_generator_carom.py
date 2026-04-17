@@ -37,9 +37,15 @@ def _employee(index: int) -> dict[str, str]:
 
 def _all_slide_text(slide) -> str:
     values: list[str] = []
-    for shape in slide.shapes:
+    def _collect(shape) -> None:
         if hasattr(shape, "text"):
             values.append(shape.text)
+        if hasattr(shape, "shapes"):
+            for child in shape.shapes:
+                _collect(child)
+
+    for shape in slide.shapes:
+        _collect(shape)
     return "\n".join(values)
 
 
@@ -299,23 +305,33 @@ def test_generate_carom_pptx_uses_literal_body_text_for_projeto_trainee(tmp_path
     assert slide.shapes[3].text == "CEO3 - Programa GT & GP"
 
 
-def test_generate_carom_pptx_maps_talent_review_ceo_fields(tmp_path: Path) -> None:
+def test_generate_carom_pptx_keeps_talent_review_template_text_without_ceo_fields(
+    tmp_path: Path,
+) -> None:
+    employee = _employee(1)
+    employee["ceo3"] = ""
+    employee["ceo4"] = ""
+
     files = generator_carom.generate_carom_pptx(
-        [_employee(1)],
+        [employee],
         str(tmp_path),
         {"preset_id": "talent_review", "titulo": "Ignored", "file_basename": "Talent_Review"},
     )
 
     prs = Presentation(files[0])
-    text_box = prs.slides[0].shapes[4]
+    slide = prs.slides[0]
+    slide_text = _all_slide_text(slide)
+    text_box = slide.shapes[5]
     paragraphs = [paragraph.text for paragraph in text_box.text_frame.paragraphs]
 
     assert paragraphs[0] == "Colab 1 | 21 - 4 / AP"
     assert paragraphs[1] == "Analista"
     assert paragraphs[2] == "Sucessor Imediato"
-    assert paragraphs[3] == "CEO3 1"
+    assert paragraphs[3] == "NomeCadeira"
     assert paragraphs[4] == "Em desenvolvimento"
-    assert paragraphs[5] == "CEO4 1"
+    assert paragraphs[5] == "NomeCadeira"
+    assert "CEO3" not in slide_text
+    assert "CEO4" not in slide_text
 
 
 def test_generate_carom_pptx_paginates_full_talent_review_capacity(tmp_path: Path) -> None:

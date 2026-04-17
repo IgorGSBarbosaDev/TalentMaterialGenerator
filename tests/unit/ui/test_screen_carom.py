@@ -86,6 +86,25 @@ def _load_legacy_employees(screen: CaromScreen) -> None:
     )
 
 
+def _load_talent_review_ready_employees(screen: CaromScreen) -> None:
+    screen._handle_worker_success(
+        {
+            "schema": {
+                "matricula": "Matricula",
+                "nome": "Nome",
+                "idade": "Idade",
+                "cargo": "Cargo",
+                "formacao": "Formacao",
+                "nota_2025": "Nota 2025",
+                "potencial_2025": "Potencial 2025",
+            },
+            "employees": [_employee("101", "Ana Martins")],
+            "source_result": None,
+            "employee_count": 1,
+        }
+    )
+
+
 def _preset_item_enabled(screen: CaromScreen, index: int) -> bool:
     item = screen.model_selector.model().item(index)
     assert item is not None
@@ -117,6 +136,22 @@ def test_carom_screen_get_generation_payload_uses_default_output_dir(qtbot) -> N
     assert received[0]["preset_id"] == "big"
     assert received[0]["file_basename"] == normalize_filename("Carometro QA 2026")
     assert received[0]["schema_fields"]["ceo3"] == "CEO3"
+
+
+def test_carom_screen_allows_talent_review_without_ceo_fields(qtbot) -> None:
+    screen = CaromScreen({})
+    qtbot.addWidget(screen)
+    _load_talent_review_ready_employees(screen)
+    screen.model_selector.setCurrentIndex(3)
+    screen._add_employee("matricula:101")
+
+    assert _preset_item_enabled(screen, 3) is True
+
+    received = []
+    screen.generate_requested.connect(received.append)
+    screen._start_generation()
+
+    assert received[0]["preset_id"] == "talent_review"
 
 
 def test_carom_screen_switches_legacy_schema_to_mini_and_disables_strict_presets(qtbot) -> None:

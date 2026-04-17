@@ -15,6 +15,7 @@ from app.core.pptx_template_utils import (
     clear_text,
     clone_slide,
     replace_text,
+    replace_text_prefix,
     resolve_shape_path,
     reset_picture_to_circular_placeholder,
 )
@@ -163,14 +164,7 @@ def _talent_review_lines(employee: CaromEmployee) -> list[str]:
         ],
         " | ",
     )
-    return [
-        headline,
-        _employee_role(employee),
-        "Sucessor Imediato",
-        _employee_ceo3(employee),
-        "Em desenvolvimento",
-        _employee_ceo4(employee),
-    ]
+    return [headline, _employee_role(employee)]
 
 
 def _replace_picture_at_path(slide: Slide, picture_path: tuple[int, ...]) -> None:
@@ -236,13 +230,24 @@ def _render_talent_review_slot(
     slot: dict[str, tuple[int, ...]],
     employee: CaromEmployee | None,
 ) -> None:
-    text_shape = resolve_shape_path(slide, slot["text"])
+    text_shape = _resolve_talent_review_text_shape(slide, slot["text"])
     if employee is None:
-        replace_text(text_shape, ["", "", "", "", "", ""])
+        clear_text(text_shape)
         _replace_picture_at_path(slide, slot["picture"])
         return
-    replace_text(text_shape, _talent_review_lines(employee))
+    replace_text_prefix(text_shape, _talent_review_lines(employee))
     _replace_picture_at_path(slide, slot["picture"])
+
+
+def _resolve_talent_review_text_shape(slide: Slide, text_path: tuple[int, ...]):
+    shape = resolve_shape_path(slide, text_path)
+    if hasattr(shape, "text_frame"):
+        return shape
+    if hasattr(shape, "shapes"):
+        for child in shape.shapes:
+            if hasattr(child, "text_frame"):
+                return child
+    raise ValueError("Nao foi possivel localizar a caixa de texto do Talent Review.")
 
 
 def _send_callback(callback: Callable[[dict], None] | None, payload: dict) -> None:

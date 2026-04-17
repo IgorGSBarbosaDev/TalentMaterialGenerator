@@ -61,6 +61,15 @@ def replace_text(shape: Any, paragraphs: list[str]) -> None:
         _replace_paragraph_text(paragraph, text)
 
 
+def replace_text_prefix(shape: Any, paragraphs: list[str]) -> None:
+    frame = shape.text_frame
+    while len(frame.paragraphs) < len(paragraphs):
+        frame.add_paragraph()
+
+    for index, text in enumerate(paragraphs):
+        _replace_paragraph_text(frame.paragraphs[index], text)
+
+
 def _replace_paragraph_text(paragraph: Any, text: str) -> None:
     style = _capture_run_style(paragraph)
     for run in list(paragraph.runs):

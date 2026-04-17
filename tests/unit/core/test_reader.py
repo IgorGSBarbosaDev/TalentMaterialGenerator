@@ -572,10 +572,7 @@ def test_ceo_driven_carom_presets_fail_clearly_without_ceo_columns() -> None:
 
     assert "ceo3" in reader.validate_carom_schema_for_preset(schema, "big")
     assert "ceo4" in reader.validate_carom_schema_for_preset(schema, "projeto_trainee")
-    assert reader.validate_carom_schema_for_preset(schema, "talent_review")[:2] == [
-        "ceo3",
-        "ceo4",
-    ]
+    assert reader.validate_carom_schema_for_preset(schema, "talent_review") == []
 
 
 def test_ceo_driven_carom_presets_accept_complete_schema() -> None:

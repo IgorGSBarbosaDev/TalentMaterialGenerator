@@ -44,6 +44,37 @@ def _build_standardized_carom_spreadsheet(path: Path, total_rows: int) -> Path:
     return path
 
 
+def _build_talent_review_spreadsheet_without_ceos(path: Path, total_rows: int) -> Path:
+    workbook = Workbook()
+    sheet = workbook.active
+    assert sheet is not None
+    sheet.append(
+        [
+            "Matricula",
+            "Nome",
+            "Idade",
+            "Cargo",
+            "Formacao",
+            "Nota 2025",
+            "Potencial 2025",
+        ]
+    )
+    for index in range(1, total_rows + 1):
+        sheet.append(
+            [
+                str(100 + index),
+                f"Colab {index}",
+                str(20 + index),
+                "Analista",
+                "Engenharia",
+                "4",
+                "AP",
+            ]
+        )
+    workbook.save(path)
+    return path
+
+
 def _build_legacy_standardized_carom_spreadsheet(path: Path, total_rows: int) -> Path:
     workbook = Workbook()
     sheet = workbook.active
@@ -126,8 +157,8 @@ def test_projeto_trainee_flow_uses_literal_body_text(tmp_path: Path) -> None:
     assert slide.shapes[13].text.splitlines()[0] == "insira projeto trainee aqui"
 
 
-def test_talent_review_flow_maps_ceo_fields(tmp_path: Path) -> None:
-    spreadsheet = _build_standardized_carom_spreadsheet(tmp_path / "carom-tr.xlsx", 1)
+def test_talent_review_flow_keeps_template_text_without_ceo_fields(tmp_path: Path) -> None:
+    spreadsheet = _build_talent_review_spreadsheet_without_ceos(tmp_path / "carom-tr.xlsx", 1)
     employees = load_standardized_carom_rows(read_spreadsheet(str(spreadsheet)))
     config: CaromConfig = {
         "preset_id": "talent_review",
@@ -136,8 +167,19 @@ def test_talent_review_flow_maps_ceo_fields(tmp_path: Path) -> None:
     }
 
     generated_files = generate_carom_pptx(employees, str(tmp_path), config)
-    text_box = Presentation(generated_files[0]).slides[0].shapes[4]
+    slide = Presentation(generated_files[0]).slides[0]
+    text_box = slide.shapes[5]
     paragraphs = [paragraph.text for paragraph in text_box.text_frame.paragraphs]
+    slide_text = "\n".join(
+        child.text
+        for shape in slide.shapes
+        for child in ([shape] + list(shape.shapes) if hasattr(shape, "shapes") else [shape])
+        if hasattr(child, "text")
+    )
 
-    assert paragraphs[3] == "CEO3 1"
-    assert paragraphs[5] == "CEO4 1"
+    assert paragraphs[2] == "Sucessor Imediato"
+    assert paragraphs[3] == "NomeCadeira"
+    assert paragraphs[4] == "Em desenvolvimento"
+    assert paragraphs[5] == "NomeCadeira"
+    assert "CEO3" not in slide_text
+    assert "CEO4" not in slide_text

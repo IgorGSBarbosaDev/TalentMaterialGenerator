@@ -317,3 +317,82 @@ def test_generation_worker_carom_uses_selected_employees_only(monkeypatch, tmp_p
     assert finished[0]["count"] == 1
     assert finished[0]["source_result"] is source_result
     assert progress == [(1, 1, "Leadership Board")]
+
+
+def test_generation_worker_carom_accepts_talent_review_without_ceo_fields(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    selected = [
+        {
+            "matricula": "123",
+            "nome": "Ana Martins",
+            "idade": "31",
+            "cargo": "Analista",
+            "formacao": "Engenharia",
+            "resumo_perfil": "",
+            "trajetoria": "",
+            "foto": "",
+            "area": "",
+            "localizacao": "",
+            "unidade_gestao": "",
+            "nota_2025": "4 / AP",
+            "avaliacao_2025": "4 / AP",
+            "score_2025": "4",
+            "potencial_2025": "AP",
+        }
+    ]
+    source_result = SpreadsheetSourceResult(
+        path="cache.xlsx",
+        source_kind="onedrive",
+        is_temporary=False,
+        used_cache=True,
+        message="Usando cache local recente.",
+        downloaded_at="2026-04-02T10:00:00+00:00",
+    )
+
+    def _raise(*_args, **_kwargs):
+        raise AssertionError("Carom generation should not resolve the spreadsheet again")
+
+    def _generate(employees, output_dir, config, callback=None):
+        assert employees == selected
+        assert config["preset_id"] == "talent_review"
+        output_path = Path(output_dir) / "carometros" / "talent_review.pptx"
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_bytes(b"x")
+        if callback is not None:
+            callback({"type": "progress", "current": 1, "total": 1, "name": "Ignored"})
+        return [str(output_path)]
+
+    monkeypatch.setattr("app.core.worker.resolve_spreadsheet_source", _raise)
+    monkeypatch.setattr("app.core.worker.read_spreadsheet", _raise)
+    monkeypatch.setattr("app.core.worker.generate_carom_pptx", _generate)
+
+    worker = GenerationWorker(
+        "carom",
+        {
+            "output_dir": str(tmp_path),
+            "selected_employees": selected,
+            "source_result": source_result,
+            "schema_fields": {
+                "matricula": "Matricula",
+                "nome": "Nome",
+                "idade": "Idade",
+                "cargo": "Cargo",
+                "formacao": "Formacao",
+                "nota_2025": "Nota 2025",
+                "potencial_2025": "Potencial 2025",
+            },
+            "preset_id": "talent_review",
+            "titulo": "Ignored",
+            "file_basename": "talent_review",
+        },
+    )
+    finished: list[dict] = []
+    worker.finished.connect(finished.append)
+
+    worker.run()
+
+    assert finished
+    assert finished[0]["count"] == 1
+    assert finished[0]["source_result"] is source_result
