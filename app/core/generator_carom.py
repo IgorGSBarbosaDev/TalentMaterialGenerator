@@ -103,13 +103,33 @@ def _clean_single_line(value: object) -> str:
     return re.sub(r"\s+", " ", normalized).strip()
 
 
+def _safe_file_basename(value: str, fallback: str) -> str:
+    cleaned = _clean(value).replace("\xa0", " ")
+    cleaned = re.sub(r"\s+", "_", cleaned)
+    cleaned = re.sub(r'[<>:"/\\|?*\x00-\x1f]+', "_", cleaned)
+    cleaned = re.sub(r"[._]+", "_", cleaned).strip("_")
+    if cleaned == "":
+        return fallback
+    reserved_names = {
+        "CON",
+        "PRN",
+        "AUX",
+        "NUL",
+        *(f"COM{index}" for index in range(1, 10)),
+        *(f"LPT{index}" for index in range(1, 10)),
+    }
+    if cleaned.upper() in reserved_names:
+        return f"_{cleaned}"
+    return cleaned
+
+
 def build_carom_output_filename(
     preset: CaromTemplate,
     generated_at: datetime | None = None,
     file_basename: str = "",
 ) -> str:
     timestamp = (generated_at or datetime.now()).strftime(CAROM_OUTPUT_TIMESTAMP_FORMAT)
-    basename = _clean(file_basename) or f"Carometro{preset.output_type}"
+    basename = _safe_file_basename(file_basename, f"Carometro{preset.output_type}")
     return f"{basename}_{timestamp}.pptx"
 
 
