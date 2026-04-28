@@ -64,12 +64,16 @@ def test_load_config_ignores_legacy_output_dir(tmp_path, monkeypatch) -> None:
     assert loaded["default_output_dir"] == str(settings.get_default_output_dir())
 
 
-def test_load_config_uses_repo_default_spreadsheet_when_available(tmp_path, monkeypatch) -> None:
+def test_load_config_uses_repo_default_spreadsheet_when_available(
+    tmp_path, monkeypatch
+) -> None:
     config_path = tmp_path / "config.json"
     spreadsheet = tmp_path / "PlanilhaTeste.xlsx"
     spreadsheet.write_bytes(b"x")
     monkeypatch.setattr(settings, "get_config_path", lambda: config_path)
-    monkeypatch.setattr(settings, "get_repo_default_spreadsheet_path", lambda: spreadsheet)
+    monkeypatch.setattr(
+        settings, "get_repo_default_spreadsheet_path", lambda: spreadsheet
+    )
 
     loaded = settings.load_config()
 

@@ -56,7 +56,9 @@ def _shape_in_inches(shape) -> tuple[float, float, float, float]:
     )
 
 
-def _find_auto_shape(slide, auto_shape_type, *, left: float, top: float, tol: float = 0.03):
+def _find_auto_shape(
+    slide, auto_shape_type, *, left: float, top: float, tol: float = 0.03
+):
     for shape in slide.shapes:
         try:
             shape_auto_type = shape.auto_shape_type
@@ -89,7 +91,14 @@ def test_build_slide_omits_empty_optional_sections() -> None:
     prs = generator_ficha.create_presentation()
     slide = generator_ficha.build_slide(
         prs,
-        _employee(formacao="", trajetoria="", resumo_perfil="", nota_2025="", nota_2024="", nota_2023=""),
+        _employee(
+            formacao="",
+            trajetoria="",
+            resumo_perfil="",
+            nota_2025="",
+            nota_2024="",
+            nota_2023="",
+        ),
     )
 
     texts = [text.upper() for text in _shape_texts(slide)]
@@ -183,9 +192,13 @@ def test_build_slide_contains_reference_geometry_landmarks() -> None:
     prs = generator_ficha.create_presentation()
     slide = generator_ficha.build_slide(prs, _employee())
 
-    left_accent = _find_auto_shape(slide, MSO_AUTO_SHAPE_TYPE.RECTANGLE, left=0.0, top=0.0)
+    left_accent = _find_auto_shape(
+        slide, MSO_AUTO_SHAPE_TYPE.RECTANGLE, left=0.0, top=0.0
+    )
     footer = _find_auto_shape(slide, MSO_AUTO_SHAPE_TYPE.RECTANGLE, left=0.0, top=6.985)
-    brand = _find_auto_shape(slide, MSO_AUTO_SHAPE_TYPE.RECTANGLE, left=11.486, top=6.665)
+    brand = _find_auto_shape(
+        slide, MSO_AUTO_SHAPE_TYPE.RECTANGLE, left=11.486, top=6.665
+    )
     placeholder = _find_auto_shape(
         slide,
         MSO_AUTO_SHAPE_TYPE.OVAL,
