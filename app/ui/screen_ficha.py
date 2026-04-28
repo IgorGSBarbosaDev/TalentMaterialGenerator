@@ -175,14 +175,22 @@ class FichaScreen(QWidget):
         self.results_table = QTableWidget(0, 3)
         self.results_table.setObjectName("fichaResultsTable")
         self.results_table.setHorizontalHeaderLabels(["Matricula", "Nome", "Cargo"])
-        self.results_table.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self.results_table.setSelectionMode(QAbstractItemView.SingleSelection)
-        self.results_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.results_table.setSelectionBehavior(
+            QAbstractItemView.SelectionBehavior.SelectRows
+        )
+        self.results_table.setSelectionMode(
+            QAbstractItemView.SelectionMode.SingleSelection
+        )
+        self.results_table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.results_table.setAlternatingRowColors(True)
         self.results_table.setMinimumHeight(360)
         self.results_table.verticalHeader().setVisible(False)
-        self.results_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        self.results_table.itemSelectionChanged.connect(self._on_results_selection_changed)
+        self.results_table.horizontalHeader().setSectionResizeMode(
+            QHeaderView.ResizeMode.Stretch
+        )
+        self.results_table.itemSelectionChanged.connect(
+            self._on_results_selection_changed
+        )
         table_layout.addWidget(self.results_table)
 
         results_layout.addWidget(table_wrap, 1)
@@ -219,7 +227,8 @@ class FichaScreen(QWidget):
         self._clear_schema_state()
         self._clear_lookup_state(clear_queries=True, reset_mode=True)
         self._set_status(
-            "Informe a fonte de dados. A validacao da base padronizada sera executada automaticamente.",
+            "Informe a fonte de dados. A validacao da base padronizada "
+            "sera executada automaticamente.",
             "info",
         )
         self._refresh_action_state()
@@ -298,14 +307,23 @@ class FichaScreen(QWidget):
             self._set_schema_status("Base nao validada.", "warning")
             return False
 
-        if self.source_type.currentText() == "Arquivo local" and not Path(source).is_file():
+        if (
+            self.source_type.currentText() == "Arquivo local"
+            and not Path(source).is_file()
+        ):
             self._set_status("A planilha local nao foi encontrada.", "error")
-            self._set_schema_status("Base invalida: arquivo local nao encontrado.", "error")
+            self._set_schema_status(
+                "Base invalida: arquivo local nao encontrado.", "error"
+            )
             return False
 
-        if self.source_type.currentText() == "OneDrive" and not source.startswith("https://"):
+        if self.source_type.currentText() == "OneDrive" and not source.startswith(
+            "https://"
+        ):
             self._set_status("Informe um link valido do OneDrive.", "error")
-            self._set_schema_status("Base invalida: link do OneDrive nao reconhecido.", "error")
+            self._set_schema_status(
+                "Base invalida: link do OneDrive nao reconhecido.", "error"
+            )
             return False
         return True
 
@@ -349,7 +367,8 @@ class FichaScreen(QWidget):
         else:
             self._set_schema_status("Base nao validada.", "warning")
             self._set_status(
-                "Informe a fonte de dados. A validacao da base padronizada sera executada automaticamente.",
+                "Informe a fonte de dados. A validacao da base padronizada "
+                "sera executada automaticamente.",
                 "info",
             )
         self._refresh_action_state()
@@ -427,7 +446,9 @@ class FichaScreen(QWidget):
 
     def _start_lookup(self) -> None:
         if not self._schema_valid:
-            self._set_status("A ficha so pode buscar apos validar a base padronizada.", "warning")
+            self._set_status(
+                "A ficha so pode buscar apos validar a base padronizada.", "warning"
+            )
             return
         if self._worker is not None and self._worker.isRunning():
             return
@@ -465,9 +486,13 @@ class FichaScreen(QWidget):
         return {
             "spreadsheet_source": self.entry_source.text().strip(),
             "source_kind": source_kind,
-            "lookup_name": self.entry_lookup_name.text().strip() if mode == "nome" else "",
+            "lookup_name": (
+                self.entry_lookup_name.text().strip() if mode == "nome" else ""
+            ),
             "lookup_matricula": (
-                self.entry_lookup_matricula.text().strip() if mode == "matricula" else ""
+                self.entry_lookup_matricula.text().strip()
+                if mode == "matricula"
+                else ""
             ),
             "cache_enabled": self._config.get("cache_enabled", True),
             "cache_ttl_hours": self._config.get("cache_ttl_hours", 24),
@@ -491,7 +516,10 @@ class FichaScreen(QWidget):
         )
 
         if self._worker_mode == "validate":
-            self._set_status("Base validada. Escolha o tipo de busca e pesquise um colaborador.", "success")
+            self._set_status(
+                "Base validada. Escolha o tipo de busca e pesquise um colaborador.",
+                "success",
+            )
             self._refresh_action_state()
             return
 
@@ -501,18 +529,27 @@ class FichaScreen(QWidget):
         self._populate_results_table(self._lookup_matches)
 
         if not self._lookup_matches:
-            self._set_status("Nenhum colaborador encontrado para o filtro informado.", "warning")
+            self._set_status(
+                "Nenhum colaborador encontrado para o filtro informado.", "warning"
+            )
         elif len(self._lookup_matches) == 1:
-            self._set_status("1 colaborador encontrado. Valide o colaborador selecionado para gerar a ficha.", "success")
+            self._set_status(
+                "1 colaborador encontrado. Valide o colaborador selecionado para gerar a ficha.",
+                "success",
+            )
         else:
             self._set_status(
-                f"{len(self._lookup_matches)} colaboradores encontrados. Selecione uma linha e valide o colaborador.",
+                f"{len(self._lookup_matches)} colaboradores encontrados. "
+                "Selecione uma linha e valide o colaborador.",
                 "info",
             )
         self._refresh_action_state()
 
     def _handle_worker_error(self, message: str) -> None:
-        if self._worker_mode == "validate" or "schema padrao da ficha" in message.lower():
+        if (
+            self._worker_mode == "validate"
+            or "schema padrao da ficha" in message.lower()
+        ):
             self._clear_schema_state()
             self._clear_lookup_state()
             self._set_schema_status(message, "error")
@@ -540,7 +577,7 @@ class FichaScreen(QWidget):
             ]
             for column, value in enumerate(values):
                 item = QTableWidgetItem(value)
-                item.setFlags(item.flags() & ~Qt.ItemIsEditable)
+                item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
                 self.results_table.setItem(row, column, item)
         if employees:
             self.results_table.selectRow(0)
@@ -576,20 +613,25 @@ class FichaScreen(QWidget):
     def _confirm_selected_employee(self) -> None:
         employee = self._selected_match()
         if employee is None:
-            self._set_status("Selecione um colaborador na tabela para validar.", "warning")
+            self._set_status(
+                "Selecione um colaborador na tabela para validar.", "warning"
+            )
             return
 
         missing_required = reader.validate_ficha_employee(employee)
         if missing_required:
             self._set_status(
-                f"O colaborador selecionado nao possui os campos obrigatorios: {', '.join(missing_required)}.",
+                "O colaborador selecionado nao possui os campos obrigatorios: "
+                f"{', '.join(missing_required)}.",
                 "error",
             )
             return
 
         self._confirmed_employee = employee
         label = employee.get("nome", "").strip() or "colaborador selecionado"
-        self._set_status(f"Colaborador validado: {label}. Pronto para gerar a ficha.", "success")
+        self._set_status(
+            f"Colaborador validado: {label}. Pronto para gerar a ficha.", "success"
+        )
         self._refresh_action_state()
 
     def _get_generation_payload(self) -> dict[str, Any]:
@@ -616,7 +658,9 @@ class FichaScreen(QWidget):
             self._schema_valid and has_selection and not worker_running
         )
         self.btn_generate.setEnabled(
-            self._schema_valid and self._confirmed_employee is not None and not worker_running
+            self._schema_valid
+            and self._confirmed_employee is not None
+            and not worker_running
         )
 
     def _start_generation(self) -> None:

@@ -41,9 +41,7 @@ class SettingsScreen(QWidget):
             object_name="settingsPanel",
         )
         self.intro_card = intro
-        intro_note = QLabel(
-            "Essas opcoes nao alteram as regras de geracao."
-        )
+        intro_note = QLabel("Essas opcoes nao alteram as regras de geracao.")
         intro_note.setObjectName("bodyMuted")
         intro_note.setWordWrap(True)
         intro.add_widget(intro_note)
