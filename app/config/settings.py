@@ -18,7 +18,10 @@ def _apply_runtime_defaults(config: dict[str, Any]) -> dict[str, Any]:
     config["default_output_dir"] = str(get_default_output_dir())
 
     repo_default = get_repo_default_spreadsheet_path()
-    if repo_default is not None and not str(config.get("default_spreadsheet_path", "")).strip():
+    if (
+        repo_default is not None
+        and not str(config.get("default_spreadsheet_path", "")).strip()
+    ):
         config["default_spreadsheet_path"] = str(repo_default)
         if not str(config.get("default_onedrive_url", "")).strip():
             config["spreadsheet_source"] = "local"

@@ -182,4 +182,6 @@ def _solid_png_bytes(red: int, green: int, blue: int) -> bytes:
 
 def _png_chunk(chunk_type: bytes, data: bytes) -> bytes:
     checksum = zlib.crc32(chunk_type + data) & 0xFFFFFFFF
-    return struct.pack(">I", len(data)) + chunk_type + data + struct.pack(">I", checksum)
+    return (
+        struct.pack(">I", len(data)) + chunk_type + data + struct.pack(">I", checksum)
+    )

@@ -129,6 +129,7 @@ class GenerationWorker(QThread):
         cleanup_target: SpreadsheetSourceResult | None = None
         started_at = monotonic()
         try:
+
             def _callback(message: dict[str, Any]) -> None:
                 if message.get("type") == "progress":
                     self.progress.emit(
@@ -150,7 +151,9 @@ class GenerationWorker(QThread):
                     raise ValueError(
                         f"O colaborador selecionado nao possui os campos obrigatorios: {joined}."
                     )
-                self.log.emit("Colaborador confirmado. Iniciando geracao individual.", "info")
+                self.log.emit(
+                    "Colaborador confirmado. Iniciando geracao individual.", "info"
+                )
                 output_path = generate_ficha_pptx(
                     employee,
                     self.config["output_dir"],
@@ -159,9 +162,13 @@ class GenerationWorker(QThread):
                 files = [output_path]
                 source_result = self.config.get("source_result")
             else:
-                employees: list[CaromEmployee] = list(self.config.get("selected_employees", []))
+                employees: list[CaromEmployee] = list(
+                    self.config.get("selected_employees", [])
+                )
                 if not employees:
-                    raise ValueError("Selecione ao menos um colaborador para gerar o carometro.")
+                    raise ValueError(
+                        "Selecione ao menos um colaborador para gerar o carometro."
+                    )
                 preset_id = str(self.config.get("preset_id", "big"))
                 schema_fields = dict(self.config.get("schema_fields", {}))
                 if schema_fields:
@@ -174,15 +181,16 @@ class GenerationWorker(QThread):
                         raise ValueError(
                             f"O template selecionado exige colunas ausentes na planilha: {joined}."
                         )
-                for employee in employees:
-                    missing_required = validate_carom_employee(employee)
+                for carom_employee in employees:
+                    missing_required = validate_carom_employee(carom_employee)
                     if missing_required:
                         joined = ", ".join(missing_required)
                         raise ValueError(
-                            f"Um colaborador selecionado nao possui os campos obrigatorios: {joined}."
+                            "Um colaborador selecionado nao possui os campos "
+                            f"obrigatorios: {joined}."
                         )
                     missing_template_fields = validate_carom_employee_for_preset(
-                        employee,
+                        carom_employee,
                         preset_id,
                     )
                     if missing_template_fields:
@@ -220,4 +228,3 @@ class GenerationWorker(QThread):
         finally:
             if cleanup_target is not None:
                 cleanup_source(cleanup_target)
-
