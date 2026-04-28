@@ -258,6 +258,27 @@ def test_generate_carom_pptx_uses_timestamped_configured_output_name(
     assert re.fullmatch(r"Leadership_Board_\d{8}_\d{6}\.pptx", output_path.name)
 
 
+def test_generate_carom_pptx_sanitizes_configured_output_name(
+    tmp_path: Path,
+) -> None:
+    files = generator_carom.generate_carom_pptx(
+        [_employee(1)],
+        str(tmp_path),
+        {
+            "preset_id": "big",
+            "titulo": "Ignored",
+            "file_basename": r"..\Talent/Review:Ciclo*2026?",
+        },
+    )
+
+    output_path = Path(files[0])
+    assert output_path.parent == tmp_path / "carometros"
+    assert re.fullmatch(
+        r"Talent_Review_Ciclo_2026_\d{8}_\d{6}\.pptx",
+        output_path.name,
+    )
+
+
 def test_generate_carom_pptx_breaks_big_selection_into_multiple_slides(
     tmp_path: Path,
 ) -> None:
