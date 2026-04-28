@@ -55,7 +55,7 @@ def test_app_window_toggle_theme_updates_symbol_and_config(qtbot, monkeypatch) -
     window._toggle_theme()
 
     assert window.config["theme"] == "light"
-    assert window.theme_toggle_button.text() == "\u263E"
+    assert window.theme_toggle_button.text() == "\u263e"
     assert "escuro" in window.theme_toggle_button.toolTip().lower()
 
 

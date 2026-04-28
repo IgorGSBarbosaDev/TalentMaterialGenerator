@@ -142,7 +142,9 @@ def test_big_carom_flow_creates_expected_slide_count(tmp_path: Path) -> None:
 
 
 def test_projeto_trainee_flow_uses_literal_body_text(tmp_path: Path) -> None:
-    spreadsheet = _build_standardized_carom_spreadsheet(tmp_path / "carom-trainee.xlsx", 2)
+    spreadsheet = _build_standardized_carom_spreadsheet(
+        tmp_path / "carom-trainee.xlsx", 2
+    )
     employees = load_standardized_carom_rows(read_spreadsheet(str(spreadsheet)))
     config: CaromConfig = {
         "preset_id": "projeto_trainee",
@@ -157,8 +159,12 @@ def test_projeto_trainee_flow_uses_literal_body_text(tmp_path: Path) -> None:
     assert slide.shapes[13].text.splitlines()[0] == "insira projeto trainee aqui"
 
 
-def test_talent_review_flow_keeps_template_text_without_ceo_fields(tmp_path: Path) -> None:
-    spreadsheet = _build_talent_review_spreadsheet_without_ceos(tmp_path / "carom-tr.xlsx", 1)
+def test_talent_review_flow_keeps_template_text_without_ceo_fields(
+    tmp_path: Path,
+) -> None:
+    spreadsheet = _build_talent_review_spreadsheet_without_ceos(
+        tmp_path / "carom-tr.xlsx", 1
+    )
     employees = load_standardized_carom_rows(read_spreadsheet(str(spreadsheet)))
     config: CaromConfig = {
         "preset_id": "talent_review",
@@ -173,7 +179,9 @@ def test_talent_review_flow_keeps_template_text_without_ceo_fields(tmp_path: Pat
     slide_text = "\n".join(
         child.text
         for shape in slide.shapes
-        for child in ([shape] + list(shape.shapes) if hasattr(shape, "shapes") else [shape])
+        for child in (
+            [shape] + list(shape.shapes) if hasattr(shape, "shapes") else [shape]
+        )
         if hasattr(child, "text")
     )
 
@@ -185,8 +193,12 @@ def test_talent_review_flow_keeps_template_text_without_ceo_fields(tmp_path: Pat
     assert "CEO4" not in slide_text
 
 
-def test_talent_review_flow_ignores_ceo_values_when_columns_are_present(tmp_path: Path) -> None:
-    spreadsheet = _build_standardized_carom_spreadsheet(tmp_path / "carom-tr-ceos.xlsx", 12)
+def test_talent_review_flow_ignores_ceo_values_when_columns_are_present(
+    tmp_path: Path,
+) -> None:
+    spreadsheet = _build_standardized_carom_spreadsheet(
+        tmp_path / "carom-tr-ceos.xlsx", 12
+    )
     employees = load_standardized_carom_rows(read_spreadsheet(str(spreadsheet)))
     config: CaromConfig = {
         "preset_id": "talent_review",
@@ -199,7 +211,9 @@ def test_talent_review_flow_ignores_ceo_values_when_columns_are_present(tmp_path
     slide_text = "\n".join(
         child.text
         for shape in slide.shapes
-        for child in ([shape] + list(shape.shapes) if hasattr(shape, "shapes") else [shape])
+        for child in (
+            [shape] + list(shape.shapes) if hasattr(shape, "shapes") else [shape]
+        )
         if hasattr(child, "text")
     )
 

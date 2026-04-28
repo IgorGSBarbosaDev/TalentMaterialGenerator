@@ -13,7 +13,9 @@ def _wait_sidebar_animation_finished(qtbot, window: AppWindow) -> None:
     )
 
 
-def test_sidebar_animation_flow_persists_collapsed_state_across_navigation(qtbot) -> None:
+def test_sidebar_animation_flow_persists_collapsed_state_across_navigation(
+    qtbot,
+) -> None:
     window = AppWindow({"last_generations": [], "theme": "dark"})
     qtbot.addWidget(window)
 
@@ -33,7 +35,9 @@ def test_sidebar_animation_flow_persists_collapsed_state_across_navigation(qtbot
     assert window.menu_buttons["settings"].isChecked() is True
 
 
-def test_sidebar_animation_flow_recovers_to_expanded_state_on_current_screen(qtbot) -> None:
+def test_sidebar_animation_flow_recovers_to_expanded_state_on_current_screen(
+    qtbot,
+) -> None:
     window = AppWindow({"last_generations": [], "theme": "dark"})
     qtbot.addWidget(window)
 
