@@ -156,7 +156,9 @@ def test_has_expected_ficha_column_order_accepts_new_reference_contract() -> Non
     assert reader.has_expected_ficha_column_order(headers) is True
 
 
-def test_has_expected_ficha_column_order_accepts_new_reference_contract_with_ceos() -> None:
+def test_has_expected_ficha_column_order_accepts_new_reference_contract_with_ceos() -> (
+    None
+):
     headers = [
         "Matricula",
         "Nome",
@@ -248,7 +250,9 @@ def test_resolve_remote_source_downloads_when_cache_expired(
 
     monkeypatch.setattr(reader, "get_cache_file_path", lambda _url: cache_path)
     monkeypatch.setattr(reader, "cache_is_fresh", lambda *_args, **_kwargs: False)
-    monkeypatch.setattr(reader, "download_spreadsheet", lambda *_args, **_kwargs: content)
+    monkeypatch.setattr(
+        reader, "download_spreadsheet", lambda *_args, **_kwargs: content
+    )
 
     result = reader.resolve_spreadsheet_source(url, cache_enabled=True)
 
@@ -370,7 +374,9 @@ def test_load_standardized_ficha_rows_prefers_consolidated_evaluations() -> None
     assert result[0]["nota_2024"] == "3 / MN+"
 
 
-def test_load_standardized_ficha_rows_falls_back_to_score_and_potential_when_needed() -> None:
+def test_load_standardized_ficha_rows_falls_back_to_score_and_potential_when_needed() -> (
+    None
+):
     rows = [
         {
             "Matricula": "123",
@@ -504,7 +510,9 @@ def test_resolve_carom_schema_includes_evaluation_and_ceo_fields() -> None:
     assert schema["ceo4"] == "CEO4"
 
 
-def test_load_standardized_carom_rows_builds_display_score_from_score_and_potential() -> None:
+def test_load_standardized_carom_rows_builds_display_score_from_score_and_potential() -> (
+    None
+):
     rows = [
         {
             "Matricula": "123",

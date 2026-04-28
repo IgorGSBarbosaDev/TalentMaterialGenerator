@@ -4,7 +4,13 @@ import os
 from pathlib import Path
 from typing import Any
 
-from PySide6.QtCore import QAbstractAnimation, QEasingCurve, QPropertyAnimation, Qt, QUrl
+from PySide6.QtCore import (
+    QAbstractAnimation,
+    QEasingCurve,
+    QPropertyAnimation,
+    Qt,
+    QUrl,
+)
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
     QApplication,
@@ -104,8 +110,12 @@ class AppWindow(QMainWindow):
 
         sidebar_layout.addSpacing(10)
         sidebar_layout.addWidget(self._build_nav_label("Sistema"))
-        settings_button = NavButton("Configuracoes", icon_text="S", compact_label="Config")
-        settings_button.clicked.connect(lambda _checked=False: self.navigate_to("settings"))
+        settings_button = NavButton(
+            "Configuracoes", icon_text="S", compact_label="Config"
+        )
+        settings_button.clicked.connect(
+            lambda _checked=False: self.navigate_to("settings")
+        )
         self.menu_group.addButton(settings_button)
         self.menu_buttons["settings"] = settings_button
         sidebar_layout.addWidget(settings_button)
@@ -129,12 +139,14 @@ class AppWindow(QMainWindow):
 
         self.sidebar_toggle_button = QPushButton("\u2630")
         self.sidebar_toggle_button.setObjectName("sidebar_toggle")
-        self.sidebar_toggle_button.setCursor(Qt.PointingHandCursor)
+        self.sidebar_toggle_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.sidebar_toggle_button.setFixedSize(40, 36)
         self.sidebar_toggle_button.clicked.connect(self._toggle_sidebar)
         topbar_layout.addWidget(self.sidebar_toggle_button)
 
-        self._sidebar_animation = QPropertyAnimation(self.sidebar, b"minimumWidth", self)
+        self._sidebar_animation = QPropertyAnimation(
+            self.sidebar, b"minimumWidth", self
+        )
         self._sidebar_animation.setDuration(self._sidebar_animation_duration_ms)
         self._sidebar_animation.setEasingCurve(QEasingCurve.Type.OutCubic)
         self._sidebar_animation.valueChanged.connect(
@@ -182,7 +194,9 @@ class AppWindow(QMainWindow):
 
         self.home_screen.ficha_requested.connect(lambda: self.navigate_to("ficha"))
         self.home_screen.carom_requested.connect(lambda: self.navigate_to("carom"))
-        self.home_screen.settings_requested.connect(lambda: self.navigate_to("settings"))
+        self.home_screen.settings_requested.connect(
+            lambda: self.navigate_to("settings")
+        )
         self.ficha_screen.generate_requested.connect(
             lambda payload: self._start_generation("ficha", payload)
         )
@@ -327,7 +341,7 @@ class AppWindow(QMainWindow):
         self._history = []
         self._stats = {"ficha": 0, "carom": 0}
         app = QApplication.instance()
-        if app is not None:
+        if isinstance(app, QApplication):
             app.setStyleSheet(theme.build_stylesheet(self.config.get("theme", "dark")))
         self.ficha_screen.load_config(self.config)
         self.carom_screen.load_config(self.config)
@@ -340,7 +354,7 @@ class AppWindow(QMainWindow):
         new_mode = "light" if current == "dark" else "dark"
         self.config = settings.update_config({**self.config, "theme": new_mode})
         app = QApplication.instance()
-        if app is not None:
+        if isinstance(app, QApplication):
             app.setStyleSheet(theme.build_stylesheet(new_mode))
         self.settings_screen.load_config(self.config)
         self._update_theme_toggle_button()
@@ -383,7 +397,11 @@ class AppWindow(QMainWindow):
         self.brand_name_widget.setVisible(not collapsed)
         self.brand_row.setAlignment(
             self.brand_mark,
-            Qt.AlignHCenter if collapsed else Qt.AlignLeft | Qt.AlignVCenter,
+            (
+                Qt.AlignmentFlag.AlignHCenter
+                if collapsed
+                else Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
+            ),
         )
         self.brand_mark.setProperty("compact", "true" if collapsed else "false")
         self.version_label.setVisible(not collapsed)
@@ -416,13 +434,15 @@ class AppWindow(QMainWindow):
             self.theme_toggle_button.setText("\u2600")
             self.theme_toggle_button.setToolTip("Mudar para modo claro")
         else:
-            self.theme_toggle_button.setText("\u263E")
+            self.theme_toggle_button.setText("\u263e")
             self.theme_toggle_button.setToolTip("Mudar para modo escuro")
 
     def _refresh_cache_now(self) -> None:
         url = str(self.config.get("default_onedrive_url", "")).strip()
         if url == "":
-            QMessageBox.warning(self, "Cache", "Nenhum link padrao do OneDrive configurado.")
+            QMessageBox.warning(
+                self, "Cache", "Nenhum link padrao do OneDrive configurado."
+            )
             return
         try:
             result = resolve_spreadsheet_source(

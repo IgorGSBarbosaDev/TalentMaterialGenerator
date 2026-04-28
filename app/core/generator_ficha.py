@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from pathlib import Path
-from typing import Final
+from typing import Final, cast
 
 from pptx import Presentation as PresentationFactory
 from pptx.dml.color import RGBColor
@@ -47,7 +47,12 @@ TRAJECTORY_TITLE: Final = {"left": 0.562, "top": 4.098, "width": 3.609, "height"
 TRAJECTORY_RULE: Final = {"left": 0.580, "top": 4.471, "width": 5.000}
 TRAJECTORY_BODY: Final = {"left": 0.580, "top": 4.538, "width": 5.562, "height": 1.750}
 
-PERFORMANCE_TITLE: Final = {"left": 6.402, "top": 5.407, "width": 3.609, "height": 0.370}
+PERFORMANCE_TITLE: Final = {
+    "left": 6.402,
+    "top": 5.407,
+    "width": 3.609,
+    "height": 0.370,
+}
 PERFORMANCE_RULE: Final = {"left": 6.413, "top": 5.745, "width": 6.099}
 PERFORMANCE_BODY: Final = {"left": 6.417, "top": 5.867, "width": 5.562, "height": 0.858}
 
@@ -176,7 +181,9 @@ def _add_text(
     )
 
 
-def _add_section_header(slide: Slide, *, title: str, title_box: dict[str, float], rule_box: dict[str, float]) -> None:
+def _add_section_header(
+    slide: Slide, *, title: str, title_box: dict[str, float], rule_box: dict[str, float]
+) -> None:
     _add_text(
         slide,
         text=title,
@@ -225,12 +232,16 @@ def _clean_evaluation_value(value: str | None) -> str:
 
 
 def _resolve_annual_note(employee: FichaEmployee, year: str) -> str:
-    consolidated = _clean_evaluation_value(employee.get(f"avaliacao_{year}"))
+    consolidated = _clean_evaluation_value(
+        cast(str | None, employee.get(f"avaliacao_{year}"))
+    )
     if consolidated:
         return consolidated
 
-    score = _clean_evaluation_value(employee.get(f"score_{year}"))
-    potential = _clean_evaluation_value(employee.get(f"potencial_{year}"))
+    score = _clean_evaluation_value(cast(str | None, employee.get(f"score_{year}")))
+    potential = _clean_evaluation_value(
+        cast(str | None, employee.get(f"potencial_{year}"))
+    )
     if score and potential:
         return f"{score} / {potential}"
     if score:
@@ -238,7 +249,7 @@ def _resolve_annual_note(employee: FichaEmployee, year: str) -> str:
     if potential:
         return potential
 
-    return _clean_evaluation_value(employee.get(f"nota_{year}"))
+    return _clean_evaluation_value(cast(str | None, employee.get(f"nota_{year}")))
 
 
 def _add_metadata_block(slide: Slide, employee: FichaEmployee) -> None:
@@ -251,10 +262,16 @@ def _add_metadata_block(slide: Slide, employee: FichaEmployee) -> None:
     )
     lines = [
         _clean(employee.get("cargo")),
-        f"Idade: {_clean(employee.get('idade'))} anos" if _clean(employee.get("idade")) else "",
-        f"Tempo de Usiminas: {_clean(employee.get('antiguidade'))} anos"
-        if _clean(employee.get("antiguidade"))
-        else "",
+        (
+            f"Idade: {_clean(employee.get('idade'))} anos"
+            if _clean(employee.get("idade"))
+            else ""
+        ),
+        (
+            f"Tempo de Usiminas: {_clean(employee.get('antiguidade'))} anos"
+            if _clean(employee.get("antiguidade"))
+            else ""
+        ),
     ]
     lines = [line for line in lines if line]
     if not lines:
@@ -441,12 +458,16 @@ def build_slide(prs: Presentation, employee: FichaEmployee) -> Slide:
 
     formacao = _clean(employee.get("formacao"))
     if formacao:
-        _add_section_header(slide, title="Formação", title_box=FORMATION_TITLE, rule_box=FORMATION_RULE)
+        _add_section_header(
+            slide, title="Formação", title_box=FORMATION_TITLE, rule_box=FORMATION_RULE
+        )
         _add_body_text(slide, text=formacao, box=FORMATION_BODY)
 
     resumo = _clean(employee.get("resumo_perfil"))
     if resumo:
-        _add_section_header(slide, title="Resumo", title_box=SUMMARY_TITLE, rule_box=SUMMARY_RULE)
+        _add_section_header(
+            slide, title="Resumo", title_box=SUMMARY_TITLE, rule_box=SUMMARY_RULE
+        )
         _add_body_text(slide, text=resumo, box=SUMMARY_BODY)
 
     trajetoria_items = parse_multiline_field(_clean(employee.get("trajetoria")))

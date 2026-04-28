@@ -56,7 +56,8 @@ def compute_current_slide_status(selected_count: int, capacity: int) -> str:
     position_in_current_slide = selected_count % safe_capacity
     if position_in_current_slide == 0:
         return "Slide atual completo"
-    return f"Faltam {safe_capacity - position_in_current_slide} pessoas para completar o slide atual"
+    remaining = safe_capacity - position_in_current_slide
+    return f"Faltam {remaining} pessoas para completar o slide atual"
 
 
 def _clean(value: object) -> str:
@@ -105,20 +106,34 @@ def _clean_single_line(value: object) -> str:
 def build_carom_output_filename(
     preset: CaromTemplate,
     generated_at: datetime | None = None,
+    file_basename: str = "",
 ) -> str:
     timestamp = (generated_at or datetime.now()).strftime(CAROM_OUTPUT_TIMESTAMP_FORMAT)
-    return f"Carometro{preset.output_type}_{timestamp}.pptx"
+    basename = _clean(file_basename) or f"Carometro{preset.output_type}"
+    return f"{basename}_{timestamp}.pptx"
 
 
-def _build_unique_carom_output_path(output_root: Path, preset: CaromTemplate) -> Path:
+def _build_unique_carom_output_path(
+    output_root: Path,
+    preset: CaromTemplate,
+    file_basename: str,
+) -> Path:
     generated_at = datetime.now()
-    output_path = output_root / build_carom_output_filename(preset, generated_at)
+    output_path = output_root / build_carom_output_filename(
+        preset,
+        generated_at,
+        file_basename,
+    )
     while output_path.exists():
         current_second = generated_at.strftime(CAROM_OUTPUT_TIMESTAMP_FORMAT)
         while datetime.now().strftime(CAROM_OUTPUT_TIMESTAMP_FORMAT) == current_second:
             sleep(0.05)
         generated_at = datetime.now()
-        output_path = output_root / build_carom_output_filename(preset, generated_at)
+        output_path = output_root / build_carom_output_filename(
+            preset,
+            generated_at,
+            file_basename,
+        )
     return output_path
 
 
@@ -182,7 +197,11 @@ def _talent_review_lines(employee: CaromEmployee) -> list[str]:
         ],
         " | ",
     )
-    return [headline, _clean_single_line(employee.get("cargo")), *TALENT_REVIEW_STATIC_LINES]
+    return [
+        headline,
+        _clean_single_line(employee.get("cargo")),
+        *TALENT_REVIEW_STATIC_LINES,
+    ]
 
 
 def _replace_picture_at_path(slide: Slide, picture_path: tuple[int, ...]) -> None:
@@ -198,7 +217,12 @@ def _set_title_if_editable(slide: Slide, preset: CaromTemplate, title: str) -> N
         clear_text(resolve_shape_path(slide, preset.subtitle_path))
 
 
-def _render_slot(slide: Slide, preset: CaromTemplate, slot: dict[str, tuple[int, ...]], employee: CaromEmployee | None) -> None:
+def _render_slot(
+    slide: Slide,
+    preset: CaromTemplate,
+    slot: dict[str, tuple[int, ...]],
+    employee: CaromEmployee | None,
+) -> None:
     if preset.id == "mini":
         _render_basic_slot(slide, slot, employee, _mini_lines)
         return
@@ -238,7 +262,9 @@ def _render_trainee_slot(
         clear_text(resolve_shape_path(slide, slot["body"]))
         _replace_picture_at_path(slide, slot["picture"])
         return
-    replace_text(resolve_shape_path(slide, slot["identity"]), _trainee_identity_lines(employee))
+    replace_text(
+        resolve_shape_path(slide, slot["identity"]), _trainee_identity_lines(employee)
+    )
     replace_text(resolve_shape_path(slide, slot["body"]), [PROJETO_TRAINEE_BODY_TEXT])
     _replace_picture_at_path(slide, slot["picture"])
 
@@ -299,7 +325,9 @@ def _capture_static_talent_review_styles(paragraphs: list[Any]) -> list[dict[str
                 style_by_line.setdefault(2, _capture_paragraph_style(paragraph, run))
             elif text == "NomeCadeira":
                 next_index = nome_cadeira_indexes.pop(0) if nome_cadeira_indexes else 5
-                style_by_line.setdefault(next_index, _capture_paragraph_style(paragraph, run))
+                style_by_line.setdefault(
+                    next_index, _capture_paragraph_style(paragraph, run)
+                )
             elif text == "Em desenvolvimento":
                 style_by_line.setdefault(4, _capture_paragraph_style(paragraph, run))
 
@@ -332,7 +360,9 @@ def _capture_paragraph_style(paragraph: Any, run: Any | None = None) -> dict[str
     return style
 
 
-def _replace_paragraph_with_style(paragraph: Any, text: str, style: dict[str, Any]) -> None:
+def _replace_paragraph_with_style(
+    paragraph: Any, text: str, style: dict[str, Any]
+) -> None:
     if paragraph._p.pPr is not None:
         paragraph._p.remove(paragraph._p.pPr)
     if style.get("paragraph_properties") is not None:
@@ -369,7 +399,9 @@ def _send_callback(callback: Callable[[dict], None] | None, payload: dict) -> No
         callback(payload)
 
 
-def _validate_employees_for_preset(employees: list[CaromEmployee], preset_id: str) -> None:
+def _validate_employees_for_preset(
+    employees: list[CaromEmployee], preset_id: str
+) -> None:
     for employee in employees:
         missing = validate_carom_employee_for_preset(employee, preset_id)
         if missing:
@@ -430,6 +462,10 @@ def generate_carom_pptx(
             },
         )
 
-    output_path = _build_unique_carom_output_path(output_root, preset)
+    output_path = _build_unique_carom_output_path(
+        output_root,
+        preset,
+        str(config.get("file_basename", "")),
+    )
     prs.save(str(output_path))
     return [str(output_path)]

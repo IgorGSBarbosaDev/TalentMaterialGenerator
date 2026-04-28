@@ -21,7 +21,9 @@ def test_ficha_lookup_worker_validates_standardized_schema(monkeypatch) -> None:
     )
     monkeypatch.setattr(
         "app.core.worker.read_spreadsheet",
-        lambda _path: [{"Matricula": "123", "Nome": "Ana Martins", "Cargo": "Analista"}],
+        lambda _path: [
+            {"Matricula": "123", "Nome": "Ana Martins", "Cargo": "Analista"}
+        ],
     )
 
     worker = FichaLookupWorker(
@@ -116,7 +118,9 @@ def test_ficha_lookup_worker_returns_matches_without_mapping(monkeypatch) -> Non
     )
     monkeypatch.setattr(
         "app.core.worker.read_spreadsheet",
-        lambda _path: [{"Matricula": "123", "Nome": "Ana Martins", "Cargo": "Analista"}],
+        lambda _path: [
+            {"Matricula": "123", "Nome": "Ana Martins", "Cargo": "Analista"}
+        ],
     )
 
     worker = FichaLookupWorker(
@@ -137,7 +141,9 @@ def test_ficha_lookup_worker_returns_matches_without_mapping(monkeypatch) -> Non
     assert results[0]["matches"][0]["nome"] == "Ana Martins"
 
 
-def test_generation_worker_ficha_uses_selected_employee_only(monkeypatch, tmp_path: Path) -> None:
+def test_generation_worker_ficha_uses_selected_employee_only(
+    monkeypatch, tmp_path: Path
+) -> None:
     selected_employee = {
         "matricula": "123",
         "nome": "Ana Martins",
@@ -158,7 +164,9 @@ def test_generation_worker_ficha_uses_selected_employee_only(monkeypatch, tmp_pa
     )
 
     def _raise(*_args, **_kwargs):
-        raise AssertionError("Ficha generation should not resolve the spreadsheet again")
+        raise AssertionError(
+            "Ficha generation should not resolve the spreadsheet again"
+        )
 
     def _generate(employee, output_dir, callback=None):
         assert employee == selected_employee
@@ -219,7 +227,9 @@ def test_carom_lookup_worker_loads_standardized_rows(monkeypatch) -> None:
     )
     monkeypatch.setattr(
         "app.core.worker.read_spreadsheet",
-        lambda _path: [{"Matricula": "123", "Nome": "Ana Martins", "Cargo": "Analista"}],
+        lambda _path: [
+            {"Matricula": "123", "Nome": "Ana Martins", "Cargo": "Analista"}
+        ],
     )
 
     worker = CaromLookupWorker({"spreadsheet_source": "base.xlsx"})
@@ -234,7 +244,9 @@ def test_carom_lookup_worker_loads_standardized_rows(monkeypatch) -> None:
     assert results[0]["employees"][0]["nome"] == "Ana Martins"
 
 
-def test_generation_worker_carom_uses_selected_employees_only(monkeypatch, tmp_path: Path) -> None:
+def test_generation_worker_carom_uses_selected_employees_only(
+    monkeypatch, tmp_path: Path
+) -> None:
     selected = [
         {
             "matricula": "123",
@@ -266,7 +278,9 @@ def test_generation_worker_carom_uses_selected_employees_only(monkeypatch, tmp_p
     )
 
     def _raise(*_args, **_kwargs):
-        raise AssertionError("Carom generation should not resolve the spreadsheet again")
+        raise AssertionError(
+            "Carom generation should not resolve the spreadsheet again"
+        )
 
     def _generate(employees, output_dir, config, callback=None):
         assert employees == selected
@@ -275,7 +289,14 @@ def test_generation_worker_carom_uses_selected_employees_only(monkeypatch, tmp_p
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_bytes(b"x")
         if callback is not None:
-            callback({"type": "progress", "current": 1, "total": 1, "name": "Leadership Board"})
+            callback(
+                {
+                    "type": "progress",
+                    "current": 1,
+                    "total": 1,
+                    "name": "Leadership Board",
+                }
+            )
         return [str(output_path)]
 
     monkeypatch.setattr("app.core.worker.resolve_spreadsheet_source", _raise)
@@ -352,7 +373,9 @@ def test_generation_worker_carom_accepts_talent_review_without_ceo_fields(
     )
 
     def _raise(*_args, **_kwargs):
-        raise AssertionError("Carom generation should not resolve the spreadsheet again")
+        raise AssertionError(
+            "Carom generation should not resolve the spreadsheet again"
+        )
 
     def _generate(employees, output_dir, config, callback=None):
         assert employees == selected

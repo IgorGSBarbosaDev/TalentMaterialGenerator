@@ -84,7 +84,9 @@ class HomeScreen(QWidget):
         metrics_row.setSpacing(12)
         self.ficha_metric = MetricCard("Fichas geradas", "0", "Base atual")
         self.carom_metric = MetricCard("Carometros gerados", "0", "Ciclos visuais")
-        self.total_metric = MetricCard("Operacoes registradas", "0", "Ultimas execucoes")
+        self.total_metric = MetricCard(
+            "Operacoes registradas", "0", "Ultimas execucoes"
+        )
         metrics_row.addWidget(self.ficha_metric)
         metrics_row.addWidget(self.carom_metric)
         metrics_row.addWidget(self.total_metric)

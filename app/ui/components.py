@@ -76,7 +76,9 @@ class MetricCard(QFrame):
 
         self.value_label = QLabel(value)
         self.value_label.setObjectName("metricValue")
-        self.value_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        self.value_label.setAlignment(
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
+        )
 
         self.title_label = QLabel(title)
         self.title_label.setObjectName("metricTitle")
@@ -103,7 +105,7 @@ class StatusBadge(QLabel):
     def __init__(self, text: str = "", tone: str = "neutral") -> None:
         super().__init__(text)
         self.setObjectName("statusBadge")
-        self.setAlignment(Qt.AlignCenter)
+        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setMinimumHeight(26)
         self.set_marginless_size_policy()
         self.set_tone(tone)
@@ -133,7 +135,7 @@ class NavButton(QPushButton):
         self._compact_label = compact_label or label
         self.setCheckable(True)
         self.setObjectName("navButton")
-        self.setCursor(Qt.PointingHandCursor)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setToolTip(label)
 
     def set_compact(self, compact: bool) -> None:
@@ -158,7 +160,7 @@ class PreviewListItem(QFrame):
         initials = "".join(part[:1] for part in title.split()[:2]).upper() or "?"
         self.avatar = QLabel(initials)
         self.avatar.setObjectName("avatarBadge")
-        self.avatar.setAlignment(Qt.AlignCenter)
+        self.avatar.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.avatar.setMinimumSize(30, 30)
         self.avatar.setMaximumSize(30, 30)
         layout.addWidget(self.avatar)

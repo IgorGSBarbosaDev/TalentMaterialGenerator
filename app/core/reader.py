@@ -7,7 +7,7 @@ import unicodedata
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Final, TypedDict
+from typing import Final, TypedDict, cast
 
 import requests
 from openpyxl import load_workbook
@@ -16,7 +16,13 @@ from app.config import settings
 from app.core.carom_templates import get_carom_preset
 
 COLUMN_VARIATIONS: dict[str, tuple[str, ...]] = {
-    "matricula": ("matricula", "matricula_funcional", "matricula_colaborador", "id", "id_unico"),
+    "matricula": (
+        "matricula",
+        "matricula_funcional",
+        "matricula_colaborador",
+        "id",
+        "id_unico",
+    ),
     "nome": ("nome", "name", "nome_completo", "colaborador", "funcionario"),
     "idade": ("idade", "age", "anos"),
     "cargo": ("cargo", "funcao", "funcao_atual", "role", "posicao"),
@@ -354,7 +360,9 @@ def validate_standardized_carom_schema(headers: list[str]) -> dict[str, str | No
 def has_expected_ficha_column_order(headers: list[str]) -> bool:
     normalized_headers = tuple(_normalize_text(header) for header in headers)
     for expected_order in EXPECTED_FICHA_COLUMN_ORDERS:
-        normalized_expected = tuple(_normalize_text(header) for header in expected_order)
+        normalized_expected = tuple(
+            _normalize_text(header) for header in expected_order
+        )
         if len(normalized_headers) >= len(normalized_expected) and (
             normalized_headers[: len(normalized_expected)] == normalized_expected
         ):
@@ -438,7 +446,11 @@ def _resolve_ficha_evaluation_schema(headers: list[str]) -> dict[str, str | None
         )
         direct_header = None
         score_header = detected_note_header
-        if detected_note_header and consolidated_header is None and potential_header is None:
+        if (
+            detected_note_header
+            and consolidated_header is None
+            and potential_header is None
+        ):
             direct_header = detected_note_header
             score_header = None
 
@@ -453,7 +465,7 @@ def _resolve_ficha_evaluation_schema(headers: list[str]) -> dict[str, str | None
 def remap_ficha_row(
     row: dict[str, str], mapping: dict[str, str | None]
 ) -> FichaEmployee:
-    normalized: FichaEmployee = {
+    normalized: dict[str, str] = {
         field: row.get(source_field, "") if source_field else ""
         for field, source_field in mapping.items()
         if field in FICHA_FIELDS
@@ -465,7 +477,9 @@ def remap_ficha_row(
         normalized[f"avaliacao_{year}"] = _normalize_evaluation_value(
             normalized.get(f"avaliacao_{year}")
         )
-        normalized[f"score_{year}"] = _normalize_evaluation_value(normalized.get(f"score_{year}"))
+        normalized[f"score_{year}"] = _normalize_evaluation_value(
+            normalized.get(f"score_{year}")
+        )
         normalized[f"potencial_{year}"] = _normalize_evaluation_value(
             normalized.get(f"potencial_{year}")
         )
@@ -476,7 +490,7 @@ def remap_ficha_row(
             potential_value=normalized.get(f"potencial_{year}", ""),
         )
 
-    return normalized
+    return cast(FichaEmployee, normalized)
 
 
 def remap_ficha_rows(
@@ -495,23 +509,27 @@ def load_standardized_ficha_rows(rows: list[dict[str, str]]) -> list[FichaEmploy
 def remap_carom_row(
     row: dict[str, str], mapping: dict[str, str | None]
 ) -> CaromEmployee:
-    normalized: CaromEmployee = {
+    normalized: dict[str, str] = {
         field: row.get(source_field, "") if source_field else ""
         for field, source_field in mapping.items()
         if field in CAROM_FIELDS
     }
     for field in CAROM_FIELDS:
         normalized.setdefault(field, "")
-    normalized["avaliacao_2025"] = _normalize_evaluation_value(normalized.get("avaliacao_2025"))
+    normalized["avaliacao_2025"] = _normalize_evaluation_value(
+        normalized.get("avaliacao_2025")
+    )
     normalized["score_2025"] = _normalize_evaluation_value(normalized.get("score_2025"))
-    normalized["potencial_2025"] = _normalize_evaluation_value(normalized.get("potencial_2025"))
+    normalized["potencial_2025"] = _normalize_evaluation_value(
+        normalized.get("potencial_2025")
+    )
     normalized["nota_2025"] = _build_ficha_display_note(
         direct_value=normalized.get("nota_2025", ""),
         consolidated_value=normalized.get("avaliacao_2025", ""),
         score_value=normalized.get("score_2025", ""),
         potential_value=normalized.get("potencial_2025", ""),
     )
-    return normalized
+    return cast(CaromEmployee, normalized)
 
 
 def remap_carom_rows(
@@ -528,7 +546,11 @@ def load_standardized_carom_rows(rows: list[dict[str, str]]) -> list[CaromEmploy
 
 
 def validate_carom_employee(employee: CaromEmployee) -> list[str]:
-    return [field for field in CAROM_REQUIRED_FIELDS if employee.get(field, "").strip() == ""]
+    return [
+        field
+        for field in CAROM_REQUIRED_FIELDS
+        if cast(str, employee.get(field, "")).strip() == ""
+    ]
 
 
 def resolve_carom_display_score_potential(employee: CaromEmployee) -> str:
@@ -563,8 +585,15 @@ def validate_carom_employee_for_preset(
     preset_id: str,
 ) -> list[str]:
     preset = get_carom_preset(preset_id)
-    missing = [field for field in preset.required_fields if employee.get(field, "").strip() == ""]
-    if preset.requires_display_score and resolve_carom_display_score_potential(employee) == "":
+    missing = [
+        field
+        for field in preset.required_fields
+        if cast(str, employee.get(field, "")).strip() == ""
+    ]
+    if (
+        preset.requires_display_score
+        and resolve_carom_display_score_potential(employee) == ""
+    ):
         missing.extend(("nota_2025", "avaliacao_2025", "score_2025", "potencial_2025"))
     return list(dict.fromkeys(missing))
 
@@ -592,14 +621,16 @@ def filter_carom_employees(
         exact_matches = [
             employee
             for employee in employees
-            if _normalize_lookup_value(employee.get("matricula", "")) == normalized_query
+            if _normalize_lookup_value(employee.get("matricula", ""))
+            == normalized_query
         ]
         if exact_matches:
             return exact_matches
         return [
             employee
             for employee in employees
-            if normalized_query in _normalize_lookup_value(employee.get("matricula", ""))
+            if normalized_query
+            in _normalize_lookup_value(employee.get("matricula", ""))
         ]
 
     return [
@@ -610,7 +641,11 @@ def filter_carom_employees(
 
 
 def validate_ficha_employee(employee: FichaEmployee) -> list[str]:
-    return [field for field in FICHA_REQUIRED_FIELDS if employee.get(field, "").strip() == ""]
+    return [
+        field
+        for field in FICHA_REQUIRED_FIELDS
+        if cast(str, employee.get(field, "")).strip() == ""
+    ]
 
 
 def lookup_ficha_employees(
@@ -644,10 +679,15 @@ def lookup_ficha_employees(
         matches = [
             employee
             for employee in matches
-            if normalized_name_query in _normalize_lookup_value(employee.get("nome", ""))
+            if normalized_name_query
+            in _normalize_lookup_value(employee.get("nome", ""))
         ]
 
-    if normalized_name_query and not normalized_matricula_query and len(matches) > max_name_matches:
+    if (
+        normalized_name_query
+        and not normalized_matricula_query
+        and len(matches) > max_name_matches
+    ):
         raise ValueError(
             "Foram encontrados muitos resultados. Refine a busca pelo nome ou informe a matricula."
         )
@@ -742,7 +782,11 @@ def resolve_spreadsheet_source(
     source_url = convert_onedrive_link(cleaned)
     cache_path = get_cache_file_path(source_url)
 
-    if cache_enabled and not force_refresh and cache_is_fresh(cache_path, cache_ttl_hours):
+    if (
+        cache_enabled
+        and not force_refresh
+        and cache_is_fresh(cache_path, cache_ttl_hours)
+    ):
         return SpreadsheetSourceResult(
             path=str(cache_path),
             source_kind="onedrive",

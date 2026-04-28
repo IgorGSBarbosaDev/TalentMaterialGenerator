@@ -147,7 +147,9 @@ def test_generated_slide_has_wide_dimensions(tmp_path: Path) -> None:
     assert presentation.slide_height == Inches(7.5)
 
 
-def test_new_evaluation_layout_uses_consolidated_values_when_present(tmp_path: Path) -> None:
+def test_new_evaluation_layout_uses_consolidated_values_when_present(
+    tmp_path: Path,
+) -> None:
     spreadsheet = _build_new_evaluation_spreadsheet(
         tmp_path / "ficha_new_consolidated.xlsx",
         with_consolidated_values=True,
@@ -163,7 +165,9 @@ def test_new_evaluation_layout_uses_consolidated_values_when_present(tmp_path: P
     assert Path(generated_file).exists()
 
 
-def test_new_evaluation_layout_falls_back_to_score_and_potential(tmp_path: Path) -> None:
+def test_new_evaluation_layout_falls_back_to_score_and_potential(
+    tmp_path: Path,
+) -> None:
     spreadsheet = _build_new_evaluation_spreadsheet(
         tmp_path / "ficha_new_fallback.xlsx",
         with_consolidated_values=False,

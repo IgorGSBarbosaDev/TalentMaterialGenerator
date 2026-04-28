@@ -26,6 +26,7 @@ class CaromTemplate:
     def template_path(self) -> Path:
         return resolve_carom_template_path(self.template_name)
 
+
 CAROM_TEMPLATE_ALIASES: Final[dict[str, str]] = {
     "regular": "mini",
     "large": "big",

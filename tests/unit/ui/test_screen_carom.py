@@ -154,7 +154,9 @@ def test_carom_screen_allows_talent_review_without_ceo_fields(qtbot) -> None:
     assert received[0]["preset_id"] == "talent_review"
 
 
-def test_carom_screen_switches_legacy_schema_to_mini_and_disables_strict_presets(qtbot) -> None:
+def test_carom_screen_switches_legacy_schema_to_mini_and_disables_strict_presets(
+    qtbot,
+) -> None:
     screen = CaromScreen({})
     qtbot.addWidget(screen)
     _load_legacy_employees(screen)
@@ -178,7 +180,10 @@ def test_carom_screen_updates_completion_indicator_for_big_capacity(qtbot) -> No
     _load_employees(screen)
     screen._add_employee("matricula:101")
 
-    assert screen.current_slide_label.text() == "Faltam 7 pessoas para completar o slide atual"
+    assert (
+        screen.current_slide_label.text()
+        == "Faltam 7 pessoas para completar o slide atual"
+    )
 
 
 def test_carom_screen_prevents_duplicate_selection(qtbot) -> None:
@@ -219,7 +224,9 @@ def test_carom_screen_search_filters_only_when_requested(qtbot) -> None:
 def test_carom_screen_keeps_full_dataset_but_renders_only_first_page(qtbot) -> None:
     screen = CaromScreen({})
     qtbot.addWidget(screen)
-    employees = [_employee(str(100 + index), f"Colab {index:03}") for index in range(1, 56)]
+    employees = [
+        _employee(str(100 + index), f"Colab {index:03}") for index in range(1, 56)
+    ]
 
     _load_employee_list(screen, employees)
 
@@ -227,13 +234,17 @@ def test_carom_screen_keeps_full_dataset_but_renders_only_first_page(qtbot) -> N
     assert len(screen._filtered_employees) == 55
     assert screen.results_list.count() == 50
     assert screen.page_indicator.text() == "Pagina 1 de 2"
-    assert screen.pagination_count_label.text() == "Mostrando 1-50 de 55 colaborador(es)."
+    assert (
+        screen.pagination_count_label.text() == "Mostrando 1-50 de 55 colaborador(es)."
+    )
 
 
 def test_carom_screen_moves_between_pages_without_reloading_dataset(qtbot) -> None:
     screen = CaromScreen({})
     qtbot.addWidget(screen)
-    employees = [_employee(str(100 + index), f"Colab {index:03}") for index in range(1, 61)]
+    employees = [
+        _employee(str(100 + index), f"Colab {index:03}") for index in range(1, 61)
+    ]
     _load_employee_list(screen, employees)
 
     assert _visible_result_names(screen)[0] == "Colab 001"
@@ -256,7 +267,9 @@ def test_carom_screen_moves_between_pages_without_reloading_dataset(qtbot) -> No
 def test_carom_screen_searches_full_dataset_beyond_first_visible_page(qtbot) -> None:
     screen = CaromScreen({})
     qtbot.addWidget(screen)
-    employees = [_employee(str(100 + index), f"Colab {index:03}") for index in range(1, 61)]
+    employees = [
+        _employee(str(100 + index), f"Colab {index:03}") for index in range(1, 61)
+    ]
     employees[55] = _employee("999", "Zelda Rocha")
     _load_employee_list(screen, employees)
 
@@ -273,7 +286,9 @@ def test_carom_screen_searches_full_dataset_beyond_first_visible_page(qtbot) -> 
 def test_carom_screen_empty_search_resets_to_full_paginated_dataset(qtbot) -> None:
     screen = CaromScreen({})
     qtbot.addWidget(screen)
-    employees = [_employee(str(100 + index), f"Colab {index:03}") for index in range(1, 61)]
+    employees = [
+        _employee(str(100 + index), f"Colab {index:03}") for index in range(1, 61)
+    ]
     employees[55] = _employee("999", "Zelda Rocha")
     _load_employee_list(screen, employees)
     screen.search_input.setText("zelda")
@@ -293,8 +308,12 @@ def test_carom_screen_empty_search_resets_to_full_paginated_dataset(qtbot) -> No
 def test_carom_screen_paginates_search_results(qtbot) -> None:
     screen = CaromScreen({})
     qtbot.addWidget(screen)
-    employees = [_employee(str(100 + index), f"Ana {index:03}") for index in range(1, 76)]
-    employees.extend(_employee(str(300 + index), f"Bruno {index:03}") for index in range(1, 6))
+    employees = [
+        _employee(str(100 + index), f"Ana {index:03}") for index in range(1, 76)
+    ]
+    employees.extend(
+        _employee(str(300 + index), f"Bruno {index:03}") for index in range(1, 6)
+    )
     _load_employee_list(screen, employees)
 
     screen.search_input.setText("ana")
@@ -311,10 +330,14 @@ def test_carom_screen_paginates_search_results(qtbot) -> None:
     assert screen.page_indicator.text() == "Pagina 2 de 2"
 
 
-def test_carom_screen_selected_records_survive_paging_search_and_generation(qtbot) -> None:
+def test_carom_screen_selected_records_survive_paging_search_and_generation(
+    qtbot,
+) -> None:
     screen = CaromScreen({})
     qtbot.addWidget(screen)
-    employees = [_employee(str(100 + index), f"Colab {index:03}") for index in range(1, 61)]
+    employees = [
+        _employee(str(100 + index), f"Colab {index:03}") for index in range(1, 61)
+    ]
     _load_employee_list(screen, employees)
     screen._add_employee("matricula:101")
     screen._go_to_next_page()
@@ -361,7 +384,9 @@ def test_carom_screen_locks_title_for_fixed_templates(qtbot) -> None:
     assert screen.title_field.text() == "Carometro Projeto Trainee"
 
 
-def test_carom_screen_blocks_generation_when_current_template_schema_is_incomplete(qtbot) -> None:
+def test_carom_screen_blocks_generation_when_current_template_schema_is_incomplete(
+    qtbot,
+) -> None:
     screen = CaromScreen({})
     qtbot.addWidget(screen)
     _load_legacy_employees(screen)

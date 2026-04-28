@@ -100,7 +100,9 @@ class ProgressScreen(QWidget):
         log_panel.add_layout(button_row)
         layout.addWidget(log_panel, 1)
 
-    def set_context(self, title: str, subtitle: str, badge: str = "Em execucao") -> None:
+    def set_context(
+        self, title: str, subtitle: str, badge: str = "Em execucao"
+    ) -> None:
         self.page_title = title
         self.page_badge = badge
         self.state_badge.update_status(badge, "info")
@@ -152,7 +154,9 @@ class ProgressScreen(QWidget):
         self.append_log(
             f"Concluido. {count} arquivo(s) gerado(s) em {elapsed}.", "success"
         )
-        self.append_log("Abra a pasta de saida para revisar os arquivos gerados.", "info")
+        self.append_log(
+            "Abra a pasta de saida para revisar os arquivos gerados.", "info"
+        )
         self.chrome_changed.emit()
 
     def on_error(self, message: str) -> None:

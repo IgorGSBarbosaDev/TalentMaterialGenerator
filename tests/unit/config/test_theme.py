@@ -22,7 +22,9 @@ def test_stylesheet_changes_between_modes() -> None:
     assert theme.build_stylesheet("dark") != theme.build_stylesheet("light")
 
 
-def test_stylesheet_uses_shared_input_surfaces_and_ficha_specific_display_rules() -> None:
+def test_stylesheet_uses_shared_input_surfaces_and_ficha_specific_display_rules() -> (
+    None
+):
     stylesheet = theme.build_stylesheet("dark")
 
     assert "QFrame#panel QLineEdit" not in stylesheet
@@ -37,7 +39,11 @@ def test_stylesheet_uses_shared_input_surfaces_and_ficha_specific_display_rules(
 def test_stylesheet_has_no_global_transparent_input_override() -> None:
     stylesheet = theme.build_stylesheet("dark")
 
-    assert "QLineEdit, QComboBox, QTextEdit, QListWidget, QSpinBox {{\n    background-color: transparent;" not in stylesheet
+    transparent_input_rule = (
+        "QLineEdit, QComboBox, QTextEdit, QListWidget, QSpinBox {{\n"
+        "    background-color: transparent;"
+    )
+    assert transparent_input_rule not in stylesheet
 
 
 def test_stylesheet_keeps_labels_transparent_and_section_cards_themable() -> None:

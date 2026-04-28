@@ -151,10 +151,15 @@ def test_ficha_screen_worker_success_marks_schema_valid(qtbot) -> None:
 
     assert screen._schema_valid is True
     assert "validada" in screen.schema_status_label.text().lower()
-    assert "layout de referencia da ficha confirmado" in screen.schema_status_label.text().lower()
+    assert (
+        "layout de referencia da ficha confirmado"
+        in screen.schema_status_label.text().lower()
+    )
 
 
-def test_ficha_screen_lookup_populates_results_table_with_multiple_name_matches(qtbot) -> None:
+def test_ficha_screen_lookup_populates_results_table_with_multiple_name_matches(
+    qtbot,
+) -> None:
     screen = FichaScreen({})
     qtbot.addWidget(screen)
     screen._schema_valid = True
@@ -221,7 +226,9 @@ def test_ficha_screen_validates_selected_employee_and_clears_confirmation_on_sel
     assert "selecao alterada" in screen.status_label.text().lower()
 
 
-def test_ficha_screen_lookup_mode_change_clears_results_and_confirmed_employee(qtbot) -> None:
+def test_ficha_screen_lookup_mode_change_clears_results_and_confirmed_employee(
+    qtbot,
+) -> None:
     screen = FichaScreen({})
     qtbot.addWidget(screen)
     screen._schema_valid = True
@@ -244,7 +251,9 @@ def test_ficha_screen_has_no_mapping_or_auto_detect_text(qtbot) -> None:
     qtbot.addWidget(screen)
 
     labels = [label.text().lower() for label in screen.findChildren(QLabel)]
-    buttons = [button.text().lower() for button in screen.findChildren(type(screen.btn_search))]
+    buttons = [
+        button.text().lower() for button in screen.findChildren(type(screen.btn_search))
+    ]
     assert all("mapeamento" not in text for text in labels)
     assert all("auto-detectar" not in text for text in buttons)
 
@@ -292,7 +301,10 @@ def test_ficha_screen_removes_old_explanatory_texts(qtbot) -> None:
 
     forbidden_texts = [
         "Base padronizada e busca individual",
-        "Valide a base padronizada, encontre um colaborador e revise os dados antes de gerar a ficha.",
+        (
+            "Valide a base padronizada, encontre um colaborador e revise "
+            "os dados antes de gerar a ficha."
+        ),
         "Busque por nome ou matricula, confirme um colaborador e revise o dossie antes de gerar.",
         "Selecione uma linha e confirme o colaborador que sera usado na geracao individual.",
         "Colaborador confirmado",

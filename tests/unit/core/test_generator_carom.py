@@ -38,6 +38,7 @@ def _employee(index: int) -> dict[str, str]:
 
 def _all_slide_text(slide) -> str:
     values: list[str] = []
+
     def _collect(shape) -> None:
         if hasattr(shape, "text"):
             values.append(shape.text)
@@ -50,7 +51,9 @@ def _all_slide_text(slide) -> str:
     return "\n".join(values)
 
 
-def _assert_picture_slots_are_circular_placeholders(file_path: str, preset_id: str) -> None:
+def _assert_picture_slots_are_circular_placeholders(
+    file_path: str, preset_id: str
+) -> None:
     prs = Presentation(file_path)
     preset = get_carom_preset(preset_id)
     for slot in preset.slots:
@@ -213,7 +216,11 @@ def test_unique_carom_output_path_waits_for_next_second_when_file_exists(
     monkeypatch.setattr(generator_carom, "datetime", FakeDateTime)
     monkeypatch.setattr(generator_carom, "sleep", lambda _seconds: None)
 
-    output_path = generator_carom._build_unique_carom_output_path(tmp_path, preset)
+    output_path = generator_carom._build_unique_carom_output_path(
+        tmp_path,
+        preset,
+        "",
+    )
 
     assert output_path == tmp_path / "CarometroBig_16042026_143523.pptx"
 
@@ -222,30 +229,46 @@ def test_generate_carom_pptx_creates_single_file(tmp_path: Path) -> None:
     files = generator_carom.generate_carom_pptx(
         [_employee(1), _employee(2)],
         str(tmp_path),
-        {"preset_id": "big", "titulo": "Leadership Board", "file_basename": "Leadership_Board"},
+        {
+            "preset_id": "big",
+            "titulo": "Leadership Board",
+            "file_basename": "Leadership_Board",
+        },
     )
 
     assert len(files) == 1
     assert Path(files[0]).exists()
 
 
-def test_generate_carom_pptx_uses_timestamped_preset_output_name(tmp_path: Path) -> None:
+def test_generate_carom_pptx_uses_timestamped_configured_output_name(
+    tmp_path: Path,
+) -> None:
     files = generator_carom.generate_carom_pptx(
         [_employee(1)],
         str(tmp_path),
-        {"preset_id": "big", "titulo": "Leadership Board", "file_basename": "Ignored_Name"},
+        {
+            "preset_id": "big",
+            "titulo": "Leadership Board",
+            "file_basename": "Leadership_Board",
+        },
     )
 
     output_path = Path(files[0])
     assert output_path.parent == tmp_path / "carometros"
-    assert re.fullmatch(r"CarometroBig_\d{8}_\d{6}\.pptx", output_path.name)
+    assert re.fullmatch(r"Leadership_Board_\d{8}_\d{6}\.pptx", output_path.name)
 
 
-def test_generate_carom_pptx_breaks_big_selection_into_multiple_slides(tmp_path: Path) -> None:
+def test_generate_carom_pptx_breaks_big_selection_into_multiple_slides(
+    tmp_path: Path,
+) -> None:
     files = generator_carom.generate_carom_pptx(
         [_employee(index) for index in range(1, 10)],
         str(tmp_path),
-        {"preset_id": "big", "titulo": "Leadership Board", "file_basename": "Leadership_Board"},
+        {
+            "preset_id": "big",
+            "titulo": "Leadership Board",
+            "file_basename": "Leadership_Board",
+        },
     )
 
     prs = Presentation(files[0])
@@ -275,7 +298,11 @@ def test_generate_carom_pptx_ignores_valid_foto_path_for_manual_placeholders(
     files = generator_carom.generate_carom_pptx(
         [employee],
         str(tmp_path),
-        {"preset_id": "big", "titulo": "Leadership Board", "file_basename": "Leadership_Board"},
+        {
+            "preset_id": "big",
+            "titulo": "Leadership Board",
+            "file_basename": "Leadership_Board",
+        },
     )
 
     _assert_picture_slots_are_circular_placeholders(files[0], "big")
@@ -285,7 +312,11 @@ def test_generate_carom_pptx_uses_title_on_every_big_slide(tmp_path: Path) -> No
     files = generator_carom.generate_carom_pptx(
         [_employee(index) for index in range(1, 12)],
         str(tmp_path),
-        {"preset_id": "big", "titulo": "Leadership Board", "file_basename": "Leadership_Board"},
+        {
+            "preset_id": "big",
+            "titulo": "Leadership Board",
+            "file_basename": "Leadership_Board",
+        },
     )
 
     prs = Presentation(files[0])
@@ -293,7 +324,9 @@ def test_generate_carom_pptx_uses_title_on_every_big_slide(tmp_path: Path) -> No
     assert slide_titles == ["Leadership Board", "Leadership Board"]
 
 
-def test_generate_carom_pptx_allows_legacy_regular_without_ceo_fields(tmp_path: Path) -> None:
+def test_generate_carom_pptx_allows_legacy_regular_without_ceo_fields(
+    tmp_path: Path,
+) -> None:
     employee = _employee(1)
     employee["ceo3"] = ""
     employee["ceo4"] = ""
@@ -329,11 +362,17 @@ def test_generate_carom_pptx_rejects_big_when_required_ceo_field_is_missing(
         )
 
 
-def test_generate_carom_pptx_clears_unused_big_slots_without_sample_text(tmp_path: Path) -> None:
+def test_generate_carom_pptx_clears_unused_big_slots_without_sample_text(
+    tmp_path: Path,
+) -> None:
     files = generator_carom.generate_carom_pptx(
         [_employee(1)],
         str(tmp_path),
-        {"preset_id": "big", "titulo": "Leadership Board", "file_basename": "Leadership_Board"},
+        {
+            "preset_id": "big",
+            "titulo": "Leadership Board",
+            "file_basename": "Leadership_Board",
+        },
     )
 
     prs = Presentation(files[0])
@@ -344,11 +383,17 @@ def test_generate_carom_pptx_clears_unused_big_slots_without_sample_text(tmp_pat
     assert "Colab 1" in text
 
 
-def test_generate_carom_pptx_uses_literal_body_text_for_projeto_trainee(tmp_path: Path) -> None:
+def test_generate_carom_pptx_uses_literal_body_text_for_projeto_trainee(
+    tmp_path: Path,
+) -> None:
     files = generator_carom.generate_carom_pptx(
         [_employee(1), _employee(2)],
         str(tmp_path),
-        {"preset_id": "projeto_trainee", "titulo": "Ignored", "file_basename": "Projeto_Trainee"},
+        {
+            "preset_id": "projeto_trainee",
+            "titulo": "Ignored",
+            "file_basename": "Projeto_Trainee",
+        },
     )
 
     prs = Presentation(files[0])
@@ -369,7 +414,11 @@ def test_generate_carom_pptx_keeps_talent_review_template_text_without_ceo_field
     files = generator_carom.generate_carom_pptx(
         [employee],
         str(tmp_path),
-        {"preset_id": "talent_review", "titulo": "Ignored", "file_basename": "Talent_Review"},
+        {
+            "preset_id": "talent_review",
+            "titulo": "Ignored",
+            "file_basename": "Talent_Review",
+        },
     )
 
     prs = Presentation(files[0])
@@ -410,7 +459,11 @@ def test_generate_carom_pptx_rebuilds_every_talent_review_slot_with_static_succe
     files = generator_carom.generate_carom_pptx(
         employees,
         str(tmp_path),
-        {"preset_id": "talent_review", "titulo": "Ignored", "file_basename": "Talent_Review"},
+        {
+            "preset_id": "talent_review",
+            "titulo": "Ignored",
+            "file_basename": "Talent_Review",
+        },
     )
 
     prs = Presentation(files[0])
@@ -438,7 +491,11 @@ def test_generate_carom_pptx_preserves_talent_review_static_run_formatting(
     files = generator_carom.generate_carom_pptx(
         employees,
         str(tmp_path),
-        {"preset_id": "talent_review", "titulo": "Ignored", "file_basename": "Talent_Review"},
+        {
+            "preset_id": "talent_review",
+            "titulo": "Ignored",
+            "file_basename": "Talent_Review",
+        },
     )
 
     for slot_index in range(len(get_carom_preset("talent_review").slots)):
@@ -477,7 +534,11 @@ def test_generate_carom_pptx_normalizes_talent_review_dynamic_text(
     files = generator_carom.generate_carom_pptx(
         [employee],
         str(tmp_path),
-        {"preset_id": "talent_review", "titulo": "Ignored", "file_basename": "Talent_Review"},
+        {
+            "preset_id": "talent_review",
+            "titulo": "Ignored",
+            "file_basename": "Talent_Review",
+        },
     )
 
     paragraphs = _talent_review_slot_paragraphs(files[0], 0)
@@ -491,11 +552,17 @@ def test_generate_carom_pptx_normalizes_talent_review_dynamic_text(
     ]
 
 
-def test_generate_carom_pptx_paginates_full_talent_review_capacity(tmp_path: Path) -> None:
+def test_generate_carom_pptx_paginates_full_talent_review_capacity(
+    tmp_path: Path,
+) -> None:
     files = generator_carom.generate_carom_pptx(
         [_employee(index) for index in range(1, 14)],
         str(tmp_path),
-        {"preset_id": "talent_review", "titulo": "Ignored", "file_basename": "Talent_Review"},
+        {
+            "preset_id": "talent_review",
+            "titulo": "Ignored",
+            "file_basename": "Talent_Review",
+        },
     )
 
     prs = Presentation(files[0])
