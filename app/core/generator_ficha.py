@@ -12,6 +12,7 @@ from pptx.presentation import Presentation
 from pptx.slide import Slide
 from pptx.util import Inches, Pt
 
+from app.core.pptx_template_utils import add_circular_picture_placeholder
 from app.core.reader import FichaEmployee, normalize_filename, parse_multiline_field
 
 SLIDE_WIDTH: Final = Inches(13.333)
@@ -20,7 +21,6 @@ SLIDE_HEIGHT: Final = Inches(7.500)
 VERDE_DETALHE: Final = "#84BD00"
 VERDE_TITULO: Final = "#257226"
 VERDE_PLACEHOLDER: Final = "#7CAF3D"
-VERDE_PLACEHOLDER_PREENCHIMENTO: Final = "#F2F8EA"
 BRANCO: Final = "#FFFFFF"
 CINZA_META: Final = "#7A7A7A"
 PRETO: Final = "#404040"
@@ -207,17 +207,15 @@ def _add_section_header(
 
 
 def _add_photo_placeholder(slide: Slide) -> None:
-    _add_shape(
+    placeholder = add_circular_picture_placeholder(
         slide,
-        MSO_AUTO_SHAPE_TYPE.OVAL,
-        left=PHOTO_BOX["left"],
-        top=PHOTO_BOX["top"],
-        width=PHOTO_BOX["width"],
-        height=PHOTO_BOX["width"],
-        fill_color=VERDE_PLACEHOLDER_PREENCHIMENTO,
-        line_color=VERDE_PLACEHOLDER,
-        line_width_pt=2.0,
+        left=Inches(PHOTO_BOX["left"]),
+        top=Inches(PHOTO_BOX["top"]),
+        diameter=Inches(PHOTO_BOX["width"]),
+        name="Ficha Photo Placeholder",
     )
+    placeholder.line.color.rgb = _rgb_from_hex(VERDE_PLACEHOLDER)
+    placeholder.line.width = Pt(2.0)
 
 
 def _clean(value: str | None) -> str:

@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from pptx.enum.shapes import MSO_AUTO_SHAPE_TYPE
+from pptx.enum.shapes import MSO_SHAPE_TYPE
 from pptx.util import Inches
 
 from app.core import generator_ficha
@@ -60,6 +61,8 @@ def _find_auto_shape(
     slide, auto_shape_type, *, left: float, top: float, tol: float = 0.03
 ):
     for shape in slide.shapes:
+        if shape.shape_type == MSO_SHAPE_TYPE.PICTURE:
+            continue
         try:
             shape_auto_type = shape.auto_shape_type
         except (AttributeError, ValueError):
@@ -70,6 +73,24 @@ def _find_auto_shape(
         if abs(shape_left - left) <= tol and abs(shape_top - top) <= tol:
             return shape
     return None
+
+
+def _find_ficha_photo_placeholder(slide):
+    for shape in slide.shapes:
+        if getattr(shape, "name", "") == "Ficha Photo Placeholder":
+            return shape
+    return None
+
+
+def _assert_ficha_photo_placeholder(slide) -> None:
+    placeholder = _find_ficha_photo_placeholder(slide)
+
+    assert placeholder is not None
+    assert placeholder.shape_type == MSO_SHAPE_TYPE.PICTURE
+    assert _shape_in_inches(placeholder) == (0.567, 0.184, 1.885, 1.885)
+    assert placeholder._element.spPr.prstGeom is not None
+    assert placeholder._element.spPr.prstGeom.get("prst") == "ellipse"
+    assert placeholder._element.blipFill.srcRect is None
 
 
 def test_build_slide_creates_slide() -> None:
@@ -108,7 +129,7 @@ def test_build_slide_omits_empty_optional_sections() -> None:
     assert "PERFORMANCE E POTENCIAL" not in texts
 
 
-def test_build_slide_uses_rounded_photo_placeholder_instead_of_oval() -> None:
+def test_build_slide_uses_circular_picture_photo_placeholder() -> None:
     prs = generator_ficha.create_presentation()
     slide = generator_ficha.build_slide(prs, _employee())
 
@@ -118,15 +139,9 @@ def test_build_slide_uses_rounded_photo_placeholder_instead_of_oval() -> None:
         left=0.567,
         top=0.184,
     )
-    rounded_placeholder = _find_auto_shape(
-        slide,
-        MSO_AUTO_SHAPE_TYPE.ROUNDED_RECTANGLE,
-        left=0.567,
-        top=0.184,
-    )
 
-    assert oval_placeholder is not None
-    assert rounded_placeholder is None
+    assert oval_placeholder is None
+    _assert_ficha_photo_placeholder(slide)
 
 
 def test_build_slide_includes_reference_section_titles() -> None:
@@ -212,8 +227,8 @@ def test_build_slide_contains_reference_geometry_landmarks() -> None:
     assert _shape_in_inches(footer) == (0.0, 6.985, 13.333, 0.515)
     assert brand is not None
     assert _shape_in_inches(brand) == (11.486, 6.665, 1.653, 0.614)
-    assert placeholder is not None
-    assert _shape_in_inches(placeholder) == (0.567, 0.184, 1.885, 1.885)
+    assert placeholder is None
+    _assert_ficha_photo_placeholder(slide)
 
 
 def test_build_slide_uses_21pt_usiminas_label() -> None:
@@ -234,6 +249,15 @@ def test_generate_ficha_pptx_creates_single_file(tmp_path: Path) -> None:
     created = generator_ficha.generate_ficha_pptx(_employee(nome="Ana"), str(tmp_path))
 
     assert Path(created).exists()
+
+
+def test_generate_ficha_pptx_keeps_circular_picture_photo_placeholder(
+    tmp_path: Path,
+) -> None:
+    created = generator_ficha.generate_ficha_pptx(_employee(nome="Ana"), str(tmp_path))
+    prs = generator_ficha.PresentationFactory(created)
+
+    _assert_ficha_photo_placeholder(prs.slides[0])
 
 
 def test_generate_ficha_pptx_uses_normalized_filename(tmp_path: Path) -> None:
