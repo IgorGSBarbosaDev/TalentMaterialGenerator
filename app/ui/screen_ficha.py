@@ -78,9 +78,6 @@ class FichaScreen(QWidget):
         self.entry_source.textChanged.connect(self._on_source_text_changed)
         self.entry_source.editingFinished.connect(self._start_schema_validation)
 
-        self.entry_output = QLineEdit(str(get_default_output_dir()))
-        self.entry_output.setReadOnly(True)
-
         self.btn_browse_file = QPushButton("Procurar arquivo")
         self.btn_browse_file.clicked.connect(self._choose_source_file)
 
@@ -95,8 +92,6 @@ class FichaScreen(QWidget):
         source_form.addWidget(self.source_type, 0, 1)
         source_form.addWidget(self._field_label("Planilha / Link"), 1, 0)
         source_form.addWidget(source_input_row, 1, 1)
-        source_form.addWidget(self._field_label("Saida"), 2, 0)
-        source_form.addWidget(self.entry_output, 2, 1)
         source_body.addLayout(source_form, 7)
 
         schema_panel = QFrame()
@@ -292,7 +287,6 @@ class FichaScreen(QWidget):
             if source_kind == "local"
             else config.get("default_onedrive_url", "")
         )
-        self.entry_output.setText(str(get_default_output_dir()))
         self._clear_schema_state()
         self._clear_lookup_state(clear_queries=True, reset_mode=True)
         self._refresh_action_state()

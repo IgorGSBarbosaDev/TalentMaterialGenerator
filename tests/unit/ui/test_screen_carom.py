@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from PySide6.QtWidgets import QLabel, QLineEdit
+
 from app.config.settings import get_default_output_dir
 from app.core.reader import normalize_filename
 from app.ui.screen_carom import CaromScreen
@@ -136,6 +138,18 @@ def test_carom_screen_get_generation_payload_uses_default_output_dir(qtbot) -> N
     assert received[0]["preset_id"] == "big"
     assert received[0]["file_basename"] == normalize_filename("Carometro QA 2026")
     assert received[0]["schema_fields"]["ceo3"] == "CEO3"
+
+
+def test_carom_screen_hides_output_path_controls(qtbot) -> None:
+    screen = CaromScreen({})
+    qtbot.addWidget(screen)
+
+    assert not hasattr(screen, "entry_output")
+    assert all(label.text().lower() != "saida" for label in screen.findChildren(QLabel))
+    assert all(
+        line_edit.text() != str(get_default_output_dir())
+        for line_edit in screen.findChildren(QLineEdit)
+    )
 
 
 def test_carom_screen_allows_talent_review_without_ceo_fields(qtbot) -> None:
