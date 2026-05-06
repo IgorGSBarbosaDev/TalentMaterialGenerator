@@ -16,6 +16,8 @@ def get_repo_default_spreadsheet_path() -> Path | None:
 
 def _apply_runtime_defaults(config: dict[str, Any]) -> dict[str, Any]:
     config["default_output_dir"] = str(get_default_output_dir())
+    config["spreadsheet_source"] = "local"
+    config.pop("default_onedrive_url", None)
 
     repo_default = get_repo_default_spreadsheet_path()
     if (
@@ -23,8 +25,6 @@ def _apply_runtime_defaults(config: dict[str, Any]) -> dict[str, Any]:
         and not str(config.get("default_spreadsheet_path", "")).strip()
     ):
         config["default_spreadsheet_path"] = str(repo_default)
-        if not str(config.get("default_onedrive_url", "")).strip():
-            config["spreadsheet_source"] = "local"
     return config
 
 
@@ -34,7 +34,7 @@ def get_default_output_dir() -> Path:
 
 DEFAULT_CONFIG: dict[str, Any] = {
     "theme": "dark",
-    "spreadsheet_source": "onedrive",
+    "spreadsheet_source": "local",
     "default_spreadsheet_path": "",
     "default_spreadsheet_name": "",
     "default_spreadsheet_mtime": 0.0,
@@ -42,7 +42,6 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "default_base_cache_path": "",
     "default_base_row_count": 0,
     "default_base_status": "not_configured",
-    "default_onedrive_url": "",
     "default_output_dir": str(get_default_output_dir()),
     "default_grouping": "area",
     "default_carom_columns": 5,
@@ -82,6 +81,7 @@ def load_config() -> dict[str, Any]:
         merged = deepcopy(DEFAULT_CONFIG)
         merged.update(payload)
         merged.pop("default_output_mode", None)
+        merged.pop("default_onedrive_url", None)
         return _apply_runtime_defaults(merged)
     except Exception:
         config = deepcopy(DEFAULT_CONFIG)
@@ -93,6 +93,7 @@ def save_config(data: dict[str, Any]) -> None:
     config_path.parent.mkdir(parents=True, exist_ok=True)
     payload = deepcopy(data)
     payload.pop("default_output_mode", None)
+    payload.pop("default_onedrive_url", None)
     payload = _apply_runtime_defaults(payload)
     config_path.write_text(
         json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"

@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
 )
 
 from app.config.settings import get_default_output_dir
+from app.core import base_cache
 from app.core import reader
 from app.core.reader import FichaEmployee, SpreadsheetSourceResult
 from app.core.worker import FichaLookupWorker
@@ -70,10 +71,10 @@ class FichaScreen(QWidget):
         source_form.setColumnStretch(1, 1)
 
         self.source_type = QComboBox()
-        self.source_type.addItems(["OneDrive", "Arquivo local"])
+        self.source_type.addItems(["Arquivo local"])
         self.source_type.currentTextChanged.connect(self._on_source_mode_changed)
 
-        self.entry_source = QLineEdit(config.get("default_onedrive_url", ""))
+        self.entry_source = QLineEdit("")
         self.entry_source.setMinimumWidth(320)
         self.entry_source.textChanged.connect(self._on_source_text_changed)
         self.entry_source.editingFinished.connect(self._start_schema_validation)
@@ -90,7 +91,7 @@ class FichaScreen(QWidget):
 
         source_form.addWidget(self._field_label("Fonte"), 0, 0)
         source_form.addWidget(self.source_type, 0, 1)
-        source_form.addWidget(self._field_label("Planilha / Link"), 1, 0)
+        source_form.addWidget(self._field_label("Planilha"), 1, 0)
         source_form.addWidget(source_input_row, 1, 1)
         source_body.addLayout(source_form, 7)
 
@@ -279,11 +280,7 @@ class FichaScreen(QWidget):
 
     def load_config(self, config: dict[str, Any]) -> None:
         self._config = dict(config)
-        default_source = str(
-            config.get("default_base_cache_path")
-            or config.get("default_spreadsheet_path")
-            or ""
-        ).strip()
+        default_source = base_cache.get_effective_base_path(config)
         if default_source:
             self.source_type.setCurrentText("Arquivo local")
             self.entry_source.setText(default_source)
@@ -295,15 +292,9 @@ class FichaScreen(QWidget):
         self._refresh_action_state()
         if default_source and Path(default_source).is_file():
             self._set_status(
-                "Base padrao configurada. Validando a planilha em cache.", "info"
+                "Base padrao configurada. Validando a planilha local.", "info"
             )
             self._start_schema_validation()
-        elif default_source:
-            self._set_status(
-                "A base padrao nao foi encontrada. Ajuste a planilha em Configuracoes.",
-                "error",
-            )
-            self._set_schema_status("Base padrao indisponivel.", "error")
         else:
             self._set_status(
                 "Configure uma base padrao em Configuracoes para usar a ficha.",
@@ -329,14 +320,6 @@ class FichaScreen(QWidget):
             )
             return False
 
-        if self.source_type.currentText() == "OneDrive" and not source.startswith(
-            "https://"
-        ):
-            self._set_status("Informe um link valido do OneDrive.", "error")
-            self._set_schema_status(
-                "Base invalida: link do OneDrive nao reconhecido.", "error"
-            )
-            return False
         return True
 
     def _set_invalid(self, widget: QWidget, is_invalid: bool) -> None:
@@ -353,13 +336,8 @@ class FichaScreen(QWidget):
             self._start_schema_validation()
 
     def _sync_source_mode(self) -> None:
-        local_mode = self.source_type.currentText() == "Arquivo local"
-        self.btn_browse_file.setEnabled(local_mode)
-        self.entry_source.setPlaceholderText(
-            "C:\\dados\\colaboradores.xlsx"
-            if local_mode
-            else "https://... link compartilhado do OneDrive"
-        )
+        self.btn_browse_file.setEnabled(True)
+        self.entry_source.setPlaceholderText("C:\\dados\\colaboradores.xlsx")
 
     def _on_source_mode_changed(self, *_args: object) -> None:
         self._sync_source_mode()
@@ -491,13 +469,10 @@ class FichaScreen(QWidget):
         self._worker.start()
 
     def _get_worker_payload(self, *, validate_only: bool) -> dict[str, Any]:
-        source_kind = (
-            "local" if self.source_type.currentText() == "Arquivo local" else "onedrive"
-        )
         mode = self._selected_lookup_mode()
         return {
             "spreadsheet_source": self.entry_source.text().strip(),
-            "source_kind": source_kind,
+            "source_kind": "local",
             "lookup_name": (
                 self.entry_lookup_name.text().strip() if mode == "nome" else ""
             ),
@@ -647,12 +622,9 @@ class FichaScreen(QWidget):
         self._refresh_action_state()
 
     def _get_generation_payload(self) -> dict[str, Any]:
-        source_kind = (
-            "local" if self.source_type.currentText() == "Arquivo local" else "onedrive"
-        )
         return {
             "spreadsheet_source": self.entry_source.text().strip(),
-            "source_kind": source_kind,
+            "source_kind": "local",
             "output_dir": str(get_default_output_dir()),
             "selected_employee": self._confirmed_employee,
             "source_result": self._lookup_source_result,

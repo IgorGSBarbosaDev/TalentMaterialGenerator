@@ -58,18 +58,44 @@ def test_ficha_screen_validates_local_file_source(qtbot) -> None:
         file_path.unlink(missing_ok=True)
 
 
-def test_ficha_screen_uses_default_base_cache_when_configured(qtbot) -> None:
-    screen = FichaScreen(
-        {
-            "default_spreadsheet_path": r"C:\dados\base.xlsx",
-            "default_base_cache_path": r"C:\cache\default_base.xlsx",
-        }
-    )
-    qtbot.addWidget(screen)
+def test_ficha_screen_uses_default_base_cache_when_configured(qtbot, monkeypatch) -> None:
+    cache_path = _make_local_spreadsheet_stub()
+    try:
+        monkeypatch.setattr(FichaScreen, "_start_schema_validation", lambda self: None)
+        screen = FichaScreen(
+            {
+                "default_spreadsheet_path": r"C:\dados\base.xlsx",
+                "default_base_cache_path": str(cache_path),
+            }
+        )
+        qtbot.addWidget(screen)
 
-    assert screen.source_type.currentText() == "Arquivo local"
-    assert screen.entry_source.text() == r"C:\cache\default_base.xlsx"
-    assert "base padrao" in screen.status_label.text().lower()
+        assert screen.source_type.currentText() == "Arquivo local"
+        assert screen.entry_source.text() == str(cache_path)
+        assert "indisponivel" not in screen.status_label.text().lower()
+    finally:
+        cache_path.unlink(missing_ok=True)
+
+
+def test_ficha_screen_falls_back_to_source_file_when_cache_is_missing(
+    qtbot, monkeypatch
+) -> None:
+    source_path = _make_local_spreadsheet_stub()
+    try:
+        monkeypatch.setattr(FichaScreen, "_start_schema_validation", lambda self: None)
+        screen = FichaScreen(
+            {
+                "default_spreadsheet_path": str(source_path),
+                "default_base_cache_path": r"C:\cache\missing-default-base.xlsx",
+            }
+        )
+        qtbot.addWidget(screen)
+
+        assert screen.source_type.currentText() == "Arquivo local"
+        assert screen.entry_source.text() == str(source_path)
+        assert "indisponivel" not in screen.status_label.text().lower()
+    finally:
+        source_path.unlink(missing_ok=True)
 
 
 def test_ficha_screen_directs_user_to_settings_when_no_default_base(qtbot) -> None:

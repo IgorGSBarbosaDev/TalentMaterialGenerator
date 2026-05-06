@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
 )
 
 from app.config.settings import get_default_output_dir
+from app.core import base_cache
 from app.core.generator_carom import (
     compute_current_slide_status,
     compute_projected_slide_count,
@@ -139,10 +140,10 @@ class CaromScreen(QWidget):
         source_layout.setColumnStretch(3, 1)
 
         self.source_type = QComboBox()
-        self.source_type.addItems(["OneDrive", "Arquivo local"])
+        self.source_type.addItems(["Arquivo local"])
         self.source_type.currentTextChanged.connect(self._on_source_mode_changed)
 
-        self.entry_source = QLineEdit(config.get("default_onedrive_url", ""))
+        self.entry_source = QLineEdit("")
         self.entry_source.textChanged.connect(self._on_source_changed)
         self.entry_source.editingFinished.connect(self._start_schema_validation)
 
@@ -166,7 +167,7 @@ class CaromScreen(QWidget):
         source_layout.addWidget(self.source_type, 0, 1)
         source_layout.addWidget(self._field_label("Modelo"), 0, 2)
         source_layout.addWidget(self.model_selector, 0, 3)
-        source_layout.addWidget(self._field_label("Planilha / Link"), 1, 0)
+        source_layout.addWidget(self._field_label("Planilha"), 1, 0)
         source_input_row = QWidget()
         source_input_layout = QHBoxLayout(source_input_row)
         source_input_layout.setContentsMargins(0, 0, 0, 0)
@@ -356,11 +357,7 @@ class CaromScreen(QWidget):
 
     def load_config(self, config: dict[str, Any]) -> None:
         self._config = dict(config)
-        default_source = str(
-            config.get("default_base_cache_path")
-            or config.get("default_spreadsheet_path")
-            or ""
-        ).strip()
+        default_source = base_cache.get_effective_base_path(config)
         self.source_type.setCurrentText("Arquivo local")
         self.entry_source.setText(default_source)
         self._last_editable_title = "Carometro"
@@ -372,15 +369,9 @@ class CaromScreen(QWidget):
         self._set_schema_status("Planilha nao validada.", "warning")
         if default_source and Path(default_source).is_file():
             self._set_status(
-                "Base padrao configurada. Validando a planilha em cache.", "info"
+                "Base padrao configurada. Validando a planilha local.", "info"
             )
             self._start_schema_validation()
-        elif default_source:
-            self._set_status(
-                "A base padrao nao foi encontrada. Ajuste a planilha em Configuracoes.",
-                "error",
-            )
-            self._set_schema_status("Base padrao indisponivel.", "error")
         else:
             self._set_status(
                 "Configure uma base padrao em Configuracoes para usar o carometro.",
@@ -404,13 +395,8 @@ class CaromScreen(QWidget):
         self._on_source_changed()
 
     def _sync_source_mode(self) -> None:
-        local_mode = self.source_type.currentText() == "Arquivo local"
-        self.btn_browse_file.setEnabled(local_mode)
-        self.entry_source.setPlaceholderText(
-            "C:\\dados\\colaboradores.xlsx"
-            if local_mode
-            else "https://... link compartilhado do OneDrive"
-        )
+        self.btn_browse_file.setEnabled(True)
+        self.entry_source.setPlaceholderText("C:\\dados\\colaboradores.xlsx")
 
     def _sync_title_mode(self, *, reset_title: bool = False) -> None:
         preset = get_carom_preset(self.current_preset_id)
@@ -490,14 +476,6 @@ class CaromScreen(QWidget):
             )
             return False
 
-        if self.source_type.currentText() == "OneDrive" and not source.startswith(
-            "https://"
-        ):
-            self._set_status("Informe um link do OneDrive valido.", "error")
-            self._set_schema_status(
-                "Planilha invalida: link do OneDrive nao reconhecido.", "error"
-            )
-            return False
         return True
 
     def _start_schema_validation(self) -> None:
@@ -880,9 +858,7 @@ class CaromScreen(QWidget):
         self.model_selector.setEnabled(not worker_running)
         self.source_type.setEnabled(not worker_running)
         self.entry_source.setEnabled(not worker_running)
-        self.btn_browse_file.setEnabled(
-            self.source_type.currentText() == "Arquivo local" and not worker_running
-        )
+        self.btn_browse_file.setEnabled(not worker_running)
         if preset.editable_title:
             self.title_field.setEnabled(not worker_running)
         self.btn_generate.setEnabled(ready_to_generate)

@@ -1,10 +1,21 @@
 from __future__ import annotations
 
+from pathlib import Path
+from uuid import uuid4
+
 from PySide6.QtWidgets import QLabel, QLineEdit
 
 from app.config.settings import get_default_output_dir
 from app.core.reader import normalize_filename
 from app.ui.screen_carom import CaromScreen
+
+
+def _make_local_spreadsheet_stub() -> Path:
+    temp_dir = Path.cwd() / ".tmp-test-ui"
+    temp_dir.mkdir(exist_ok=True)
+    file_path = temp_dir / f"carom-dados-{uuid4().hex}.xlsx"
+    file_path.write_bytes(b"x")
+    return file_path
 
 
 def _employee(matricula: str, nome: str) -> dict[str, str]:
@@ -140,18 +151,44 @@ def test_carom_screen_get_generation_payload_uses_default_output_dir(qtbot) -> N
     assert received[0]["schema_fields"]["ceo3"] == "CEO3"
 
 
-def test_carom_screen_uses_default_base_cache_when_configured(qtbot) -> None:
-    screen = CaromScreen(
-        {
-            "default_spreadsheet_path": r"C:\dados\base.xlsx",
-            "default_base_cache_path": r"C:\cache\default_base.xlsx",
-        }
-    )
-    qtbot.addWidget(screen)
+def test_carom_screen_uses_default_base_cache_when_configured(qtbot, monkeypatch) -> None:
+    cache_path = _make_local_spreadsheet_stub()
+    try:
+        monkeypatch.setattr(CaromScreen, "_start_schema_validation", lambda self: None)
+        screen = CaromScreen(
+            {
+                "default_spreadsheet_path": r"C:\dados\base.xlsx",
+                "default_base_cache_path": str(cache_path),
+            }
+        )
+        qtbot.addWidget(screen)
 
-    assert screen.source_type.currentText() == "Arquivo local"
-    assert screen.entry_source.text() == r"C:\cache\default_base.xlsx"
-    assert "base padrao" in screen.status_label.text().lower()
+        assert screen.source_type.currentText() == "Arquivo local"
+        assert screen.entry_source.text() == str(cache_path)
+        assert "indisponivel" not in screen.status_label.text().lower()
+    finally:
+        cache_path.unlink(missing_ok=True)
+
+
+def test_carom_screen_falls_back_to_source_file_when_cache_is_missing(
+    qtbot, monkeypatch
+) -> None:
+    source_path = _make_local_spreadsheet_stub()
+    try:
+        monkeypatch.setattr(CaromScreen, "_start_schema_validation", lambda self: None)
+        screen = CaromScreen(
+            {
+                "default_spreadsheet_path": str(source_path),
+                "default_base_cache_path": r"C:\cache\missing-default-base.xlsx",
+            }
+        )
+        qtbot.addWidget(screen)
+
+        assert screen.source_type.currentText() == "Arquivo local"
+        assert screen.entry_source.text() == str(source_path)
+        assert "indisponivel" not in screen.status_label.text().lower()
+    finally:
+        source_path.unlink(missing_ok=True)
 
 
 def test_carom_screen_directs_user_to_settings_when_no_default_base(qtbot) -> None:
