@@ -51,6 +51,16 @@ def _all_slide_text(slide) -> str:
     return "\n".join(values)
 
 
+def _slot_text_first_line(prs: Presentation, preset_id: str, slot_index: int) -> str:
+    preset = get_carom_preset(preset_id)
+    slide = prs.slides[0]
+    text_key = "text" if "text" in preset.slots[slot_index] else "identity"
+    shape = resolve_shape_path(slide, preset.slots[slot_index][text_key])
+    if not hasattr(shape, "text_frame") and hasattr(shape, "shapes"):
+        shape = next(child for child in shape.shapes if hasattr(child, "text_frame"))
+    return shape.text.splitlines()[0] if shape.text else ""
+
+
 def _assert_picture_slots_are_circular_placeholders(
     file_path: str, preset_id: str
 ) -> None:
@@ -152,6 +162,20 @@ def test_compute_current_slide_status_reports_remaining_people() -> None:
         generator_carom.compute_current_slide_status(9, 8)
         == "Faltam 7 pessoas para completar o slide atual"
     )
+
+
+def test_slot_employee_index_keeps_row_major_order() -> None:
+    assert [
+        generator_carom._slot_employee_index(index, 4, 3, "row_major")
+        for index in range(12)
+    ] == list(range(12))
+
+
+def test_slot_employee_index_maps_column_major_order() -> None:
+    assert [
+        generator_carom._slot_employee_index(index, 4, 3, "column_major")
+        for index in range(12)
+    ] == [0, 4, 8, 1, 5, 9, 2, 6, 10, 3, 7, 11]
 
 
 def test_build_carom_output_filename_uses_preset_type_and_local_timestamp() -> None:
@@ -296,6 +320,72 @@ def test_generate_carom_pptx_breaks_big_selection_into_multiple_slides(
     assert len(prs.slides) == 2
 
 
+def test_generate_carom_pptx_fills_big_grid_column_major(tmp_path: Path) -> None:
+    files = generator_carom.generate_carom_pptx(
+        [_employee(index) for index in range(1, 9)],
+        str(tmp_path),
+        {
+            "preset_id": "big",
+            "titulo": "Leadership Board",
+            "file_basename": "Leadership_Board",
+        },
+    )
+
+    prs = Presentation(files[0])
+    first_lines = [
+        _slot_text_first_line(prs, "big", slot_index)
+        for slot_index in range(get_carom_preset("big").capacity)
+    ]
+
+    assert first_lines == [
+        "Colab 1 | 21 - 4 / AP",
+        "Colab 5 | 25 - 4 / AP",
+        "Colab 2 | 22 - 4 / AP",
+        "Colab 6 | 26 - 4 / AP",
+        "Colab 3 | 23 - 4 / AP",
+        "Colab 7 | 27 - 4 / AP",
+        "Colab 4 | 24 - 4 / AP",
+        "Colab 8 | 28 - 4 / AP",
+    ]
+
+
+def test_generate_carom_pptx_keeps_column_major_big_overflow_per_slide(
+    tmp_path: Path,
+) -> None:
+    files = generator_carom.generate_carom_pptx(
+        [_employee(index) for index in range(1, 10)],
+        str(tmp_path),
+        {
+            "preset_id": "big",
+            "titulo": "Leadership Board",
+            "file_basename": "Leadership_Board",
+        },
+    )
+
+    prs = Presentation(files[0])
+    assert len(prs.slides) == 2
+    assert [
+        _slot_text_first_line(prs, "big", slot_index)
+        for slot_index in range(get_carom_preset("big").capacity)
+    ] == [
+        "Colab 1 | 21 - 4 / AP",
+        "Colab 5 | 25 - 4 / AP",
+        "Colab 2 | 22 - 4 / AP",
+        "Colab 6 | 26 - 4 / AP",
+        "Colab 3 | 23 - 4 / AP",
+        "Colab 7 | 27 - 4 / AP",
+        "Colab 4 | 24 - 4 / AP",
+        "Colab 8 | 28 - 4 / AP",
+    ]
+
+    second_slide_lines = []
+    preset = get_carom_preset("big")
+    for slot_index in range(preset.capacity):
+        shape = resolve_shape_path(prs.slides[1], preset.slots[slot_index]["text"])
+        second_slide_lines.append(shape.text.splitlines()[0] if shape.text else "")
+    assert second_slide_lines == ["Colab 9 | 29 - 4 / AP", "", "", "", "", "", "", ""]
+
+
 @pytest.mark.parametrize("preset_id", tuple(CAROM_TEMPLATES))
 def test_generate_carom_pptx_uses_circular_photo_placeholders_for_every_preset(
     tmp_path: Path,
@@ -398,10 +488,15 @@ def test_generate_carom_pptx_clears_unused_big_slots_without_sample_text(
 
     prs = Presentation(files[0])
     text = _all_slide_text(prs.slides[0])
+    slot_lines = [
+        _slot_text_first_line(prs, "big", slot_index)
+        for slot_index in range(get_carom_preset("big").capacity)
+    ]
 
     assert "Ana Carolina Alves Melo Gouveia" not in text
     assert "Fernando Augusto Rodrigues Machado" not in text
     assert "Colab 1" in text
+    assert slot_lines == ["Colab 1 | 21 - 4 / AP", "", "", "", "", "", "", ""]
 
 
 def test_generate_carom_pptx_uses_literal_body_text_for_projeto_trainee(
@@ -501,6 +596,41 @@ def test_generate_carom_pptx_rebuilds_every_talent_review_slot_with_static_succe
     assert "Commercial - USI" not in slide_text
     assert "CEO3" not in slide_text
     assert "CEO4" not in slide_text
+
+
+def test_generate_carom_pptx_fills_talent_review_grid_column_major(
+    tmp_path: Path,
+) -> None:
+    files = generator_carom.generate_carom_pptx(
+        [_employee(index) for index in range(1, 13)],
+        str(tmp_path),
+        {
+            "preset_id": "talent_review",
+            "titulo": "Ignored",
+            "file_basename": "Talent_Review",
+        },
+    )
+
+    prs = Presentation(files[0])
+    first_lines = [
+        _slot_text_first_line(prs, "talent_review", slot_index)
+        for slot_index in range(get_carom_preset("talent_review").capacity)
+    ]
+
+    assert first_lines == [
+        "Colab 1 | 21 - 4 / AP",
+        "Colab 5 | 25 - 4 / AP",
+        "Colab 9 | 29 - 4 / AP",
+        "Colab 2 | 22 - 4 / AP",
+        "Colab 6 | 26 - 4 / AP",
+        "Colab 10 | 30 - 4 / AP",
+        "Colab 3 | 23 - 4 / AP",
+        "Colab 7 | 27 - 4 / AP",
+        "Colab 11 | 31 - 4 / AP",
+        "Colab 4 | 24 - 4 / AP",
+        "Colab 8 | 28 - 4 / AP",
+        "Colab 12 | 32 - 4 / AP",
+    ]
 
 
 def test_generate_carom_pptx_preserves_talent_review_static_run_formatting(
