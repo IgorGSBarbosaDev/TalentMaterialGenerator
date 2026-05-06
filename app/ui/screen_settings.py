@@ -54,11 +54,9 @@ class SettingsScreen(QWidget):
         data_form.setSpacing(10)
         self.default_spreadsheet = QLineEdit(config.get("default_spreadsheet_path", ""))
         self.default_spreadsheet.setReadOnly(True)
-        self.default_onedrive = QLineEdit(config.get("default_onedrive_url", ""))
         self.default_output = QLineEdit(str(get_default_output_dir()))
         self.default_output.setReadOnly(True)
         data_form.addRow("Planilha local padrao", self.default_spreadsheet)
-        data_form.addRow("Link padrao OneDrive", self.default_onedrive)
         data_form.addRow("Pasta de saida", self.default_output)
         data_card.add_layout(data_form)
         layout.addWidget(data_card)
@@ -110,7 +108,6 @@ class SettingsScreen(QWidget):
 
     def load_config(self, config: dict) -> None:
         self.default_spreadsheet.setText(config.get("default_spreadsheet_path", ""))
-        self.default_onedrive.setText(config.get("default_onedrive_url", ""))
         self.default_output.setText(str(get_default_output_dir()))
         self.cache_ttl.setValue(int(config.get("cache_ttl_hours", 24)))
         self._update_base_summary(config)
@@ -168,7 +165,6 @@ class SettingsScreen(QWidget):
         self.save_requested.emit(
             {
                 "default_spreadsheet_path": self.default_spreadsheet.text().strip(),
-                "default_onedrive_url": self.default_onedrive.text().strip(),
                 "cache_ttl_hours": self.cache_ttl.value(),
             }
         )
