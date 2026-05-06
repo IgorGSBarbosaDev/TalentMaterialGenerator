@@ -16,6 +16,11 @@ def test_load_config_returns_defaults_when_missing(tmp_path, monkeypatch) -> Non
     }
 
 
+def test_default_config_uses_local_spreadsheet_source() -> None:
+    assert settings.DEFAULT_CONFIG["spreadsheet_source"] == "local"
+    assert "default_onedrive_url" not in settings.DEFAULT_CONFIG
+
+
 def test_save_and_load_round_trip(tmp_path, monkeypatch) -> None:
     config_path = tmp_path / "config.json"
     monkeypatch.setattr(settings, "get_config_path", lambda: config_path)
@@ -76,6 +81,26 @@ def test_load_config_ignores_legacy_output_dir(tmp_path, monkeypatch) -> None:
 
     assert loaded["theme"] == "light"
     assert loaded["default_output_dir"] == str(settings.get_default_output_dir())
+
+
+def test_load_config_drops_legacy_onedrive_defaults(tmp_path, monkeypatch) -> None:
+    config_path = tmp_path / "config.json"
+    monkeypatch.setattr(settings, "get_config_path", lambda: config_path)
+    monkeypatch.setattr(settings, "get_repo_default_spreadsheet_path", lambda: None)
+    config_path.write_text(
+        json.dumps(
+            {
+                "spreadsheet_source": "onedrive",
+                "default_onedrive_url": "https://example.com/base.xlsx",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    loaded = settings.load_config()
+
+    assert loaded["spreadsheet_source"] == "local"
+    assert "default_onedrive_url" not in loaded
 
 
 def test_load_config_uses_repo_default_spreadsheet_when_available(
