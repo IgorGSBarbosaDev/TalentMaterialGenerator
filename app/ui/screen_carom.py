@@ -158,9 +158,6 @@ class CaromScreen(QWidget):
         self.title_field = QLineEdit("Carometro")
         self.title_field.textChanged.connect(self._on_title_changed)
 
-        self.entry_output = QLineEdit(str(get_default_output_dir()))
-        self.entry_output.setReadOnly(True)
-
         self.schema_status_label = QLabel("")
         self.schema_status_label.setObjectName("statusLabel")
         self.schema_status_label.setWordWrap(True)
@@ -181,8 +178,6 @@ class CaromScreen(QWidget):
         source_layout.addWidget(self.title_field, 2, 1)
         source_layout.addWidget(self._field_label("Status da planilha"), 2, 2)
         source_layout.addWidget(self.schema_status_label, 2, 3)
-        source_layout.addWidget(self._field_label("Saida"), 3, 0)
-        source_layout.addWidget(self.entry_output, 3, 1, 1, 3)
         layout.addWidget(source_panel)
 
         split = QHBoxLayout()
@@ -369,7 +364,6 @@ class CaromScreen(QWidget):
             if source_kind == "local"
             else config.get("default_onedrive_url", "")
         )
-        self.entry_output.setText(str(get_default_output_dir()))
         self._last_editable_title = "Carometro"
         self.model_selector.setCurrentIndex(1)
         self._clear_loaded_data()

@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from uuid import uuid4
 
-from PySide6.QtWidgets import QFrame, QLabel
+from PySide6.QtWidgets import QFrame, QLabel, QLineEdit
 
 from app.config.settings import get_default_output_dir
 from app.core.reader import FichaEmployee
@@ -58,16 +58,19 @@ def test_ficha_screen_validates_local_file_source(qtbot) -> None:
         file_path.unlink(missing_ok=True)
 
 
-def test_ficha_screen_source_fields_use_shared_runtime_states(qtbot) -> None:
+def test_ficha_screen_hides_output_path_controls(qtbot) -> None:
     screen = FichaScreen({})
     qtbot.addWidget(screen)
 
     assert screen.entry_source.isReadOnly() is False
     assert screen.entry_source.isEnabled() is True
     assert screen.entry_source.styleSheet() == ""
-    assert screen.entry_output.isReadOnly() is True
-    assert screen.entry_output.isEnabled() is True
-    assert screen.entry_output.styleSheet() == ""
+    assert not hasattr(screen, "entry_output")
+    assert all(label.text().lower() != "saida" for label in screen.findChildren(QLabel))
+    assert all(
+        line_edit.text() != str(get_default_output_dir())
+        for line_edit in screen.findChildren(QLineEdit)
+    )
 
 
 def test_ficha_screen_starts_with_explicit_search_mode_required(qtbot) -> None:
