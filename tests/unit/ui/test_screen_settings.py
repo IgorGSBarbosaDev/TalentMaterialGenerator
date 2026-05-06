@@ -27,6 +27,37 @@ def test_settings_screen_has_no_theme_toggle_button(qtbot) -> None:
     assert all("tema" not in text for text in button_texts)
 
 
+def test_settings_screen_has_single_cache_refresh_button_and_browse_button(qtbot) -> None:
+    screen = SettingsScreen({})
+    qtbot.addWidget(screen)
+
+    buttons = screen.findChildren(QPushButton)
+    refresh_buttons = [button for button in buttons if button.text() == "Atualizar base agora"]
+    browse_buttons = [button for button in buttons if button.text() == "Procurar arquivo"]
+
+    assert len(refresh_buttons) == 1
+    assert len(browse_buttons) == 1
+    assert refresh_buttons[0].parentWidget().objectName() == "sectionCard"
+    assert browse_buttons[0].parentWidget().objectName() == "sectionCard"
+
+
+def test_settings_screen_shows_default_base_metadata(qtbot) -> None:
+    screen = SettingsScreen(
+        {
+            "default_spreadsheet_name": "base.xlsx",
+            "default_spreadsheet_path": r"C:\dados\base.xlsx",
+            "default_base_row_count": 12,
+            "default_spreadsheet_mtime": 100.0,
+            "default_spreadsheet_size": 200,
+        }
+    )
+    qtbot.addWidget(screen)
+
+    assert screen.base_name_label.text() == "base.xlsx"
+    assert screen.base_path_label.text() == r"C:\dados\base.xlsx"
+    assert "12" in screen.base_status_label.text()
+
+
 def test_settings_screen_handles_sidebar_collapsed_state(qtbot) -> None:
     screen = SettingsScreen({})
     qtbot.addWidget(screen)

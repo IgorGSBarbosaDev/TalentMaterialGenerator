@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
     QApplication,
     QButtonGroup,
     QFrame,
+    QFileDialog,
     QHBoxLayout,
     QLabel,
     QMainWindow,
@@ -27,7 +28,7 @@ from PySide6.QtWidgets import (
 )
 
 from app.config import settings, theme
-from app.core.reader import resolve_spreadsheet_source
+from app.core import base_cache
 from app.core.worker import GenerationWorker
 from app.ui.components import NavButton
 from app.ui.screen_carom import CaromScreen
@@ -208,6 +209,7 @@ class AppWindow(QMainWindow):
         self.progress_screen.chrome_changed.connect(self._sync_topbar)
         self.settings_screen.save_requested.connect(self._save_settings)
         self.settings_screen.reset_requested.connect(self._reset_settings)
+        self.settings_screen.browse_base_requested.connect(self._browse_base_file)
         self.settings_screen.refresh_cache_requested.connect(self._refresh_cache_now)
 
         self._refresh_home()
@@ -331,6 +333,7 @@ class AppWindow(QMainWindow):
 
     def _save_settings(self, updates: dict[str, Any]) -> None:
         self.config = settings.update_config({**self.config, **updates})
+        self._sync_base_status()
         self.ficha_screen.load_config(self.config)
         self.carom_screen.load_config(self.config)
         self.settings_screen.load_config(self.config)
@@ -437,25 +440,45 @@ class AppWindow(QMainWindow):
             self.theme_toggle_button.setText("\u263e")
             self.theme_toggle_button.setToolTip("Mudar para modo escuro")
 
-    def _refresh_cache_now(self) -> None:
-        url = str(self.config.get("default_onedrive_url", "")).strip()
-        if url == "":
-            QMessageBox.warning(
-                self, "Cache", "Nenhum link padrao do OneDrive configurado."
-            )
+    def _sync_base_status(self) -> None:
+        status = base_cache.describe_config_status(self.config)
+        if status != self.config.get("default_base_status"):
+            self.config = settings.update_config({"default_base_status": status})
+
+    def _apply_base_cache_result(self, result: base_cache.BaseCacheResult) -> None:
+        self.config = result.config
+        if result.status == "updated":
+            self.config = settings.update_config({"default_base_status": "updated"})
+        self.ficha_screen.load_config(self.config)
+        self.carom_screen.load_config(self.config)
+        self.settings_screen.load_config(self.config)
+
+    def _browse_base_file(self) -> None:
+        file_path, _filter = QFileDialog.getOpenFileName(
+            self, "Selecionar planilha", "", "Excel (*.xlsx)"
+        )
+        if not file_path:
             return
         try:
-            result = resolve_spreadsheet_source(
-                url,
-                cache_enabled=True,
-                cache_ttl_hours=int(self.config.get("cache_ttl_hours", 24)),
-                force_refresh=True,
-            )
-            self.config = settings.update_config(
-                {**self.config, "last_cache_sync": result.downloaded_at}
-            )
+            result = base_cache.update_default_base_from_file(file_path)
+            self._apply_base_cache_result(result)
             QMessageBox.information(self, "Cache", result.message)
-        except Exception as exc:
+        except base_cache.BaseCacheError as exc:
+            self.config = settings.update_config({"default_base_status": "invalid"})
+            self.settings_screen.load_config(self.config)
+            QMessageBox.warning(self, "Cache", str(exc))
+
+    def _refresh_cache_now(self) -> None:
+        try:
+            result = base_cache.refresh_default_base(self.config)
+            self._apply_base_cache_result(result)
+            if result.status in {"missing", "not_configured"}:
+                QMessageBox.warning(self, "Cache", result.message)
+            else:
+                QMessageBox.information(self, "Cache", result.message)
+        except base_cache.BaseCacheError as exc:
+            self.config = settings.update_config({"default_base_status": "invalid"})
+            self.settings_screen.load_config(self.config)
             QMessageBox.warning(self, "Cache", str(exc))
 
     def _open_output_dir(self, output_dir: str) -> None:

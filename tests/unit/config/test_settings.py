@@ -32,6 +32,20 @@ def test_save_and_load_round_trip(tmp_path, monkeypatch) -> None:
     assert settings.load_config() == expected
 
 
+def test_default_config_includes_default_base_metadata(tmp_path, monkeypatch) -> None:
+    config_path = tmp_path / "config.json"
+    monkeypatch.setattr(settings, "get_config_path", lambda: config_path)
+    monkeypatch.setattr(settings, "get_repo_default_spreadsheet_path", lambda: None)
+
+    loaded = settings.load_config()
+
+    assert loaded["default_spreadsheet_name"] == ""
+    assert loaded["default_spreadsheet_mtime"] == 0.0
+    assert loaded["default_spreadsheet_size"] == 0
+    assert loaded["default_base_cache_path"] == ""
+    assert loaded["default_base_row_count"] == 0
+
+
 def test_reset_to_defaults_returns_default_config(tmp_path, monkeypatch) -> None:
     config_path = tmp_path / "config.json"
     monkeypatch.setattr(settings, "get_config_path", lambda: config_path)

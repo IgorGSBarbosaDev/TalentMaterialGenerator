@@ -227,6 +227,7 @@ class FichaScreen(QWidget):
             "info",
         )
         self._refresh_action_state()
+        self.load_config(config)
 
     def _panel_title(self, text: str) -> QLabel:
         label = QLabel(text)
@@ -278,20 +279,37 @@ class FichaScreen(QWidget):
 
     def load_config(self, config: dict[str, Any]) -> None:
         self._config = dict(config)
-        source_kind = str(config.get("spreadsheet_source", "onedrive")).lower()
-        self.source_type.setCurrentText(
-            "Arquivo local" if source_kind == "local" else "OneDrive"
-        )
-        self.entry_source.setText(
-            config.get("default_spreadsheet_path", "")
-            if source_kind == "local"
-            else config.get("default_onedrive_url", "")
-        )
+        default_source = str(
+            config.get("default_base_cache_path")
+            or config.get("default_spreadsheet_path")
+            or ""
+        ).strip()
+        if default_source:
+            self.source_type.setCurrentText("Arquivo local")
+            self.entry_source.setText(default_source)
+        else:
+            self.source_type.setCurrentText("Arquivo local")
+            self.entry_source.setText("")
         self._clear_schema_state()
         self._clear_lookup_state(clear_queries=True, reset_mode=True)
         self._refresh_action_state()
-        if self.entry_source.text().strip():
+        if default_source and Path(default_source).is_file():
+            self._set_status(
+                "Base padrao configurada. Validando a planilha em cache.", "info"
+            )
             self._start_schema_validation()
+        elif default_source:
+            self._set_status(
+                "A base padrao nao foi encontrada. Ajuste a planilha em Configuracoes.",
+                "error",
+            )
+            self._set_schema_status("Base padrao indisponivel.", "error")
+        else:
+            self._set_status(
+                "Configure uma base padrao em Configuracoes para usar a ficha.",
+                "warning",
+            )
+            self._set_schema_status("Nenhuma base configurada.", "warning")
 
     def _validate_source(self) -> bool:
         source = self.entry_source.text().strip()

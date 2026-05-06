@@ -1,4 +1,5 @@
 __all__ = [
+    "base_cache",
     "carom_templates",
     "generator_carom",
     "generator_ficha",
