@@ -32,10 +32,6 @@ class SettingsScreen(QWidget):
         layout.setContentsMargins(22, 22, 22, 22)
         layout.setSpacing(14)
 
-        title = QLabel("Configuracoes")
-        title.setObjectName("title")
-        layout.addWidget(title)
-
         intro = SectionCard(
             "Configuracoes gerais",
             "Ajuste base padrao e cache.",

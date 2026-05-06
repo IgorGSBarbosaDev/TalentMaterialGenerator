@@ -28,6 +28,19 @@ def test_settings_screen_has_no_theme_toggle_button(qtbot) -> None:
     assert all("tema" not in text for text in button_texts)
 
 
+def test_settings_screen_does_not_render_duplicate_page_title(qtbot) -> None:
+    screen = SettingsScreen({})
+    qtbot.addWidget(screen)
+
+    title_labels = [
+        label
+        for label in screen.findChildren(QLabel)
+        if label.objectName() == "title" and label.text() == "Configuracoes"
+    ]
+
+    assert title_labels == []
+
+
 def test_settings_screen_has_no_onedrive_controls(qtbot) -> None:
     screen = SettingsScreen({"default_onedrive_url": "https://example.com/base.xlsx"})
     qtbot.addWidget(screen)
