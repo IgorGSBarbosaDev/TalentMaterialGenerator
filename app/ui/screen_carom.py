@@ -325,6 +325,7 @@ class CaromScreen(QWidget):
         self._refresh_selection_summary()
         self._refresh_action_state()
         self._update_pagination_state()
+        self.load_config(config)
 
     @property
     def current_preset_id(self) -> str:
@@ -355,15 +356,13 @@ class CaromScreen(QWidget):
 
     def load_config(self, config: dict[str, Any]) -> None:
         self._config = dict(config)
-        source_kind = str(config.get("spreadsheet_source", "onedrive")).lower()
-        self.source_type.setCurrentText(
-            "Arquivo local" if source_kind == "local" else "OneDrive"
-        )
-        self.entry_source.setText(
-            config.get("default_spreadsheet_path", "")
-            if source_kind == "local"
-            else config.get("default_onedrive_url", "")
-        )
+        default_source = str(
+            config.get("default_base_cache_path")
+            or config.get("default_spreadsheet_path")
+            or ""
+        ).strip()
+        self.source_type.setCurrentText("Arquivo local")
+        self.entry_source.setText(default_source)
         self._last_editable_title = "Carometro"
         self.model_selector.setCurrentIndex(1)
         self._clear_loaded_data()
@@ -371,9 +370,23 @@ class CaromScreen(QWidget):
         self._sync_title_mode(reset_title=True)
         self._refresh_preset_option_states()
         self._set_schema_status("Planilha nao validada.", "warning")
-        self._set_status(
-            "Carregue uma planilha valida para comecar a selecionar pessoas.", "info"
-        )
+        if default_source and Path(default_source).is_file():
+            self._set_status(
+                "Base padrao configurada. Validando a planilha em cache.", "info"
+            )
+            self._start_schema_validation()
+        elif default_source:
+            self._set_status(
+                "A base padrao nao foi encontrada. Ajuste a planilha em Configuracoes.",
+                "error",
+            )
+            self._set_schema_status("Base padrao indisponivel.", "error")
+        else:
+            self._set_status(
+                "Configure uma base padrao em Configuracoes para usar o carometro.",
+                "warning",
+            )
+            self._set_schema_status("Nenhuma base configurada.", "warning")
         self._refresh_selection_summary()
         self._refresh_action_state()
 
