@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Final
+from typing import Final, Literal
 
 from app.core.resource_paths import resolve_existing_resource_path
 
@@ -21,6 +21,9 @@ class CaromTemplate:
     required_fields: tuple[str, ...]
     requires_display_score: bool
     slots: tuple[dict[str, tuple[int, ...]], ...]
+    grid_rows: int | None = None
+    grid_columns: int | None = None
+    fill_order: Literal["row_major", "column_major"] = "row_major"
 
     @property
     def template_path(self) -> Path:
@@ -66,6 +69,9 @@ CAROM_TEMPLATES: Final[dict[str, CaromTemplate]] = {
             {"picture": (15, 0), "text": (15, 1)},
             {"picture": (21, 0), "text": (21, 1)},
         ),
+        grid_rows=6,
+        grid_columns=3,
+        fill_order="column_major",
     ),
     "big": CaromTemplate(
         id="big",
@@ -89,6 +95,9 @@ CAROM_TEMPLATES: Final[dict[str, CaromTemplate]] = {
             {"picture": (7,), "text": (6,)},
             {"picture": (15,), "text": (14,)},
         ),
+        grid_rows=4,
+        grid_columns=2,
+        fill_order="column_major",
     ),
     "projeto_trainee": CaromTemplate(
         id="projeto_trainee",
@@ -133,6 +142,9 @@ CAROM_TEMPLATES: Final[dict[str, CaromTemplate]] = {
             {"picture": (29,), "text": (26,)},
             {"picture": (33,), "text": (32,)},
         ),
+        grid_rows=4,
+        grid_columns=3,
+        fill_order="column_major",
     ),
 }
 

@@ -60,6 +60,51 @@ def compute_current_slide_status(selected_count: int, capacity: int) -> str:
     return f"Faltam {remaining} pessoas para completar o slide atual"
 
 
+def _slot_employee_index(
+    slot_index: int,
+    rows: int,
+    columns: int,
+    fill_order: str,
+) -> int:
+    if fill_order == "row_major":
+        return slot_index
+    if fill_order != "column_major":
+        raise ValueError(f"Ordem de preenchimento desconhecida: {fill_order}")
+    row = slot_index // columns
+    column = slot_index % columns
+    return column * rows + row
+
+
+def _validate_grid_metadata(preset: CaromTemplate) -> None:
+    if preset.grid_rows is None and preset.grid_columns is None:
+        return
+    if preset.grid_rows is None or preset.grid_columns is None:
+        raise ValueError(f"Preset de carometro '{preset.id}' possui grade incompleta.")
+    if preset.grid_rows * preset.grid_columns != preset.capacity:
+        raise ValueError(
+            f"Preset de carometro '{preset.id}' possui grade "
+            f"{preset.grid_rows}x{preset.grid_columns} incompativel "
+            f"com a capacidade {preset.capacity}."
+        )
+
+
+def _employee_for_slot(
+    batch: list[CaromEmployee],
+    preset: CaromTemplate,
+    slot_index: int,
+) -> CaromEmployee | None:
+    if preset.grid_rows is None or preset.grid_columns is None:
+        employee_index = slot_index
+    else:
+        employee_index = _slot_employee_index(
+            slot_index,
+            preset.grid_rows,
+            preset.grid_columns,
+            preset.fill_order,
+        )
+    return batch[employee_index] if employee_index < len(batch) else None
+
+
 def _clean(value: object) -> str:
     return "" if value is None else str(value).strip()
 
@@ -443,6 +488,7 @@ def generate_carom_pptx(
         return []
 
     preset = get_carom_preset(config["preset_id"])
+    _validate_grid_metadata(preset)
     _validate_employees_for_preset(employees, preset.id)
     title = _clean(config.get("titulo", "")) or preset.default_title
     output_root = Path(output_dir) / "carometros"
@@ -462,7 +508,7 @@ def generate_carom_pptx(
         batch = employees[start:end]
         _set_title_if_editable(slide, preset, title)
         for slot_index, slot in enumerate(preset.slots):
-            employee = batch[slot_index] if slot_index < len(batch) else None
+            employee = _employee_for_slot(batch, preset, slot_index)
             _render_slot(slide, preset, slot, employee)
         _send_callback(
             callback,
