@@ -140,6 +140,28 @@ def test_carom_screen_get_generation_payload_uses_default_output_dir(qtbot) -> N
     assert received[0]["schema_fields"]["ceo3"] == "CEO3"
 
 
+def test_carom_screen_uses_default_base_cache_when_configured(qtbot) -> None:
+    screen = CaromScreen(
+        {
+            "default_spreadsheet_path": r"C:\dados\base.xlsx",
+            "default_base_cache_path": r"C:\cache\default_base.xlsx",
+        }
+    )
+    qtbot.addWidget(screen)
+
+    assert screen.source_type.currentText() == "Arquivo local"
+    assert screen.entry_source.text() == r"C:\cache\default_base.xlsx"
+    assert "base padrao" in screen.status_label.text().lower()
+
+
+def test_carom_screen_directs_user_to_settings_when_no_default_base(qtbot) -> None:
+    screen = CaromScreen({})
+    qtbot.addWidget(screen)
+
+    assert "configuracoes" in screen.status_label.text().lower()
+    assert screen.btn_search.isEnabled() is False
+
+
 def test_carom_screen_hides_output_path_controls(qtbot) -> None:
     screen = CaromScreen({})
     qtbot.addWidget(screen)

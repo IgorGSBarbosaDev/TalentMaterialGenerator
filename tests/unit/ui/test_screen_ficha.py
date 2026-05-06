@@ -58,6 +58,28 @@ def test_ficha_screen_validates_local_file_source(qtbot) -> None:
         file_path.unlink(missing_ok=True)
 
 
+def test_ficha_screen_uses_default_base_cache_when_configured(qtbot) -> None:
+    screen = FichaScreen(
+        {
+            "default_spreadsheet_path": r"C:\dados\base.xlsx",
+            "default_base_cache_path": r"C:\cache\default_base.xlsx",
+        }
+    )
+    qtbot.addWidget(screen)
+
+    assert screen.source_type.currentText() == "Arquivo local"
+    assert screen.entry_source.text() == r"C:\cache\default_base.xlsx"
+    assert "base padrao" in screen.status_label.text().lower()
+
+
+def test_ficha_screen_directs_user_to_settings_when_no_default_base(qtbot) -> None:
+    screen = FichaScreen({})
+    qtbot.addWidget(screen)
+
+    assert "configuracoes" in screen.status_label.text().lower()
+    assert screen.btn_search.isEnabled() is False
+
+
 def test_ficha_screen_hides_output_path_controls(qtbot) -> None:
     screen = FichaScreen({})
     qtbot.addWidget(screen)
