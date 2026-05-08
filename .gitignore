@@ -5,7 +5,7 @@ __pycache__/
 .mypy_cache/
 dist/
 build/
-*.spec
+
 config.json
 .coverage
 htmlcov/
