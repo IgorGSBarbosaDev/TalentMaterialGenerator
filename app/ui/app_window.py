@@ -11,7 +11,7 @@ from PySide6.QtCore import (
     Qt,
     QUrl,
 )
-from PySide6.QtGui import QDesktopServices
+from PySide6.QtGui import QDesktopServices, QIcon
 from PySide6.QtWidgets import (
     QApplication,
     QButtonGroup,
@@ -29,6 +29,7 @@ from PySide6.QtWidgets import (
 
 from app.config import settings, theme
 from app.core import base_cache
+from app.core.resource_paths import resolve_existing_icon_path
 from app.core.worker import GenerationWorker
 from app.ui.components import NavButton
 from app.ui.screen_carom import CaromScreen
@@ -52,6 +53,10 @@ class AppWindow(QMainWindow):
         self._sidebar_animation_duration_ms = 180
 
         self.setWindowTitle("USI Generator")
+        app_icon = QApplication.windowIcon()
+        if app_icon.isNull():
+            app_icon = QIcon(str(resolve_existing_icon_path()))
+        self.setWindowIcon(app_icon)
         self.resize(1320, 820)
         self.setMinimumSize(1180, 760)
 

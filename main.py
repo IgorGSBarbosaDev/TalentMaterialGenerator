@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import sys
 
+from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication
 
 from app.config import settings, theme
+from app.core.resource_paths import resolve_existing_icon_path
 from app.ui.app_window import AppWindow
 
 
@@ -13,6 +15,7 @@ def create_app() -> tuple[QApplication, AppWindow]:
     config = settings.load_config()
     app.setApplicationName("USI Generator")
     app.setStyleSheet(theme.build_stylesheet(config.get("theme", "dark")))
+    app.setWindowIcon(QIcon(str(resolve_existing_icon_path())))
 
     window = AppWindow(config)
     window.show()

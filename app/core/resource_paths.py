@@ -28,3 +28,18 @@ def resolve_existing_resource_path(
         f"{resource_label} nao encontrado: '{relative_path}'. "
         f"Procurei em '{path}'. Verifique se o recurso foi empacotado com a aplicacao."
     )
+
+
+def resolve_existing_icon_path() -> Path:
+    icon_candidates = (
+        ("assets", "iconeUsiGenerator.png"),
+        ("assets", "iconeUsiGenerator.ico"),
+    )
+    missing_errors: list[str] = []
+    for parts in icon_candidates:
+        try:
+            return resolve_existing_resource_path(*parts, resource_label="Icone do app")
+        except FileNotFoundError as exc:
+            missing_errors.append(str(exc))
+
+    raise FileNotFoundError("\n".join(missing_errors))

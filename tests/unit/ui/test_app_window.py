@@ -43,6 +43,13 @@ def test_app_window_has_global_theme_button_on_topbar(qtbot) -> None:
     assert "claro" in window.theme_toggle_button.toolTip().lower()
 
 
+def test_app_window_has_window_icon(qtbot) -> None:
+    window = AppWindow({"last_generations": [], "theme": "dark"})
+    qtbot.addWidget(window)
+
+    assert window.windowIcon().isNull() is False
+
+
 def test_app_window_toggle_theme_updates_symbol_and_config(qtbot, monkeypatch) -> None:
     window = AppWindow({"last_generations": [], "theme": "dark"})
     qtbot.addWidget(window)
