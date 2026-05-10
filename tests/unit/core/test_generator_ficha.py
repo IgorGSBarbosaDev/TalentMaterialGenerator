@@ -47,6 +47,16 @@ def _shape_texts(slide) -> list[str]:
     return texts
 
 
+def _find_text_shape(slide, expected_text: str):
+    for shape in slide.shapes:
+        if (
+            getattr(shape, "has_text_frame", False)
+            and shape.text.strip() == expected_text
+        ):
+            return shape
+    return None
+
+
 def _shape_in_inches(shape) -> tuple[float, float, float, float]:
     inch = Inches(1)
     return (
@@ -235,14 +245,29 @@ def test_build_slide_uses_21pt_usiminas_label() -> None:
     prs = generator_ficha.create_presentation()
     slide = generator_ficha.build_slide(prs, _employee())
 
-    usiminas_shape = next(
-        shape
-        for shape in slide.shapes
-        if getattr(shape, "has_text_frame", False) and shape.text.strip() == "USIMINAS"
-    )
+    usiminas_shape = _find_text_shape(slide, "USIMINAS")
+    assert usiminas_shape is not None
     run = usiminas_shape.text_frame.paragraphs[0].runs[0]
 
     assert round(run.font.size.pt, 1) == 21.0
+
+
+def test_build_slide_uses_10pt_summary_body_without_changing_header() -> None:
+    prs = generator_ficha.create_presentation()
+    slide = generator_ficha.build_slide(
+        prs, _employee(resumo_perfil="Resumo profissional")
+    )
+
+    summary_shape = _find_text_shape(slide, "Resumo profissional")
+    assert summary_shape is not None
+    summary_run = summary_shape.text_frame.paragraphs[0].runs[0]
+
+    header_shape = _find_text_shape(slide, "Resumo")
+    assert header_shape is not None
+    header_run = header_shape.text_frame.paragraphs[0].runs[0]
+
+    assert round(summary_run.font.size.pt, 1) == 10.0
+    assert round(header_run.font.size.pt, 1) == 16.0
 
 
 def test_generate_ficha_pptx_creates_single_file(tmp_path: Path) -> None:

@@ -288,7 +288,13 @@ def _add_metadata_block(slide: Slide, employee: FichaEmployee) -> None:
         )
 
 
-def _add_body_text(slide: Slide, *, text: str, box: dict[str, float]) -> None:
+def _add_body_text(
+    slide: Slide,
+    *,
+    text: str,
+    box: dict[str, float],
+    size_pt: float = 15,
+) -> None:
     _add_text(
         slide,
         text=text,
@@ -297,7 +303,7 @@ def _add_body_text(slide: Slide, *, text: str, box: dict[str, float]) -> None:
         width=box["width"],
         height=box["height"],
         color=PRETO,
-        size_pt=15,
+        size_pt=size_pt,
         font_name=FONTE_CORPO,
     )
 
@@ -466,7 +472,7 @@ def build_slide(prs: Presentation, employee: FichaEmployee) -> Slide:
         _add_section_header(
             slide, title="Resumo", title_box=SUMMARY_TITLE, rule_box=SUMMARY_RULE
         )
-        _add_body_text(slide, text=resumo, box=SUMMARY_BODY)
+        _add_body_text(slide, text=resumo, box=SUMMARY_BODY, size_pt=10)
 
     trajetoria_items = parse_multiline_field(_clean(employee.get("trajetoria")))
     if trajetoria_items:
