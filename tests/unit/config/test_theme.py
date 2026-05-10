@@ -75,5 +75,6 @@ def test_stylesheet_has_sidebar_compact_and_toggle_rules() -> None:
     stylesheet = theme.build_stylesheet("dark")
 
     assert 'QFrame#sidebar[collapsed="true"]' in stylesheet
+    assert "QFrame#sidebar QWidget#brandNameBlock" in stylesheet
     assert "QPushButton#sidebar_toggle" in stylesheet
     assert 'QFrame#sidebar[collapsed="true"] QPushButton#navButton' in stylesheet

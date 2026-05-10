@@ -140,6 +140,13 @@ def test_app_window_minimized_sidebar_hides_brand_text_keeps_logo(qtbot) -> None
     assert window.brand_mark.isHidden() is False
 
 
+def test_app_window_brand_name_container_has_scoped_object_name(qtbot) -> None:
+    window = AppWindow({"last_generations": [], "theme": "dark"})
+    qtbot.addWidget(window)
+
+    assert window.brand_name_widget.objectName() == "brandNameBlock"
+
+
 def test_app_window_minimized_sidebar_keeps_compact_centered_nav_content(qtbot) -> None:
     window = AppWindow({"last_generations": [], "theme": "dark"})
     qtbot.addWidget(window)
