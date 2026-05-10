@@ -82,6 +82,7 @@ class AppWindow(QMainWindow):
         self.brand_mark.setObjectName("brandMark")
         self.brand_mark.setFixedSize(48, 48)
         self.brand_name_widget = QWidget()
+        self.brand_name_widget.setObjectName("brandNameBlock")
         brand_name_col = QVBoxLayout(self.brand_name_widget)
         brand_name_col.setContentsMargins(0, 0, 0, 0)
         brand_name_col.setSpacing(1)

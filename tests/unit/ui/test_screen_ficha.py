@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from uuid import uuid4
 
-from PySide6.QtWidgets import QFrame, QLabel, QLineEdit
+from PySide6.QtWidgets import QComboBox, QFrame, QLabel, QLineEdit, QWidget
 
 from app.config.settings import get_default_output_dir
 from app.core.reader import FichaEmployee
@@ -330,6 +330,18 @@ def test_ficha_screen_uses_two_card_workflow_surfaces(qtbot) -> None:
     assert screen.findChild(QFrame, "fichaDossierPane") is None
     assert screen.findChild(QFrame, "fichaActionBar") is not None
     assert screen.results_table.objectName() == "fichaResultsTable"
+
+
+def test_ficha_screen_source_widgets_have_scoped_object_names(qtbot) -> None:
+    screen = FichaScreen({})
+    qtbot.addWidget(screen)
+
+    source_input_row = screen.findChild(QWidget, "fichaSourceInputRow")
+    source_type = screen.findChild(QComboBox, "fichaSourceType")
+
+    assert source_input_row is not None
+    assert source_type is not None
+    assert source_type is screen.source_type
 
 
 def test_ficha_screen_results_table_uses_expected_column_order(qtbot) -> None:

@@ -71,6 +71,7 @@ class FichaScreen(QWidget):
         source_form.setColumnStretch(1, 1)
 
         self.source_type = QComboBox()
+        self.source_type.setObjectName("fichaSourceType")
         self.source_type.addItems(["Arquivo local"])
         self.source_type.currentTextChanged.connect(self._on_source_mode_changed)
 
@@ -83,6 +84,7 @@ class FichaScreen(QWidget):
         self.btn_browse_file.clicked.connect(self._choose_source_file)
 
         source_input_row = QWidget()
+        source_input_row.setObjectName("fichaSourceInputRow")
         source_input_layout = QHBoxLayout(source_input_row)
         source_input_layout.setContentsMargins(0, 0, 0, 0)
         source_input_layout.setSpacing(10)

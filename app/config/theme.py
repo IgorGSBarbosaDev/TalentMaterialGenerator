@@ -102,6 +102,9 @@ QFrame#sidebar {{
 QFrame#sidebar[collapsed="true"] {{
     background-color: {palette["sidebar_alt"]};
 }}
+QFrame#sidebar QWidget#brandNameBlock {{
+    background-color: transparent;
+}}
 QLabel#brandMark {{
     background-color: {palette["sidebar_accent_soft"]};
     color: {palette["sidebar_accent"]};
@@ -206,6 +209,12 @@ QFrame#fichaTableWrap {{
 }}
 QWidget#fichaPage {{
     background-color: {palette["bg"]};
+}}
+QFrame#fichaSourceCard QWidget#fichaSourceInputRow {{
+    background-color: transparent;
+}}
+QFrame#fichaSourceCard QComboBox#fichaSourceType {{
+    background-color: {palette["surface"]};
 }}
 QFrame#metricCard {{
     background-color: {palette["accent_surface"]};
