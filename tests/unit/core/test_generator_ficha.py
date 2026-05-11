@@ -241,7 +241,7 @@ def test_build_slide_contains_reference_geometry_landmarks() -> None:
     _assert_ficha_photo_placeholder(slide)
 
 
-def test_build_slide_uses_21pt_usiminas_label() -> None:
+def test_build_slide_uses_18pt_usiminas_label() -> None:
     prs = generator_ficha.create_presentation()
     slide = generator_ficha.build_slide(prs, _employee())
 
@@ -249,7 +249,7 @@ def test_build_slide_uses_21pt_usiminas_label() -> None:
     assert usiminas_shape is not None
     run = usiminas_shape.text_frame.paragraphs[0].runs[0]
 
-    assert round(run.font.size.pt, 1) == 21.0
+    assert round(run.font.size.pt, 1) == 18.0
 
 
 def test_build_slide_uses_10pt_summary_body_without_changing_header() -> None:
@@ -283,6 +283,17 @@ def test_generate_ficha_pptx_keeps_circular_picture_photo_placeholder(
     prs = generator_ficha.PresentationFactory(created)
 
     _assert_ficha_photo_placeholder(prs.slides[0])
+
+
+def test_generate_ficha_pptx_persists_18pt_usiminas_label(tmp_path: Path) -> None:
+    created = generator_ficha.generate_ficha_pptx(_employee(nome="Ana"), str(tmp_path))
+    prs = generator_ficha.PresentationFactory(created)
+
+    usiminas_shape = _find_text_shape(prs.slides[0], "USIMINAS")
+    assert usiminas_shape is not None
+    run = usiminas_shape.text_frame.paragraphs[0].runs[0]
+
+    assert round(run.font.size.pt, 1) == 18.0
 
 
 def test_generate_ficha_pptx_uses_normalized_filename(tmp_path: Path) -> None:

@@ -437,7 +437,7 @@ def build_slide(prs: Presentation, employee: FichaEmployee) -> Slide:
         width=1.300,
         height=0.260,
         color=BRANCO,
-        size_pt=21,
+        size_pt=18,
         bold=True,
         font_name=FONTE_TITULO,
         uppercase=True,
