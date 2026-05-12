@@ -293,7 +293,7 @@ def _add_body_text(
     *,
     text: str,
     box: dict[str, float],
-    size_pt: float = 15,
+    size_pt: float = 10,
 ) -> None:
     _add_text(
         slide,
@@ -329,7 +329,7 @@ def _add_trajectory_block(slide: Slide, entries: list[str]) -> None:
             run.text = cleaned
             _set_run_font(
                 run,
-                size_pt=15,
+                size_pt=10,
                 color=PRETO,
                 bold=True,
                 italic=True,
@@ -341,7 +341,7 @@ def _add_trajectory_block(slide: Slide, entries: list[str]) -> None:
         run.text = cleaned
         _set_run_font(
             run,
-            size_pt=15,
+            size_pt=10,
             color=PRETO,
             font_name=FONTE_CORPO,
         )
