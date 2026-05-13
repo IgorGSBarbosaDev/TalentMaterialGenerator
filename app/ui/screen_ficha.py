@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -28,20 +27,6 @@ from app.core.worker import FichaLookupWorker
 from app.ui.components import repolish
 
 
-def _format_base_sync_timestamp(value: str) -> str:
-    cleaned = value.strip()
-    if not cleaned:
-        return ""
-    try:
-        parsed = datetime.fromisoformat(cleaned)
-    except ValueError:
-        return ""
-    if parsed.tzinfo is None:
-        return parsed.strftime("%d/%m/%Y %H:%M")
-    brazil_tz = timezone(timedelta(hours=-3))
-    return parsed.astimezone(brazil_tz).strftime("%d/%m/%Y %H:%M")
-
-
 class FichaScreen(QWidget):
     generate_requested = Signal(dict)
 
@@ -66,30 +51,10 @@ class FichaScreen(QWidget):
         layout.setContentsMargins(24, 24, 24, 24)
         layout.setSpacing(14)
 
-        source_card = QFrame()
-        source_card.setObjectName("fichaSourceCard")
-        source_layout = QVBoxLayout(source_card)
-        source_layout.setContentsMargins(18, 18, 18, 18)
-        source_layout.setSpacing(14)
-
-        source_title = self._panel_title("Base de dados")
-        source_title.setObjectName("panelTitleStrong")
-        source_layout.addWidget(source_title)
-
-        schema_panel = QFrame()
-        schema_panel.setObjectName("fichaSchemaPanel")
-        schema_layout = QVBoxLayout(schema_panel)
-        schema_layout.setContentsMargins(16, 16, 16, 16)
-        schema_layout.setSpacing(10)
-        schema_title = self._panel_title("Status da base")
         self.schema_status_label = QLabel("")
-        self.schema_status_label.setObjectName("statusLabel")
+        self.schema_status_label.setObjectName("fichaStatusSubtitle")
         self.schema_status_label.setWordWrap(True)
-        schema_layout.addWidget(schema_title)
-        schema_layout.addWidget(self.schema_status_label)
-        schema_layout.addStretch(1)
-        source_layout.addWidget(schema_panel)
-        layout.addWidget(source_card)
+        layout.addWidget(self.schema_status_label)
 
         content_split = QHBoxLayout()
         self._content_split = content_split
@@ -259,33 +224,29 @@ class FichaScreen(QWidget):
         self,
         *,
         row_count: int | None = None,
-        include_validation_prefix: bool = False,
+        valid: bool = False,
+        invalid: bool = False,
     ) -> str:
-        lines: list[str] = []
         effective_rows = (
             int(row_count)
             if row_count is not None
             else int(self._config.get("default_base_row_count", 0) or 0)
         )
-        if include_validation_prefix:
-            line = "Base validada."
-            if effective_rows > 0:
-                line += f" {effective_rows} colaborador(es) reconhecido(s)."
-            lines.append(line)
-        elif effective_rows > 0:
-            lines.append(f"{effective_rows} colaborador(es) reconhecido(s).")
-        elif self._base_source_path:
-            if effective_rows == 0:
-                lines.append("Base configurada. Validacao automatica pendente.")
-        else:
-            lines.append("Nenhuma base configurada.")
-
-        formatted_sync = _format_base_sync_timestamp(
-            str(self._config.get("last_cache_sync", ""))
-        )
-        if formatted_sync:
-            lines.append(f"Ultima atualizacao: {formatted_sync}.")
-        return "\n".join(lines)
+        if invalid:
+            return "Status: Base invalida ou nao reconhecida."
+        if valid:
+            return (
+                "Status: Base validada."
+                f" {effective_rows} colaborador(es) reconhecido(s)."
+            )
+        if effective_rows > 0:
+            return (
+                "Status: Base validada."
+                f" {effective_rows} colaborador(es) reconhecido(s)."
+            )
+        if self._base_source_path:
+            return "Status: Base invalida ou nao reconhecida."
+        return "Status: Nenhuma base configurada."
 
     def load_config(self, config: dict[str, Any]) -> None:
         self._config = dict(config)
@@ -315,7 +276,7 @@ class FichaScreen(QWidget):
         if not Path(source).is_file():
             self._set_status("A planilha local nao foi encontrada.", "error")
             self._set_schema_status(
-                "Base invalida: arquivo local nao encontrado.", "error"
+                self._build_base_status_message(invalid=True), "error"
             )
             return False
 
@@ -453,18 +414,12 @@ class FichaScreen(QWidget):
         self._schema_valid = True
         self._schema_fields = dict(result.get("schema", {}))
         row_count = int(result.get("row_count", 0))
-        schema_order_matches = bool(result.get("schema_order_matches", False))
-        order_note = (
-            " Layout de referencia da ficha confirmado."
-            if schema_order_matches
-            else " Layout diferente dos modelos de referencia, mas colunas reconhecidas."
-        )
         base_status = self._build_base_status_message(
             row_count=row_count,
-            include_validation_prefix=True,
+            valid=True,
         )
         self._set_schema_status(
-            f"{base_status}{order_note}",
+            base_status,
             "success",
         )
 
@@ -505,7 +460,9 @@ class FichaScreen(QWidget):
         ):
             self._clear_schema_state()
             self._clear_lookup_state()
-            self._set_schema_status(message, "error")
+            self._set_schema_status(
+                self._build_base_status_message(invalid=True), "error"
+            )
             self._set_status(message, "error")
         else:
             self._lookup_matches = []

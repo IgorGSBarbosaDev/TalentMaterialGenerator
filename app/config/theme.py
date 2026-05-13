@@ -183,12 +183,6 @@ QFrame#subpanel {{
     border: 1px solid {palette["border"]};
     border-radius: 14px;
 }}
-QFrame#fichaSourceCard,
-QFrame#fichaWorkflowCard {{
-    background-color: {palette["surface"]};
-    border: 1px solid {palette["border"]};
-    border-radius: 18px;
-}}
 QFrame#fichaSchemaPanel,
 QFrame#fichaLookupPane,
 QFrame#fichaDossierPane,
@@ -209,12 +203,6 @@ QFrame#fichaTableWrap {{
 }}
 QWidget#fichaPage {{
     background-color: {palette["bg"]};
-}}
-QFrame#fichaSourceCard QWidget#fichaSourceInputRow {{
-    background-color: transparent;
-}}
-QFrame#fichaSourceCard QComboBox#fichaSourceType {{
-    background-color: {palette["surface"]};
 }}
 QFrame#metricCard {{
     background-color: {palette["accent_surface"]};
@@ -266,6 +254,11 @@ QLabel#statusBadge {{
     font-size: 11px;
     font-weight: 700;
     min-width: 70px;
+}}
+QLabel#statusBadge[compactOrder="true"] {{
+    min-width: 0px;
+    padding: 0px;
+    border-radius: 11px;
 }}
 QLabel#statusBadge[tone="neutral"] {{
     background-color: {palette["surface_alt"]};
@@ -427,6 +420,11 @@ QLabel#fichaFieldLabel {{
     font-size: 11px;
     font-weight: 700;
     letter-spacing: 0.4px;
+}}
+QLabel#fichaStatusSubtitle {{
+    color: {palette["text_muted"]};
+    font-size: 12px;
+    padding: 0px 2px 2px 2px;
 }}
 QLabel#fichaGroupTitle {{
     font-size: 14px;

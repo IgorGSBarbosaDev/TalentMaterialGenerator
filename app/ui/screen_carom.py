@@ -84,13 +84,14 @@ class _SelectedEmployeeCard(QFrame):
         self.setObjectName("previewListItem")
 
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(6, 4, 6, 4)
-        layout.setSpacing(6)
+        layout.setContentsMargins(4, 3, 4, 3)
+        layout.setSpacing(4)
 
         order = QLabel(str(index))
         order.setObjectName("statusBadge")
+        order.setProperty("compactOrder", "true")
         order.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        order.setFixedSize(26, 26)
+        order.setFixedSize(22, 22)
         layout.addWidget(order)
 
         meta = f"{employee.get('cargo', '')} | Matricula {employee.get('matricula', '-') or '-'}"
@@ -142,8 +143,8 @@ class CaromScreen(QWidget):
 
         layout = QVBoxLayout(self)
         self._root_layout = layout
-        layout.setContentsMargins(22, 22, 22, 22)
-        layout.setSpacing(14)
+        layout.setContentsMargins(18, 16, 18, 18)
+        layout.setSpacing(12)
 
         source_panel = QFrame()
         source_panel.setObjectName("panel")
@@ -167,12 +168,17 @@ class CaromScreen(QWidget):
         self.schema_status_label.setObjectName("statusLabel")
         self.schema_status_label.setWordWrap(True)
 
+        self.status_label = QLabel("")
+        self.status_label.setObjectName("statusLabel")
+        self.status_label.setWordWrap(True)
+
         source_layout.addWidget(self._field_label("Modelo"), 0, 0)
         source_layout.addWidget(self.model_selector, 0, 1)
         source_layout.addWidget(self._field_label("Titulo"), 0, 2)
         source_layout.addWidget(self.title_field, 0, 3)
         source_layout.addWidget(self._field_label("Status da base"), 1, 0)
         source_layout.addWidget(self.schema_status_label, 1, 1, 1, 3)
+        source_layout.addWidget(self.status_label, 2, 0, 1, 4)
         layout.addWidget(source_panel)
 
         split = QHBoxLayout()
@@ -290,14 +296,10 @@ class CaromScreen(QWidget):
         status_col.setSpacing(6)
         footer_label = QLabel("Status da geracao")
         footer_label.setObjectName("panelTitle")
-        self.status_label = QLabel("")
-        self.status_label.setObjectName("statusLabel")
-        self.status_label.setWordWrap(True)
         self.slide_status_label = QLabel("")
         self.slide_status_label.setObjectName("statusLabel")
         self.slide_status_label.setWordWrap(True)
         status_col.addWidget(footer_label)
-        status_col.addWidget(self.status_label)
         status_col.addWidget(self.slide_status_label)
         action_layout.addLayout(status_col, 1)
 
@@ -882,9 +884,9 @@ class CaromScreen(QWidget):
         )
 
     def set_sidebar_collapsed(self, collapsed: bool) -> None:
-        margin = 18 if collapsed else 22
+        margin = 14 if collapsed else 18
         self._root_layout.setContentsMargins(margin, margin, margin, margin)
-        self._root_layout.setSpacing(10 if collapsed else 14)
-        self._content_split.setSpacing(10 if collapsed else 14)
+        self._root_layout.setSpacing(8 if collapsed else 12)
+        self._content_split.setSpacing(8 if collapsed else 12)
         for label in self._compact_labels:
             label.setVisible(not collapsed)

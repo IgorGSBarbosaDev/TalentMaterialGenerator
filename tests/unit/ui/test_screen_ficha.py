@@ -142,7 +142,9 @@ def test_ficha_screen_shows_compact_status_when_base_is_invalid(qtbot) -> None:
 
     screen._handle_worker_error("Schema padrao da ficha nao reconhecido.")
 
-    assert screen.schema_status_label.text() == "Status: Base invalida ou nao reconhecida."
+    assert (
+        screen.schema_status_label.text() == "Status: Base invalida ou nao reconhecida."
+    )
 
 
 def test_ficha_screen_starts_with_explicit_search_mode_required(qtbot) -> None:
@@ -225,7 +227,10 @@ def test_ficha_screen_worker_success_marks_schema_valid(qtbot) -> None:
     )
 
     assert screen._schema_valid is True
-    assert screen.schema_status_label.text() == "Status: Base validada. 2 colaborador(es) reconhecido(s)."
+    assert (
+        screen.schema_status_label.text()
+        == "Status: Base validada. 2 colaborador(es) reconhecido(s)."
+    )
 
 
 def test_ficha_screen_lookup_populates_results_table_with_multiple_name_matches(

@@ -342,7 +342,10 @@ def test_carom_screen_footer_keeps_only_slide_completion_status(qtbot) -> None:
     )
 
     screen._remove_employee("matricula:101")
-    assert screen.slide_status_label.text() == "Faltam 8 pessoas para completar o slide atual"
+    assert (
+        screen.slide_status_label.text()
+        == "Faltam 8 pessoas para completar o slide atual"
+    )
 
 
 def test_carom_screen_reduces_top_spacing_in_expanded_mode(qtbot) -> None:
