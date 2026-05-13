@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, cast
 
@@ -7,7 +8,6 @@ from PySide6.QtCore import QSize, Qt, Signal
 from PySide6.QtGui import QStandardItemModel
 from PySide6.QtWidgets import (
     QComboBox,
-    QFileDialog,
     QFrame,
     QGridLayout,
     QHBoxLayout,
@@ -36,6 +36,20 @@ from app.core.reader import (
 )
 from app.core.worker import CaromLookupWorker
 from app.ui.components import PreviewListItem, repolish
+
+
+def _format_base_sync_timestamp(value: str) -> str:
+    cleaned = value.strip()
+    if not cleaned:
+        return ""
+    try:
+        parsed = datetime.fromisoformat(cleaned)
+    except ValueError:
+        return ""
+    if parsed.tzinfo is None:
+        return parsed.strftime("%d/%m/%Y %H:%M")
+    brazil_tz = timezone(timedelta(hours=-3))
+    return parsed.astimezone(brazil_tz).strftime("%d/%m/%Y %H:%M")
 
 
 class _SelectableEmployeeCard(QFrame):
@@ -70,13 +84,13 @@ class _SelectedEmployeeCard(QFrame):
         self.setObjectName("previewListItem")
 
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(8, 6, 8, 6)
-        layout.setSpacing(8)
+        layout.setContentsMargins(6, 4, 6, 4)
+        layout.setSpacing(6)
 
         order = QLabel(str(index))
         order.setObjectName("statusBadge")
         order.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        order.setFixedSize(30, 30)
+        order.setFixedSize(26, 26)
         layout.addWidget(order)
 
         meta = f"{employee.get('cargo', '')} | Matricula {employee.get('matricula', '-') or '-'}"
@@ -124,6 +138,7 @@ class CaromScreen(QWidget):
         self._page_size = 50
         self._applied_search_query = ""
         self._applied_search_mode = "nome"
+        self._base_source_path = ""
 
         layout = QVBoxLayout(self)
         self._root_layout = layout
@@ -139,17 +154,6 @@ class CaromScreen(QWidget):
         source_layout.setColumnStretch(1, 1)
         source_layout.setColumnStretch(3, 1)
 
-        self.source_type = QComboBox()
-        self.source_type.addItems(["Arquivo local"])
-        self.source_type.currentTextChanged.connect(self._on_source_mode_changed)
-
-        self.entry_source = QLineEdit("")
-        self.entry_source.textChanged.connect(self._on_source_changed)
-        self.entry_source.editingFinished.connect(self._start_schema_validation)
-
-        self.btn_browse_file = QPushButton("Procurar")
-        self.btn_browse_file.clicked.connect(self._choose_source_file)
-
         self.model_selector = QComboBox()
         for label, value in self.PRESET_OPTIONS:
             self.model_selector.addItem(label, value)
@@ -163,22 +167,12 @@ class CaromScreen(QWidget):
         self.schema_status_label.setObjectName("statusLabel")
         self.schema_status_label.setWordWrap(True)
 
-        source_layout.addWidget(self._field_label("Origem"), 0, 0)
-        source_layout.addWidget(self.source_type, 0, 1)
-        source_layout.addWidget(self._field_label("Modelo"), 0, 2)
-        source_layout.addWidget(self.model_selector, 0, 3)
-        source_layout.addWidget(self._field_label("Planilha"), 1, 0)
-        source_input_row = QWidget()
-        source_input_layout = QHBoxLayout(source_input_row)
-        source_input_layout.setContentsMargins(0, 0, 0, 0)
-        source_input_layout.setSpacing(8)
-        source_input_layout.addWidget(self.entry_source, 1)
-        source_input_layout.addWidget(self.btn_browse_file)
-        source_layout.addWidget(source_input_row, 1, 1, 1, 3)
-        source_layout.addWidget(self._field_label("Titulo"), 2, 0)
-        source_layout.addWidget(self.title_field, 2, 1)
-        source_layout.addWidget(self._field_label("Status da planilha"), 2, 2)
-        source_layout.addWidget(self.schema_status_label, 2, 3)
+        source_layout.addWidget(self._field_label("Modelo"), 0, 0)
+        source_layout.addWidget(self.model_selector, 0, 1)
+        source_layout.addWidget(self._field_label("Titulo"), 0, 2)
+        source_layout.addWidget(self.title_field, 0, 3)
+        source_layout.addWidget(self._field_label("Status da base"), 1, 0)
+        source_layout.addWidget(self.schema_status_label, 1, 1, 1, 3)
         layout.addWidget(source_panel)
 
         split = QHBoxLayout()
@@ -270,9 +264,6 @@ class CaromScreen(QWidget):
         self.total_selected_label = QLabel("0")
         self.capacity_label = QLabel(str(self.current_capacity))
         self.slide_count_label = QLabel("0")
-        self.current_slide_label = QLabel("")
-        self.current_slide_label.setObjectName("statusLabel")
-        self.current_slide_label.setWordWrap(True)
 
         summary_grid.addWidget(self._field_label("Total selecionado"), 0, 0)
         summary_grid.addWidget(self.total_selected_label, 0, 1)
@@ -280,8 +271,6 @@ class CaromScreen(QWidget):
         summary_grid.addWidget(self.capacity_label, 1, 1)
         summary_grid.addWidget(self._field_label("Slides previstos"), 2, 0)
         summary_grid.addWidget(self.slide_count_label, 2, 1)
-        summary_grid.addWidget(self._field_label("Slide atual"), 3, 0)
-        summary_grid.addWidget(self.current_slide_label, 3, 1)
         selection_layout.addLayout(summary_grid)
 
         self.selected_list = QListWidget()
@@ -304,8 +293,12 @@ class CaromScreen(QWidget):
         self.status_label = QLabel("")
         self.status_label.setObjectName("statusLabel")
         self.status_label.setWordWrap(True)
+        self.slide_status_label = QLabel("")
+        self.slide_status_label.setObjectName("statusLabel")
+        self.slide_status_label.setWordWrap(True)
         status_col.addWidget(footer_label)
         status_col.addWidget(self.status_label)
+        status_col.addWidget(self.slide_status_label)
         action_layout.addLayout(status_col, 1)
 
         self.btn_generate = QPushButton("GERAR CAROMETRO")
@@ -316,10 +309,9 @@ class CaromScreen(QWidget):
         layout.addWidget(action_panel)
 
         self._compact_labels = [self.results_hint]
-        self._sync_source_mode()
         self._sync_title_mode(reset_title=True)
         self._refresh_preset_option_states()
-        self._set_schema_status("Planilha nao validada.", "warning")
+        self._set_schema_status("Nenhuma base configurada.", "warning")
         self._set_status(
             "Carregue uma planilha valida para comecar a selecionar pessoas.", "info"
         )
@@ -355,19 +347,48 @@ class CaromScreen(QWidget):
         widget.setProperty("invalid", is_invalid)
         repolish(widget)
 
+    def _build_base_status_message(
+        self,
+        *,
+        employee_count: int | None = None,
+        valid: bool = False,
+    ) -> str:
+        lines: list[str] = []
+        effective_count = (
+            int(employee_count)
+            if employee_count is not None
+            else int(self._config.get("default_base_row_count", 0) or 0)
+        )
+        if valid:
+            line = "Base validada."
+            if effective_count > 0:
+                line += f" {effective_count} colaborador(es) reconhecido(s)."
+            lines.append(line)
+        elif effective_count > 0:
+            lines.append(f"{effective_count} colaborador(es) reconhecido(s).")
+        elif self._base_source_path:
+            if effective_count == 0:
+                lines.append("Base configurada. Validacao automatica pendente.")
+        else:
+            lines.append("Nenhuma base configurada.")
+
+        formatted_sync = _format_base_sync_timestamp(
+            str(self._config.get("last_cache_sync", ""))
+        )
+        if formatted_sync:
+            lines.append(f"Ultima atualizacao: {formatted_sync}.")
+        return "\n".join(lines)
+
     def load_config(self, config: dict[str, Any]) -> None:
         self._config = dict(config)
-        default_source = base_cache.get_effective_base_path(config)
-        self.source_type.setCurrentText("Arquivo local")
-        self.entry_source.setText(default_source)
+        self._base_source_path = base_cache.get_effective_base_path(config)
         self._last_editable_title = "Carometro"
         self.model_selector.setCurrentIndex(1)
         self._clear_loaded_data()
-        self._sync_source_mode()
         self._sync_title_mode(reset_title=True)
         self._refresh_preset_option_states()
-        self._set_schema_status("Planilha nao validada.", "warning")
-        if default_source and Path(default_source).is_file():
+        self._set_schema_status(self._build_base_status_message(), "warning")
+        if self._base_source_path and Path(self._base_source_path).is_file():
             self._set_status(
                 "Base padrao configurada. Validando a planilha local.", "info"
             )
@@ -377,26 +398,9 @@ class CaromScreen(QWidget):
                 "Configure uma base padrao em Configuracoes para usar o carometro.",
                 "warning",
             )
-            self._set_schema_status("Nenhuma base configurada.", "warning")
+            self._set_schema_status(self._build_base_status_message(), "warning")
         self._refresh_selection_summary()
         self._refresh_action_state()
-
-    def _choose_source_file(self) -> None:
-        file_path, _filter = QFileDialog.getOpenFileName(
-            self, "Selecionar planilha", "", "Excel (*.xlsx)"
-        )
-        if file_path:
-            self.source_type.setCurrentText("Arquivo local")
-            self.entry_source.setText(file_path)
-            self._start_schema_validation()
-
-    def _on_source_mode_changed(self, *_args: object) -> None:
-        self._sync_source_mode()
-        self._on_source_changed()
-
-    def _sync_source_mode(self) -> None:
-        self.btn_browse_file.setEnabled(True)
-        self.entry_source.setPlaceholderText("C:\\dados\\colaboradores.xlsx")
 
     def _sync_title_mode(self, *, reset_title: bool = False) -> None:
         preset = get_carom_preset(self.current_preset_id)
@@ -437,39 +441,14 @@ class CaromScreen(QWidget):
         self._refresh_preset_schema_status()
         self._refresh_action_state()
 
-    def _on_source_changed(self, *_args: object) -> None:
-        self._set_invalid(self.entry_source, False)
-        self._schema_valid = False
-        self._schema_fields = {}
-        self._source_result = None
-        self._clear_loaded_data()
-        self._refresh_preset_option_states()
-        source = self.entry_source.text().strip()
-        if source:
-            self._set_schema_status("Validacao da planilha pendente.", "info")
-            self._set_status(
-                "Origem alterada. Valide a planilha para habilitar a busca.", "info"
-            )
-        else:
-            self._set_schema_status("Planilha nao validada.", "warning")
-            self._set_status(
-                "Carregue uma planilha valida para comecar a selecionar pessoas.",
-                "info",
-            )
-        self._refresh_action_state()
-
     def _validate_source(self) -> bool:
-        source = self.entry_source.text().strip()
-        self._set_invalid(self.entry_source, source == "")
+        source = self._base_source_path.strip()
         if source == "":
-            self._set_status("Informe a origem da planilha.", "warning")
-            self._set_schema_status("Planilha nao validada.", "warning")
+            self._set_status("Configure uma base padrao em Configuracoes.", "warning")
+            self._set_schema_status(self._build_base_status_message(), "warning")
             return False
 
-        if (
-            self.source_type.currentText() == "Arquivo local"
-            and not Path(source).is_file()
-        ):
+        if not Path(source).is_file():
             self._set_status("A planilha local nao foi encontrada.", "error")
             self._set_schema_status(
                 "Planilha invalida: arquivo local nao encontrado.", "error"
@@ -487,7 +466,7 @@ class CaromScreen(QWidget):
 
         self._worker = CaromLookupWorker(
             {
-                "spreadsheet_source": self.entry_source.text().strip(),
+                "spreadsheet_source": self._base_source_path.strip(),
                 "cache_enabled": self._config.get("cache_enabled", True),
                 "cache_ttl_hours": self._config.get("cache_ttl_hours", 24),
                 "force_refresh": False,
@@ -609,7 +588,7 @@ class CaromScreen(QWidget):
             else len(self._loaded_employees)
         )
         self._set_schema_status(
-            f"Planilha padronizada validada. {loaded} colaborador(es) carregado(s).",
+            self._build_base_status_message(employee_count=loaded, valid=True),
             "success",
         )
         self._set_status(
@@ -829,14 +808,14 @@ class CaromScreen(QWidget):
         self.slide_count_label.setText(
             str(compute_projected_slide_count(selected_count, capacity))
         )
-        self.current_slide_label.setText(
+        self.slide_status_label.setText(
             compute_current_slide_status(selected_count, capacity)
         )
-        self.current_slide_label.setProperty(
+        self.slide_status_label.setProperty(
             "state",
             "success" if selected_count and selected_count % capacity == 0 else "info",
         )
-        repolish(self.current_slide_label)
+        repolish(self.slide_status_label)
 
     def _refresh_action_state(self) -> None:
         worker_running = self._worker is not None and self._worker.isRunning()
@@ -856,9 +835,6 @@ class CaromScreen(QWidget):
         self.search_input.setEnabled(self._schema_valid and not worker_running)
         self.btn_search.setEnabled(self._schema_valid and not worker_running)
         self.model_selector.setEnabled(not worker_running)
-        self.source_type.setEnabled(not worker_running)
-        self.entry_source.setEnabled(not worker_running)
-        self.btn_browse_file.setEnabled(not worker_running)
         if preset.editable_title:
             self.title_field.setEnabled(not worker_running)
         self.btn_generate.setEnabled(ready_to_generate)

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -7,9 +8,7 @@ from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QComboBox,
-    QFileDialog,
     QFrame,
-    QGridLayout,
     QHBoxLayout,
     QHeaderView,
     QLabel,
@@ -29,6 +28,20 @@ from app.core.worker import FichaLookupWorker
 from app.ui.components import repolish
 
 
+def _format_base_sync_timestamp(value: str) -> str:
+    cleaned = value.strip()
+    if not cleaned:
+        return ""
+    try:
+        parsed = datetime.fromisoformat(cleaned)
+    except ValueError:
+        return ""
+    if parsed.tzinfo is None:
+        return parsed.strftime("%d/%m/%Y %H:%M")
+    brazil_tz = timezone(timedelta(hours=-3))
+    return parsed.astimezone(brazil_tz).strftime("%d/%m/%Y %H:%M")
+
+
 class FichaScreen(QWidget):
     generate_requested = Signal(dict)
 
@@ -46,6 +59,7 @@ class FichaScreen(QWidget):
         self._worker_mode: str | None = None
         self._schema_valid = False
         self._schema_fields: dict[str, str | None] = {}
+        self._base_source_path = ""
 
         layout = QVBoxLayout(self)
         self._root_layout = layout
@@ -58,60 +72,23 @@ class FichaScreen(QWidget):
         source_layout.setContentsMargins(18, 18, 18, 18)
         source_layout.setSpacing(14)
 
-        source_title = self._panel_title("Fonte de dados")
+        source_title = self._panel_title("Base de dados")
         source_title.setObjectName("panelTitleStrong")
         source_layout.addWidget(source_title)
-
-        source_body = QHBoxLayout()
-        source_body.setSpacing(14)
-
-        source_form = QGridLayout()
-        source_form.setHorizontalSpacing(12)
-        source_form.setVerticalSpacing(12)
-        source_form.setColumnStretch(1, 1)
-
-        self.source_type = QComboBox()
-        self.source_type.setObjectName("fichaSourceType")
-        self.source_type.addItems(["Arquivo local"])
-        self.source_type.currentTextChanged.connect(self._on_source_mode_changed)
-
-        self.entry_source = QLineEdit("")
-        self.entry_source.setMinimumWidth(320)
-        self.entry_source.textChanged.connect(self._on_source_text_changed)
-        self.entry_source.editingFinished.connect(self._start_schema_validation)
-
-        self.btn_browse_file = QPushButton("Procurar arquivo")
-        self.btn_browse_file.clicked.connect(self._choose_source_file)
-
-        source_input_row = QWidget()
-        source_input_row.setObjectName("fichaSourceInputRow")
-        source_input_layout = QHBoxLayout(source_input_row)
-        source_input_layout.setContentsMargins(0, 0, 0, 0)
-        source_input_layout.setSpacing(10)
-        source_input_layout.addWidget(self.entry_source, 1)
-        source_input_layout.addWidget(self.btn_browse_file)
-
-        source_form.addWidget(self._field_label("Fonte"), 0, 0)
-        source_form.addWidget(self.source_type, 0, 1)
-        source_form.addWidget(self._field_label("Planilha"), 1, 0)
-        source_form.addWidget(source_input_row, 1, 1)
-        source_body.addLayout(source_form, 7)
 
         schema_panel = QFrame()
         schema_panel.setObjectName("fichaSchemaPanel")
         schema_layout = QVBoxLayout(schema_panel)
         schema_layout.setContentsMargins(16, 16, 16, 16)
         schema_layout.setSpacing(10)
-        schema_title = self._panel_title("Status do schema")
+        schema_title = self._panel_title("Status da base")
         self.schema_status_label = QLabel("")
         self.schema_status_label.setObjectName("statusLabel")
         self.schema_status_label.setWordWrap(True)
         schema_layout.addWidget(schema_title)
         schema_layout.addWidget(self.schema_status_label)
         schema_layout.addStretch(1)
-        source_body.addWidget(schema_panel, 5)
-
-        source_layout.addLayout(source_body)
+        source_layout.addWidget(schema_panel)
         layout.addWidget(source_card)
 
         content_split = QHBoxLayout()
@@ -220,13 +197,11 @@ class FichaScreen(QWidget):
         layout.addWidget(action_bar)
 
         self._compact_labels: list[QLabel] = []
-        self._sync_source_mode()
         self._sync_lookup_mode()
         self._clear_schema_state()
         self._clear_lookup_state(clear_queries=True, reset_mode=True)
         self._set_status(
-            "Informe a fonte de dados. A validacao da base padronizada "
-            "sera executada automaticamente.",
+            "A base configurada em Configuracoes sera validada automaticamente.",
             "info",
         )
         self._refresh_action_state()
@@ -280,19 +255,45 @@ class FichaScreen(QWidget):
         self.lookup_name_container.setVisible(mode == "nome")
         self.lookup_matricula_container.setVisible(mode == "matricula")
 
+    def _build_base_status_message(
+        self,
+        *,
+        row_count: int | None = None,
+        include_validation_prefix: bool = False,
+    ) -> str:
+        lines: list[str] = []
+        effective_rows = (
+            int(row_count)
+            if row_count is not None
+            else int(self._config.get("default_base_row_count", 0) or 0)
+        )
+        if include_validation_prefix:
+            line = "Base validada."
+            if effective_rows > 0:
+                line += f" {effective_rows} colaborador(es) reconhecido(s)."
+            lines.append(line)
+        elif effective_rows > 0:
+            lines.append(f"{effective_rows} colaborador(es) reconhecido(s).")
+        elif self._base_source_path:
+            if effective_rows == 0:
+                lines.append("Base configurada. Validacao automatica pendente.")
+        else:
+            lines.append("Nenhuma base configurada.")
+
+        formatted_sync = _format_base_sync_timestamp(
+            str(self._config.get("last_cache_sync", ""))
+        )
+        if formatted_sync:
+            lines.append(f"Ultima atualizacao: {formatted_sync}.")
+        return "\n".join(lines)
+
     def load_config(self, config: dict[str, Any]) -> None:
         self._config = dict(config)
-        default_source = base_cache.get_effective_base_path(config)
-        if default_source:
-            self.source_type.setCurrentText("Arquivo local")
-            self.entry_source.setText(default_source)
-        else:
-            self.source_type.setCurrentText("Arquivo local")
-            self.entry_source.setText("")
+        self._base_source_path = base_cache.get_effective_base_path(config)
         self._clear_schema_state()
         self._clear_lookup_state(clear_queries=True, reset_mode=True)
         self._refresh_action_state()
-        if default_source and Path(default_source).is_file():
+        if self._base_source_path and Path(self._base_source_path).is_file():
             self._set_status(
                 "Base padrao configurada. Validando a planilha local.", "info"
             )
@@ -302,20 +303,16 @@ class FichaScreen(QWidget):
                 "Configure uma base padrao em Configuracoes para usar a ficha.",
                 "warning",
             )
-            self._set_schema_status("Nenhuma base configurada.", "warning")
+            self._set_schema_status(self._build_base_status_message(), "warning")
 
     def _validate_source(self) -> bool:
-        source = self.entry_source.text().strip()
-        self._set_invalid(self.entry_source, source == "")
+        source = self._base_source_path.strip()
         if source == "":
-            self._set_status("Informe a fonte de dados.", "warning")
-            self._set_schema_status("Base nao validada.", "warning")
+            self._set_status("Configure uma base padrao em Configuracoes.", "warning")
+            self._set_schema_status(self._build_base_status_message(), "warning")
             return False
 
-        if (
-            self.source_type.currentText() == "Arquivo local"
-            and not Path(source).is_file()
-        ):
+        if not Path(source).is_file():
             self._set_status("A planilha local nao foi encontrada.", "error")
             self._set_schema_status(
                 "Base invalida: arquivo local nao encontrado.", "error"
@@ -327,43 +324,6 @@ class FichaScreen(QWidget):
     def _set_invalid(self, widget: QWidget, is_invalid: bool) -> None:
         widget.setProperty("invalid", is_invalid)
         repolish(widget)
-
-    def _choose_source_file(self) -> None:
-        file_path, _filter = QFileDialog.getOpenFileName(
-            self, "Selecionar planilha", "", "Excel (*.xlsx)"
-        )
-        if file_path:
-            self.source_type.setCurrentText("Arquivo local")
-            self.entry_source.setText(file_path)
-            self._start_schema_validation()
-
-    def _sync_source_mode(self) -> None:
-        self.btn_browse_file.setEnabled(True)
-        self.entry_source.setPlaceholderText("C:\\dados\\colaboradores.xlsx")
-
-    def _on_source_mode_changed(self, *_args: object) -> None:
-        self._sync_source_mode()
-        self._on_source_text_changed()
-
-    def _on_source_text_changed(self, *_args: object) -> None:
-        self._set_invalid(self.entry_source, False)
-        self._clear_schema_state()
-        self._clear_lookup_state()
-        source = self.entry_source.text().strip()
-        if source:
-            self._set_schema_status("Validacao automatica pendente.", "info")
-            self._set_status(
-                "Fonte definida. Conclua a edicao do campo para validar a base padronizada.",
-                "info",
-            )
-        else:
-            self._set_schema_status("Base nao validada.", "warning")
-            self._set_status(
-                "Informe a fonte de dados. A validacao da base padronizada "
-                "sera executada automaticamente.",
-                "info",
-            )
-        self._refresh_action_state()
 
     def _on_lookup_mode_changed(self, *_args: object) -> None:
         self.entry_lookup_name.clear()
@@ -397,7 +357,7 @@ class FichaScreen(QWidget):
     def _clear_schema_state(self) -> None:
         self._schema_valid = False
         self._schema_fields = {}
-        self._set_schema_status("Base nao validada.", "warning")
+        self._set_schema_status(self._build_base_status_message(), "warning")
 
     def _clear_lookup_state(
         self,
@@ -473,7 +433,7 @@ class FichaScreen(QWidget):
     def _get_worker_payload(self, *, validate_only: bool) -> dict[str, Any]:
         mode = self._selected_lookup_mode()
         return {
-            "spreadsheet_source": self.entry_source.text().strip(),
+            "spreadsheet_source": self._base_source_path.strip(),
             "source_kind": "local",
             "lookup_name": (
                 self.entry_lookup_name.text().strip() if mode == "nome" else ""
@@ -499,8 +459,12 @@ class FichaScreen(QWidget):
             if schema_order_matches
             else " Layout diferente dos modelos de referencia, mas colunas reconhecidas."
         )
+        base_status = self._build_base_status_message(
+            row_count=row_count,
+            include_validation_prefix=True,
+        )
         self._set_schema_status(
-            f"Base padronizada validada. {row_count} linha(s) reconhecida(s).{order_note}",
+            f"{base_status}{order_note}",
             "success",
         )
 
@@ -625,7 +589,7 @@ class FichaScreen(QWidget):
 
     def _get_generation_payload(self) -> dict[str, Any]:
         return {
-            "spreadsheet_source": self.entry_source.text().strip(),
+            "spreadsheet_source": self._base_source_path.strip(),
             "source_kind": "local",
             "output_dir": str(get_default_output_dir()),
             "selected_employee": self._confirmed_employee,
