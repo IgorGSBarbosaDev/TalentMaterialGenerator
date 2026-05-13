@@ -314,7 +314,7 @@ def test_generation_worker_carom_uses_selected_employees_only(
                 "nome": "Nome",
                 "idade": "Idade",
                 "cargo": "Cargo",
-                "formacao": "Formacao",
+                "formacao_superior": "Formacao Superior",
                 "nota_2025": "Nota 2025",
                 "potencial_2025": "Potencial 2025",
                 "ceo3": "CEO3",

@@ -44,6 +44,12 @@ def test_detect_columns_maps_all_ceo_headers_from_new_spreadsheet() -> None:
     assert mapping["ceo4"] == "CEO4"
 
 
+def test_detect_columns_maps_formacao_superior_variants() -> None:
+    mapping = reader.detect_columns(["Formação Superior"])
+
+    assert mapping["formacao_superior"] == "Formação Superior"
+
+
 def test_resolve_ficha_schema_maps_new_evaluation_layout_without_ambiguity() -> None:
     schema = reader.resolve_ficha_schema(
         [
@@ -464,6 +470,7 @@ def test_load_standardized_carom_rows_uses_detected_headers() -> None:
             "Idade": "31",
             "Cargo": "Analista",
             "Area": "Operacao",
+            "Formacao Superior": "Engenharia",
             "CEO1": "CEO1 Ana",
             "CEO2": "CEO2 Ana",
             "CEO3": "CEO3 Ana",
@@ -477,6 +484,7 @@ def test_load_standardized_carom_rows_uses_detected_headers() -> None:
     assert result[0]["nome"] == "Ana"
     assert result[0]["area"] == "Operacao"
     assert result[0]["idade"] == "31"
+    assert result[0]["formacao"] == "Engenharia"
     assert result[0]["ceo1"] == "CEO1 Ana"
     assert result[0]["ceo2"] == "CEO2 Ana"
     assert result[0]["ceo3"] == "CEO3 Ana"
@@ -490,7 +498,7 @@ def test_resolve_carom_schema_includes_evaluation_and_ceo_fields() -> None:
             "Nome",
             "Idade",
             "Cargo",
-            "Formacao",
+            "Formacao Superior",
             "Avaliacao 2025",
             "Nota 2025",
             "Potencial 2025",
@@ -504,10 +512,34 @@ def test_resolve_carom_schema_includes_evaluation_and_ceo_fields() -> None:
     assert schema["avaliacao_2025"] == "Avaliacao 2025"
     assert schema["score_2025"] == "Nota 2025"
     assert schema["potencial_2025"] == "Potencial 2025"
+    assert schema["formacao_superior"] == "Formacao Superior"
     assert schema["ceo1"] == "CEO1"
     assert schema["ceo2"] == "CEO2"
     assert schema["ceo3"] == "CEO3"
     assert schema["ceo4"] == "CEO4"
+
+
+def test_load_standardized_carom_rows_uses_formacao_superior_instead_of_formacao() -> (
+    None
+):
+    rows = [
+        {
+            "Matricula": "123",
+            "Nome": "Ana",
+            "Idade": "31",
+            "Cargo": "Analista",
+            "Formacao": "Tecnico; MBA; Mestrado",
+            "Formacao Superior": "Engenharia",
+            "Nota 2025": "4",
+            "Potencial 2025": "AP",
+            "CEO3": "CEO3 Ana",
+            "CEO4": "CEO4 Ana",
+        }
+    ]
+
+    result = reader.load_standardized_carom_rows(rows)
+
+    assert result[0]["formacao"] == "Engenharia"
 
 
 def test_load_standardized_carom_rows_builds_display_score_from_score_and_potential() -> (
@@ -519,7 +551,7 @@ def test_load_standardized_carom_rows_builds_display_score_from_score_and_potent
             "Nome": "Ana",
             "Idade": "31",
             "Cargo": "Analista",
-            "Formacao": "Engenharia",
+            "Formacao Superior": "Engenharia",
             "Nota 2025": "4",
             "Potencial 2025": "AP",
             "CEO3": "CEO3 Ana",
@@ -572,7 +604,7 @@ def test_ceo_driven_carom_presets_fail_clearly_without_ceo_columns() -> None:
             "Nome",
             "Idade",
             "Cargo",
-            "Formacao",
+            "Formacao Superior",
             "Nota 2025",
             "Potencial 2025",
         ]
@@ -590,7 +622,7 @@ def test_ceo_driven_carom_presets_accept_complete_schema() -> None:
             "Nome",
             "Idade",
             "Cargo",
-            "Formacao",
+            "Formacao Superior",
             "Nota 2025",
             "Potencial 2025",
             "CEO3",
@@ -603,6 +635,22 @@ def test_ceo_driven_carom_presets_accept_complete_schema() -> None:
     assert reader.validate_carom_schema_for_preset(schema, "talent_review") == []
 
 
+def test_validate_carom_schema_for_big_requires_formacao_superior() -> None:
+    schema = reader.validate_standardized_carom_schema(
+        [
+            "Matricula",
+            "Nome",
+            "Idade",
+            "Cargo",
+            "Nota 2025",
+            "Potencial 2025",
+            "CEO3",
+        ]
+    )
+
+    assert "formacao_superior" in reader.validate_carom_schema_for_preset(schema, "big")
+
+
 def test_validate_carom_schema_for_big_requires_template_fields() -> None:
     missing = reader.validate_carom_schema_for_preset(
         {"matricula": "Matricula", "nome": "Nome", "cargo": "Cargo"},
@@ -611,7 +659,7 @@ def test_validate_carom_schema_for_big_requires_template_fields() -> None:
 
     assert missing == [
         "idade",
-        "formacao",
+        "formacao_superior",
         "ceo3",
         "nota_2025",
         "avaliacao_2025",
@@ -782,6 +830,22 @@ def test_remap_rows_uses_available_annual_notes_only() -> None:
     result = reader.remap_rows(rows, mapping)
 
     assert result[0]["performance"] == "2024 - 5/MN+"
+
+
+def test_load_standardized_ficha_rows_keeps_using_formacao_column() -> None:
+    rows = [
+        {
+            "Matricula": "123",
+            "Nome": "Ana",
+            "Cargo": "Analista",
+            "Formacao": "Tecnico; MBA; Mestrado",
+            "Formacao Superior": "Engenharia",
+        }
+    ]
+
+    result = reader.load_standardized_ficha_rows(rows)
+
+    assert result[0]["formacao"] == "Tecnico; MBA; Mestrado"
 
 
 def test_remap_rows_preserves_direct_performance_when_annual_notes_absent() -> None:

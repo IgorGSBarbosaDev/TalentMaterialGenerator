@@ -26,4 +26,3 @@ def test_resolve_existing_icon_path_uses_pyinstaller_runtime_root(
     path = resource_paths.resolve_existing_icon_path()
 
     assert path == bundled_icon
-

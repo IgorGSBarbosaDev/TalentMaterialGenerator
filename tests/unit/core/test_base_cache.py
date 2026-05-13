@@ -43,9 +43,7 @@ def test_update_default_base_caches_valid_file_and_stores_metadata(
     assert cached_path.read_bytes() == spreadsheet.read_bytes()
 
 
-def test_refresh_default_base_skips_unchanged_file(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_refresh_default_base_skips_unchanged_file(tmp_path: Path, monkeypatch) -> None:
     config_path = tmp_path / "config.json"
     cache_dir = tmp_path / "cache"
     spreadsheet = _build_valid_base(tmp_path / "base.xlsx")

@@ -58,7 +58,9 @@ def test_ficha_screen_validates_local_file_source(qtbot) -> None:
         file_path.unlink(missing_ok=True)
 
 
-def test_ficha_screen_uses_default_base_cache_when_configured(qtbot, monkeypatch) -> None:
+def test_ficha_screen_uses_default_base_cache_when_configured(
+    qtbot, monkeypatch
+) -> None:
     cache_path = _make_local_spreadsheet_stub()
     try:
         monkeypatch.setattr(FichaScreen, "_start_schema_validation", lambda self: None)

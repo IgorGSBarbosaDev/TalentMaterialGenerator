@@ -20,6 +20,7 @@ def _build_standardized_carom_spreadsheet(path: Path, total_rows: int) -> Path:
             "Idade",
             "Cargo",
             "Formacao",
+            "Formacao Superior",
             "Nota 2025",
             "Potencial 2025",
             "CEO3",
@@ -33,6 +34,7 @@ def _build_standardized_carom_spreadsheet(path: Path, total_rows: int) -> Path:
                 f"Colab {index}",
                 str(20 + index),
                 "Analista",
+                "Tecnico; MBA",
                 "Engenharia",
                 "4",
                 "AP",
@@ -55,6 +57,7 @@ def _build_talent_review_spreadsheet_without_ceos(path: Path, total_rows: int) -
             "Idade",
             "Cargo",
             "Formacao",
+            "Formacao Superior",
             "Nota 2025",
             "Potencial 2025",
         ]
@@ -66,6 +69,7 @@ def _build_talent_review_spreadsheet_without_ceos(path: Path, total_rows: int) -
                 f"Colab {index}",
                 str(20 + index),
                 "Analista",
+                "Tecnico; MBA",
                 "Engenharia",
                 "4",
                 "AP",
@@ -124,6 +128,25 @@ def test_full_big_carom_flow_generates_single_file(tmp_path: Path) -> None:
 
     assert len(generated_files) == 1
     assert Path(generated_files[0]).exists()
+
+
+def test_big_carom_flow_uses_formacao_superior_text(tmp_path: Path) -> None:
+    spreadsheet = _build_standardized_carom_spreadsheet(
+        tmp_path / "carom-formacao-superior.xlsx", 1
+    )
+    employees = load_standardized_carom_rows(read_spreadsheet(str(spreadsheet)))
+    config: CaromConfig = {
+        "preset_id": "big",
+        "titulo": "Carometro",
+        "file_basename": "Carometro",
+    }
+
+    generated_files = generate_carom_pptx(employees, str(tmp_path), config)
+    slide = Presentation(generated_files[0]).slides[0]
+    slot_text = slide.shapes[0].text.splitlines()
+
+    assert slot_text[1] == "Engenharia"
+    assert "Tecnico; MBA" not in slide.shapes[0].text
 
 
 def test_big_carom_flow_creates_expected_slide_count(tmp_path: Path) -> None:

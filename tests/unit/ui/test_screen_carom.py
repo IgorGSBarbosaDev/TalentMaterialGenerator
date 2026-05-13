@@ -70,7 +70,7 @@ def _load_employee_list(screen: CaromScreen, employees: list[dict[str, str]]) ->
                 "nome": "Nome",
                 "idade": "Idade",
                 "cargo": "Cargo",
-                "formacao": "Formacao",
+                "formacao_superior": "Formacao Superior",
                 "nota_2025": "Nota 2025",
                 "potencial_2025": "Potencial 2025",
                 "ceo3": "CEO3",
@@ -151,7 +151,9 @@ def test_carom_screen_get_generation_payload_uses_default_output_dir(qtbot) -> N
     assert received[0]["schema_fields"]["ceo3"] == "CEO3"
 
 
-def test_carom_screen_uses_default_base_cache_when_configured(qtbot, monkeypatch) -> None:
+def test_carom_screen_uses_default_base_cache_when_configured(
+    qtbot, monkeypatch
+) -> None:
     cache_path = _make_local_spreadsheet_stub()
     try:
         monkeypatch.setattr(CaromScreen, "_start_schema_validation", lambda self: None)

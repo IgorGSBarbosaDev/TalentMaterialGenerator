@@ -46,7 +46,9 @@ def test_settings_screen_has_no_onedrive_controls(qtbot) -> None:
     qtbot.addWidget(screen)
 
     label_texts = [label.text().lower() for label in screen.findChildren(QLabel)]
-    button_texts = [button.text().lower() for button in screen.findChildren(QPushButton)]
+    button_texts = [
+        button.text().lower() for button in screen.findChildren(QPushButton)
+    ]
     line_values = [line.text().lower() for line in screen.findChildren(QLineEdit)]
 
     assert all("onedrive" not in text for text in label_texts)
@@ -54,13 +56,19 @@ def test_settings_screen_has_no_onedrive_controls(qtbot) -> None:
     assert all("https://example.com/base.xlsx" not in text for text in line_values)
 
 
-def test_settings_screen_has_single_cache_refresh_button_and_browse_button(qtbot) -> None:
+def test_settings_screen_has_single_cache_refresh_button_and_browse_button(
+    qtbot,
+) -> None:
     screen = SettingsScreen({})
     qtbot.addWidget(screen)
 
     buttons = screen.findChildren(QPushButton)
-    refresh_buttons = [button for button in buttons if button.text() == "Atualizar base agora"]
-    browse_buttons = [button for button in buttons if button.text() == "Procurar arquivo"]
+    refresh_buttons = [
+        button for button in buttons if button.text() == "Atualizar base agora"
+    ]
+    browse_buttons = [
+        button for button in buttons if button.text() == "Procurar arquivo"
+    ]
 
     assert len(refresh_buttons) == 1
     assert len(browse_buttons) == 1
