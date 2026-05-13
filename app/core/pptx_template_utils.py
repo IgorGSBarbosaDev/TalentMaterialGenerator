@@ -9,7 +9,7 @@ from typing import Any
 from pptx.dml.color import RGBColor
 from pptx.oxml.ns import qn
 from pptx.slide import Slide
-from pptx.util import Emu
+from pptx.util import Length
 
 _REL_ATTRS = (qn("r:embed"), qn("r:link"), qn("r:id"))
 PLACEHOLDER_RGB = RGBColor(232, 236, 241)
@@ -141,13 +141,15 @@ def replace_picture(slide: Slide, picture_shape: Any, image_bytes: bytes) -> Any
 def add_circular_picture_placeholder(
     slide: Slide,
     *,
-    left: Emu,
-    top: Emu,
-    diameter: Emu,
+    left: Length,
+    top: Length,
+    diameter: Length,
     name: str | None = None,
 ) -> Any:
     image_stream = BytesIO(placeholder_picture_bytes())
-    picture_shape = slide.shapes.add_picture(image_stream, left, top, diameter, diameter)
+    picture_shape = slide.shapes.add_picture(
+        image_stream, left, top, diameter, diameter
+    )
     if name is not None:
         picture_shape.name = name
     return reset_picture_to_circular_placeholder(slide, picture_shape)

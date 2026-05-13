@@ -28,6 +28,12 @@ COLUMN_VARIATIONS: dict[str, tuple[str, ...]] = {
     "cargo": ("cargo", "funcao", "funcao_atual", "role", "posicao"),
     "antiguidade": ("antiguidade", "tempo_empresa", "anos_empresa", "admissao"),
     "formacao": ("formacao", "graduacao", "escolaridade", "education"),
+    "formacao_superior": (
+        "formacao_superior",
+        "formacao superior",
+        "formacao_superior_graduacao",
+        "graduacao_superior",
+    ),
     "resumo_perfil": (
         "resumo",
         "perfil",
@@ -260,6 +266,7 @@ def detect_columns(headers: list[str]) -> dict[str, str | None]:
         "cargo": None,
         "antiguidade": None,
         "formacao": None,
+        "formacao_superior": None,
         "resumo_perfil": None,
         "trajetoria": None,
         "nota_2025": None,
@@ -317,6 +324,7 @@ def resolve_carom_schema(headers: list[str]) -> dict[str, str | None]:
             "idade",
             "cargo",
             "formacao",
+            "formacao_superior",
             "resumo_perfil",
             "trajetoria",
             "foto",
@@ -509,6 +517,7 @@ def load_standardized_ficha_rows(rows: list[dict[str, str]]) -> list[FichaEmploy
 def remap_carom_row(
     row: dict[str, str], mapping: dict[str, str | None]
 ) -> CaromEmployee:
+    formacao_superior_source = mapping.get("formacao_superior")
     normalized: dict[str, str] = {
         field: row.get(source_field, "") if source_field else ""
         for field, source_field in mapping.items()
@@ -516,6 +525,9 @@ def remap_carom_row(
     }
     for field in CAROM_FIELDS:
         normalized.setdefault(field, "")
+    normalized["formacao"] = (
+        row.get(formacao_superior_source, "") if formacao_superior_source else ""
+    )
     normalized["avaliacao_2025"] = _normalize_evaluation_value(
         normalized.get("avaliacao_2025")
     )
@@ -574,7 +586,11 @@ def validate_carom_schema_for_preset(
     preset_id: str,
 ) -> list[str]:
     preset = get_carom_preset(preset_id)
-    missing = [field for field in preset.required_fields if not mapping.get(field)]
+    schema_required_fields = [
+        "formacao_superior" if field == "formacao" else field
+        for field in preset.required_fields
+    ]
+    missing = [field for field in schema_required_fields if not mapping.get(field)]
     if preset.requires_display_score and not carom_schema_has_display_score(mapping):
         missing.extend(("nota_2025", "avaliacao_2025", "score_2025", "potencial_2025"))
     return list(dict.fromkeys(missing))

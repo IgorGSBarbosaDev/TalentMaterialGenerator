@@ -133,7 +133,9 @@ class SettingsScreen(QWidget):
             )
             state = "error"
         elif status == "modified":
-            message = "Arquivo modificado. Atualize a base para usar os dados mais recentes."
+            message = (
+                "Arquivo modificado. Atualize a base para usar os dados mais recentes."
+            )
             state = "warning"
         elif status == "invalid":
             message = "Planilha invalida. O ultimo cache valido foi preservado."
