@@ -319,8 +319,41 @@ def test_carom_screen_compacts_selected_people_layout_without_breaking_remove(
     card = screen.selected_list.itemWidget(screen.selected_list.item(0))
 
     assert card is not None
+    assert card.layout().spacing() <= 4
+    assert card.layout().contentsMargins().left() <= 4
+    assert card.layout().contentsMargins().right() <= 4
+    assert card.findChild(QLabel, "statusBadge").width() <= 22
     assert card.remove_button.isEnabled() is True
     assert card.preview.title_label.text() == "Ana Martins"
+    assert "Analista" in card.preview.meta_label.text()
+
+
+def test_carom_screen_footer_keeps_only_slide_completion_status(qtbot) -> None:
+    screen = CaromScreen({})
+    qtbot.addWidget(screen)
+    _load_employees(screen)
+
+    assert not hasattr(screen, "footer_status_label")
+
+    screen._add_employee("matricula:101")
+    assert (
+        screen.slide_status_label.text()
+        == "Faltam 7 pessoas para completar o slide atual"
+    )
+
+    screen._remove_employee("matricula:101")
+    assert screen.slide_status_label.text() == "Faltam 8 pessoas para completar o slide atual"
+
+
+def test_carom_screen_reduces_top_spacing_in_expanded_mode(qtbot) -> None:
+    screen = CaromScreen({})
+    qtbot.addWidget(screen)
+
+    margins = screen._root_layout.contentsMargins()
+
+    assert margins.top() < 22
+    assert margins.left() < 22
+    assert screen._root_layout.spacing() < 14
 
 
 def test_carom_screen_prevents_duplicate_selection(qtbot) -> None:
@@ -540,6 +573,7 @@ def test_carom_screen_handles_sidebar_collapsed_state(qtbot) -> None:
 
     screen.set_sidebar_collapsed(True)
     assert screen.results_hint.isHidden() is True
+    assert screen._root_layout.spacing() < 10
 
     screen.set_sidebar_collapsed(False)
     assert screen.results_hint.isHidden() is False

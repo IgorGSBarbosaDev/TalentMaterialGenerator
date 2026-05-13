@@ -29,10 +29,8 @@ def test_stylesheet_uses_shared_input_surfaces_and_ficha_specific_display_rules(
 
     assert "QFrame#panel QLineEdit" not in stylesheet
     assert "QLineEdit:read-only" in stylesheet
-    assert "QFrame#fichaSourceCard" in stylesheet
     assert "QFrame#fichaActionBar" in stylesheet
-    assert "QFrame#fichaSourceCard QWidget#fichaSourceInputRow" in stylesheet
-    assert "QFrame#fichaSourceCard QComboBox#fichaSourceType" in stylesheet
+    assert "QLabel#fichaStatusSubtitle" in stylesheet
     assert "QLineEdit#fichaDisplayField" in stylesheet
     assert "QFrame#metricCard QLineEdit" in stylesheet
     assert "QFrame#logPanel QTextEdit#logBox" in stylesheet
