@@ -165,8 +165,7 @@ def test_carom_screen_uses_default_base_cache_when_configured(
         )
         qtbot.addWidget(screen)
 
-        assert screen.source_type.currentText() == "Arquivo local"
-        assert screen.entry_source.text() == str(cache_path)
+        assert screen._base_source_path == str(cache_path)
         assert "indisponivel" not in screen.status_label.text().lower()
     finally:
         cache_path.unlink(missing_ok=True)
@@ -186,8 +185,7 @@ def test_carom_screen_falls_back_to_source_file_when_cache_is_missing(
         )
         qtbot.addWidget(screen)
 
-        assert screen.source_type.currentText() == "Arquivo local"
-        assert screen.entry_source.text() == str(source_path)
+        assert screen._base_source_path == str(source_path)
         assert "indisponivel" not in screen.status_label.text().lower()
     finally:
         source_path.unlink(missing_ok=True)
@@ -205,12 +203,36 @@ def test_carom_screen_hides_output_path_controls(qtbot) -> None:
     screen = CaromScreen({})
     qtbot.addWidget(screen)
 
+    assert not hasattr(screen, "source_type")
+    assert not hasattr(screen, "entry_source")
+    assert not hasattr(screen, "btn_browse_file")
     assert not hasattr(screen, "entry_output")
     assert all(label.text().lower() != "saida" for label in screen.findChildren(QLabel))
     assert all(
         line_edit.text() != str(get_default_output_dir())
         for line_edit in screen.findChildren(QLineEdit)
     )
+
+
+def test_carom_screen_top_section_keeps_only_model_title_and_base_status(qtbot) -> None:
+    screen = CaromScreen(
+        {
+            "default_base_row_count": 198,
+            "last_cache_sync": "2026-05-13T20:40:00+00:00",
+        }
+    )
+    qtbot.addWidget(screen)
+
+    labels = [label.text() for label in screen.findChildren(QLabel)]
+
+    assert "Modelo" in labels
+    assert "Titulo" in labels
+    assert "Status da base" in labels
+    assert "Origem" not in labels
+    assert "Planilha" not in labels
+    assert "Status da planilha" not in labels
+    assert "198 colaborador(es) reconhecido(s)." in screen.schema_status_label.text()
+    assert "13/05/2026 17:40" in screen.schema_status_label.text()
 
 
 def test_carom_screen_allows_talent_review_without_ceo_fields(qtbot) -> None:
@@ -256,9 +278,49 @@ def test_carom_screen_updates_completion_indicator_for_big_capacity(qtbot) -> No
     screen._add_employee("matricula:101")
 
     assert (
-        screen.current_slide_label.text()
+        screen.slide_status_label.text()
         == "Faltam 7 pessoas para completar o slide atual"
     )
+
+
+def test_carom_screen_removes_slide_atual_field_from_selected_card(qtbot) -> None:
+    screen = CaromScreen({})
+    qtbot.addWidget(screen)
+
+    labels = [label.text() for label in screen.findChildren(QLabel)]
+
+    assert "Slide atual" not in labels
+
+
+def test_carom_screen_selected_list_keeps_selection_order_labels(qtbot) -> None:
+    screen = CaromScreen({})
+    qtbot.addWidget(screen)
+    _load_employees(screen)
+    screen._add_employee("matricula:101")
+    screen._add_employee("matricula:102")
+
+    first_card = screen.selected_list.itemWidget(screen.selected_list.item(0))
+    second_card = screen.selected_list.itemWidget(screen.selected_list.item(1))
+
+    assert first_card is not None
+    assert second_card is not None
+    assert first_card.findChild(QLabel, "statusBadge").text() == "1"
+    assert second_card.findChild(QLabel, "statusBadge").text() == "2"
+
+
+def test_carom_screen_compacts_selected_people_layout_without_breaking_remove(
+    qtbot,
+) -> None:
+    screen = CaromScreen({})
+    qtbot.addWidget(screen)
+    _load_employees(screen)
+    screen._add_employee("matricula:101")
+
+    card = screen.selected_list.itemWidget(screen.selected_list.item(0))
+
+    assert card is not None
+    assert card.remove_button.isEnabled() is True
+    assert card.preview.title_label.text() == "Ana Martins"
 
 
 def test_carom_screen_prevents_duplicate_selection(qtbot) -> None:

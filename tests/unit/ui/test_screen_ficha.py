@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from uuid import uuid4
 
-from PySide6.QtWidgets import QComboBox, QFrame, QLabel, QLineEdit, QWidget
+from PySide6.QtWidgets import QFrame, QLabel, QLineEdit
 
 from app.config.settings import get_default_output_dir
 from app.core.reader import FichaEmployee
@@ -45,19 +45,6 @@ def _employee(**overrides: str) -> FichaEmployee:
     return base
 
 
-def test_ficha_screen_validates_local_file_source(qtbot) -> None:
-    file_path = _make_local_spreadsheet_stub()
-    try:
-        screen = FichaScreen({})
-        qtbot.addWidget(screen)
-        screen.source_type.setCurrentText("Arquivo local")
-        screen.entry_source.setText(str(file_path))
-
-        assert screen._validate_source() is True
-    finally:
-        file_path.unlink(missing_ok=True)
-
-
 def test_ficha_screen_uses_default_base_cache_when_configured(
     qtbot, monkeypatch
 ) -> None:
@@ -72,8 +59,7 @@ def test_ficha_screen_uses_default_base_cache_when_configured(
         )
         qtbot.addWidget(screen)
 
-        assert screen.source_type.currentText() == "Arquivo local"
-        assert screen.entry_source.text() == str(cache_path)
+        assert screen._base_source_path == str(cache_path)
         assert "indisponivel" not in screen.status_label.text().lower()
     finally:
         cache_path.unlink(missing_ok=True)
@@ -93,8 +79,7 @@ def test_ficha_screen_falls_back_to_source_file_when_cache_is_missing(
         )
         qtbot.addWidget(screen)
 
-        assert screen.source_type.currentText() == "Arquivo local"
-        assert screen.entry_source.text() == str(source_path)
+        assert screen._base_source_path == str(source_path)
         assert "indisponivel" not in screen.status_label.text().lower()
     finally:
         source_path.unlink(missing_ok=True)
@@ -112,15 +97,32 @@ def test_ficha_screen_hides_output_path_controls(qtbot) -> None:
     screen = FichaScreen({})
     qtbot.addWidget(screen)
 
-    assert screen.entry_source.isReadOnly() is False
-    assert screen.entry_source.isEnabled() is True
-    assert screen.entry_source.styleSheet() == ""
+    assert not hasattr(screen, "source_type")
+    assert not hasattr(screen, "entry_source")
+    assert not hasattr(screen, "btn_browse_file")
     assert not hasattr(screen, "entry_output")
     assert all(label.text().lower() != "saida" for label in screen.findChildren(QLabel))
     assert all(
         line_edit.text() != str(get_default_output_dir())
         for line_edit in screen.findChildren(QLineEdit)
     )
+
+
+def test_ficha_screen_shows_compact_base_card_status(qtbot) -> None:
+    screen = FichaScreen(
+        {
+            "default_base_row_count": 198,
+            "last_cache_sync": "2026-05-13T20:40:00+00:00",
+        }
+    )
+    qtbot.addWidget(screen)
+
+    labels = [label.text() for label in screen.findChildren(QLabel)]
+
+    assert "Base de dados" in labels
+    assert "Fonte de dados" not in labels
+    assert "198 colaborador(es) reconhecido(s)." in screen.schema_status_label.text()
+    assert "13/05/2026 17:40" in screen.schema_status_label.text()
 
 
 def test_ficha_screen_starts_with_explicit_search_mode_required(qtbot) -> None:
@@ -149,7 +151,7 @@ def test_ficha_screen_search_mode_shows_only_active_field(qtbot) -> None:
 def test_ficha_screen_get_worker_payload_respects_selected_search_mode(qtbot) -> None:
     screen = FichaScreen({})
     qtbot.addWidget(screen)
-    screen.entry_source.setText("https://example.com/file.xlsx")
+    screen._base_source_path = "https://example.com/file.xlsx"
 
     screen.lookup_mode.setCurrentIndex(1)
     screen.entry_lookup_name.setText("Luiza")
@@ -167,7 +169,7 @@ def test_ficha_screen_get_worker_payload_respects_selected_search_mode(qtbot) ->
 def test_ficha_screen_generate_payload_uses_confirmed_employee(qtbot) -> None:
     screen = FichaScreen({})
     qtbot.addWidget(screen)
-    screen.entry_source.setText("https://example.com/file.xlsx")
+    screen._base_source_path = "https://example.com/file.xlsx"
     screen._confirmed_employee = _employee()
 
     payload = screen._get_generation_payload()
@@ -334,16 +336,16 @@ def test_ficha_screen_uses_two_card_workflow_surfaces(qtbot) -> None:
     assert screen.results_table.objectName() == "fichaResultsTable"
 
 
-def test_ficha_screen_source_widgets_have_scoped_object_names(qtbot) -> None:
+def test_ficha_screen_removes_source_widgets_and_labels(qtbot) -> None:
     screen = FichaScreen({})
     qtbot.addWidget(screen)
 
-    source_input_row = screen.findChild(QWidget, "fichaSourceInputRow")
-    source_type = screen.findChild(QComboBox, "fichaSourceType")
+    labels = [label.text() for label in screen.findChildren(QLabel)]
+    buttons = [button.text() for button in screen.findChildren(type(screen.btn_search))]
 
-    assert source_input_row is not None
-    assert source_type is not None
-    assert source_type is screen.source_type
+    assert "Fonte" not in labels
+    assert "Planilha" not in labels
+    assert "Procurar arquivo" not in buttons
 
 
 def test_ficha_screen_results_table_uses_expected_column_order(qtbot) -> None:
