@@ -8,6 +8,7 @@ from PySide6.QtWidgets import (
     QAbstractItemView,
     QComboBox,
     QFrame,
+    QGridLayout,
     QHBoxLayout,
     QHeaderView,
     QLabel,
@@ -51,10 +52,19 @@ class FichaScreen(QWidget):
         layout.setContentsMargins(24, 24, 24, 24)
         layout.setSpacing(14)
 
+        schema_status_row = QGridLayout()
+        schema_status_row.setContentsMargins(0, 0, 0, 0)
+        schema_status_row.setHorizontalSpacing(12)
+        schema_status_row.setVerticalSpacing(0)
+        schema_status_row.setColumnStretch(1, 1)
+
         self.schema_status_label = QLabel("")
-        self.schema_status_label.setObjectName("fichaStatusSubtitle")
+        self.schema_status_label.setObjectName("statusLabel")
         self.schema_status_label.setWordWrap(True)
-        layout.addWidget(self.schema_status_label)
+
+        schema_status_row.addWidget(self._field_label("Status da base"), 0, 0)
+        schema_status_row.addWidget(self.schema_status_label, 0, 1)
+        layout.addLayout(schema_status_row)
 
         content_split = QHBoxLayout()
         self._content_split = content_split
@@ -233,20 +243,14 @@ class FichaScreen(QWidget):
             else int(self._config.get("default_base_row_count", 0) or 0)
         )
         if invalid:
-            return "Status: Base invalida ou nao reconhecida."
+            return "Base invalida ou nao reconhecida."
         if valid:
-            return (
-                "Status: Base validada."
-                f" {effective_rows} colaborador(es) reconhecido(s)."
-            )
+            return f"Base validada. {effective_rows} colaborador(es) reconhecido(s)."
         if effective_rows > 0:
-            return (
-                "Status: Base validada."
-                f" {effective_rows} colaborador(es) reconhecido(s)."
-            )
+            return f"Base validada. {effective_rows} colaborador(es) reconhecido(s)."
         if self._base_source_path:
-            return "Status: Base invalida ou nao reconhecida."
-        return "Status: Nenhuma base configurada."
+            return "Base invalida ou nao reconhecida."
+        return "Nenhuma base configurada."
 
     def load_config(self, config: dict[str, Any]) -> None:
         self._config = dict(config)

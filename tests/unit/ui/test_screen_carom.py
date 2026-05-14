@@ -235,6 +235,19 @@ def test_carom_screen_top_section_keeps_only_model_title_and_base_status(qtbot) 
     assert "13/05/2026 17:40" in screen.schema_status_label.text()
 
 
+def test_carom_screen_does_not_show_redundant_loaded_message_after_validation(
+    qtbot,
+) -> None:
+    screen = CaromScreen({})
+    qtbot.addWidget(screen)
+
+    _load_employees(screen)
+
+    status_text = screen.status_label.text().lower()
+    assert "planilha carregada" not in status_text
+    assert "clique em pesquisar" not in status_text
+
+
 def test_carom_screen_allows_talent_review_without_ceo_fields(qtbot) -> None:
     screen = CaromScreen({})
     qtbot.addWidget(screen)

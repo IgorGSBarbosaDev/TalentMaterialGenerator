@@ -338,6 +338,7 @@ class CaromScreen(QWidget):
     def _set_status(self, message: str, state: str) -> None:
         self.status_label.setText(message)
         self.status_label.setProperty("state", state)
+        self.status_label.setVisible(bool(message.strip()))
         repolish(self.status_label)
 
     def _set_schema_status(self, message: str, state: str) -> None:
@@ -593,10 +594,7 @@ class CaromScreen(QWidget):
             self._build_base_status_message(employee_count=loaded, valid=True),
             "success",
         )
-        self._set_status(
-            "Planilha carregada. Digite um termo e clique em Pesquisar para filtrar.",
-            "success",
-        )
+        self._set_status("", "success")
 
     def _on_search_text_changed(self, *_args: object) -> None:
         if self._schema_valid:

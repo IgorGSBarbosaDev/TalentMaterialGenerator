@@ -109,31 +109,41 @@ def test_ficha_screen_hides_output_path_controls(qtbot) -> None:
 
 
 def test_ficha_screen_shows_compact_status_subtitle(qtbot) -> None:
-    screen = FichaScreen(
+    screen = FichaScreen({})
+    qtbot.addWidget(screen)
+
+    screen._worker_mode = "validate"
+    screen._handle_worker_success(
         {
-            "default_base_row_count": 198,
-            "last_cache_sync": "2026-05-13T20:40:00+00:00",
+            "schema": {"matricula": "Matricula", "nome": "Nome", "cargo": "Cargo"},
+            "row_count": 198,
+            "matches": [],
+            "source_result": None,
+            "schema_order_matches": True,
         }
     )
-    qtbot.addWidget(screen)
 
     labels = [label.text() for label in screen.findChildren(QLabel)]
 
     assert "Base de dados" not in labels
     assert "Fonte de dados" not in labels
     assert screen.findChild(QFrame, "fichaSourceCard") is None
-    assert screen.schema_status_label.text().startswith("Status:")
+    assert "Status da base" in labels
+    assert screen.findChild(QFrame, "fichaSchemaStatusCard") is None
     assert (
         screen.schema_status_label.text()
-        == "Status: Base validada. 198 colaborador(es) reconhecido(s)."
+        == "Base validada. 198 colaborador(es) reconhecido(s)."
     )
+    assert not screen.schema_status_label.text().startswith("Status:")
+    assert screen.schema_status_label.objectName() == "statusLabel"
+    assert screen.schema_status_label.property("state") == "success"
 
 
 def test_ficha_screen_shows_compact_status_when_no_base_is_configured(qtbot) -> None:
     screen = FichaScreen({})
     qtbot.addWidget(screen)
 
-    assert screen.schema_status_label.text() == "Status: Nenhuma base configurada."
+    assert screen.schema_status_label.text() == "Nenhuma base configurada."
 
 
 def test_ficha_screen_shows_compact_status_when_base_is_invalid(qtbot) -> None:
@@ -142,9 +152,7 @@ def test_ficha_screen_shows_compact_status_when_base_is_invalid(qtbot) -> None:
 
     screen._handle_worker_error("Schema padrao da ficha nao reconhecido.")
 
-    assert (
-        screen.schema_status_label.text() == "Status: Base invalida ou nao reconhecida."
-    )
+    assert screen.schema_status_label.text() == "Base invalida ou nao reconhecida."
 
 
 def test_ficha_screen_starts_with_explicit_search_mode_required(qtbot) -> None:
@@ -229,7 +237,7 @@ def test_ficha_screen_worker_success_marks_schema_valid(qtbot) -> None:
     assert screen._schema_valid is True
     assert (
         screen.schema_status_label.text()
-        == "Status: Base validada. 2 colaborador(es) reconhecido(s)."
+        == "Base validada. 2 colaborador(es) reconhecido(s)."
     )
 
 
